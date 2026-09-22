@@ -32,7 +32,17 @@ knows why that guard is there.
 Production also needs a one-time manual Garage cluster bootstrap after the first `./prod.sh` —
 see `docs/podman-garage-prod-setup.md`.
 
-**Note:** the app container itself still runs against SQLite today (`harwat_main/settings.py`'s
+**Note:** the app containers still run against SQLite today (`harwat_main/settings.py`'s
 `DATABASES` is unchanged by this sub-project) — the Postgres/PgBouncer/Valkey/Garage containers
 come up and are reachable, but Django isn't wired to use them yet. That wiring is a separate,
-future piece of work.
+future piece of work. In production this now means **three** `app1`/`app2`/`app3` replicas share
+one SQLite file over a single named volume — functional, but SQLite wasn't designed for 3-way
+concurrent writers, so heavy concurrent write load can surface `database is locked` errors. This
+is one more reason the eventual Postgres wiring matters, not a new bug this sub-project
+introduces.
+
+Production now runs behind nginx, load-balancing across three app replicas (`app1`/`app2`/`app3`)
+and serving `/static/*` directly from a shared volume instead of proxying it to Django. See
+`docs/superpowers/specs/2026-09-22-nginx-load-balancing-design.md` for the full design. nginx
+publishes the host port the single `app` container used to publish directly — nothing about how
+you reach the stack from outside changes.
