@@ -43,7 +43,7 @@
                     <td class="py-2 px-4">
                         <div class="flex items-center gap-3">
                             <a href="{% url 'fleet:vehicle_update' vehicle.pk %}" class="text-navy hover:text-gold">Edit</a>
-                            <form method="post" action="{% url 'fleet:vehicle_delete' vehicle.pk %}" onsubmit="return confirm('Hapus kendaraan {{ vehicle.nopol }}?');">
+                            <form method="post" action="{% url 'fleet:vehicle_delete' vehicle.pk %}" onsubmit="return confirm('Hapus kendaraan {{ vehicle.nopol|escapejs }}?');">
                                 {% csrf_token %}
                                 <button type="submit" class="text-red-600 hover:text-red-800">Hapus</button>
                             </form>

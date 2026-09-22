@@ -95,3 +95,11 @@ class DashboardViewTests(TestCase):
         self.assertEqual(response.context["fleet_summary"]["ready"], 1)
         self.assertEqual(response.context["fleet_summary"]["in_repair"], 1)
         self.assertEqual(response.context["fleet_summary"]["due_soon"], 0)
+
+    def test_dashboard_shows_zero_fleet_summary_when_no_vehicles(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:dashboard"))
+        self.assertEqual(response.context["fleet_summary"]["total"], 0)
+        self.assertEqual(response.context["fleet_summary"]["ready"], 0)
+        self.assertEqual(response.context["fleet_summary"]["in_repair"], 0)
+        self.assertEqual(response.context["fleet_summary"]["due_soon"], 0)

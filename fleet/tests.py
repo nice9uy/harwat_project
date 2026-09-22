@@ -115,6 +115,22 @@ class VehicleListViewTests(TestCase):
         response = self.client.get(reverse("fleet:vehicle_list"))
         self.assertContains(response, 'href="/armada/"')
 
+    def test_apostrophe_in_nopol_does_not_break_confirm_js(self):
+        Vehicle.objects.create(
+            nopol="B 1' OR '1'='1",
+            jenis=Vehicle.Jenis.MOBIL, merek="Test", tahun=2021,
+            status=Vehicle.Status.SIAP_PAKAI, odometer_km=0, penanggung_jawab="Test",
+        )
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("fleet:vehicle_list"))
+        content = response.content.decode()
+        # find the onsubmit attribute's JS string and confirm no raw ' survives inside it
+        import re
+        match = re.search(r"onsubmit=\"return confirm\('Hapus kendaraan ([^;]*?)\?'\);\"", content)
+        self.assertIsNotNone(match, "onsubmit confirm() attribute not found in rendered HTML")
+        js_string_content = match.group(1)
+        self.assertNotIn("'", js_string_content)
+
 
 class VehicleCreateViewTests(TestCase):
     def setUp(self):
@@ -153,6 +169,25 @@ class VehicleCreateViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Vehicle.objects.count(), 0)
         self.assertContains(response, "This field is required.")
+
+    def test_post_duplicate_nopol_reshows_form_with_error(self):
+        Vehicle.objects.create(
+            nopol="B 1234 AB", jenis=Vehicle.Jenis.MOBIL, merek="Toyota Avanza",
+            tahun=2021, status=Vehicle.Status.SIAP_PAKAI, odometer_km=1000,
+            penanggung_jawab="Siti Amalia",
+        )
+        response = self.client.post(reverse("fleet:vehicle_create"), {
+            "nopol": "B 1234 AB",
+            "jenis": Vehicle.Jenis.MOBIL,
+            "merek": "Toyota Avanza 2",
+            "tahun": 2022,
+            "status": Vehicle.Status.SIAP_PAKAI,
+            "odometer_km": 500,
+            "penanggung_jawab": "Budi Santoso",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Vehicle.objects.count(), 1)
+        self.assertContains(response, "already exists")
 
 
 class VehicleUpdateViewTests(TestCase):
