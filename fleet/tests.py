@@ -1,5 +1,6 @@
 from django.test import TestCase
 
+from .forms import VehicleForm
 from .models import Vehicle
 
 
@@ -44,3 +45,35 @@ class VehicleModelTests(TestCase):
         )
         nopols = list(Vehicle.objects.values_list("nopol", flat=True))
         self.assertEqual(nopols, ["B 1234 AB", "B 9021 XY"])
+
+
+class VehicleFormTests(TestCase):
+    def test_valid_data_is_valid(self):
+        form = VehicleForm(data={
+            "nopol": "B 9021 XY",
+            "jenis": Vehicle.Jenis.TRUK,
+            "merek": "Hino Dutro",
+            "tahun": 2019,
+            "status": Vehicle.Status.SIAP_PAKAI,
+            "odometer_km": 45000,
+            "penanggung_jawab": "Budi Santoso",
+        })
+        self.assertTrue(form.is_valid())
+
+    def test_missing_nopol_is_invalid(self):
+        form = VehicleForm(data={
+            "nopol": "",
+            "jenis": Vehicle.Jenis.TRUK,
+            "merek": "Hino Dutro",
+            "tahun": 2019,
+            "status": Vehicle.Status.SIAP_PAKAI,
+            "odometer_km": 45000,
+            "penanggung_jawab": "Budi Santoso",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("nopol", form.errors)
+
+    def test_widgets_have_tailwind_classes(self):
+        form = VehicleForm()
+        self.assertIn("rounded-md", form.fields["nopol"].widget.attrs["class"])
+        self.assertIn("rounded-md", form.fields["jenis"].widget.attrs["class"])
