@@ -14,3 +14,6 @@ db.sqlite3
 
 # Claude Code worktree state (never commit another session's checkout)
 .claude/worktrees/
+
+# Tailwind standalone CLI (platform-specific binary, not committed)
+bin/
