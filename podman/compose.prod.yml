@@ -1,25 +1,74 @@
 services:
-  app:
+  app1:
     build:
       context: ..
       dockerfile: Containerfile
       target: final
     env_file:
       - ../.env.prod
-    # Named volume backs the /app/data directory that Containerfile symlinks
-    # db.sqlite3 into (BASE_DIR / 'db.sqlite3' == /app/db.sqlite3) — podman
-    # can't mount a named volume directly onto a single file, so the volume
-    # targets the containing directory instead. Persists the SQLite DB across
-    # `up -d --build` rebuilds.
     volumes:
       - sqlite-data:/app/data
-    ports:
-      - "8000:8000"
     depends_on:
       - postgres
       - pgbouncer
       - valkey
       - garage
+    restart: unless-stopped
+
+  app2:
+    build:
+      context: ..
+      dockerfile: Containerfile
+      target: final
+    env_file:
+      - ../.env.prod
+    volumes:
+      - sqlite-data:/app/data
+    depends_on:
+      - postgres
+      - pgbouncer
+      - valkey
+      - garage
+    restart: unless-stopped
+
+  app3:
+    build:
+      context: ..
+      dockerfile: Containerfile
+      target: final
+    env_file:
+      - ../.env.prod
+    volumes:
+      - sqlite-data:/app/data
+    depends_on:
+      - postgres
+      - pgbouncer
+      - valkey
+      - garage
+    restart: unless-stopped
+
+  static-sync:
+    build:
+      context: ..
+      dockerfile: Containerfile
+      target: final
+    user: "0:0"
+    command: ["sh", "-c", "cp -r /app/staticfiles/. /shared/ && echo static files synced"]
+    volumes:
+      - static-data:/shared
+
+  nginx:
+    image: nginx:1.27-alpine
+    volumes:
+      - ../podman/nginx.conf:/etc/nginx/nginx.conf:ro
+      - static-data:/usr/share/nginx/static:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      - app1
+      - app2
+      - app3
+      - static-sync
     restart: unless-stopped
 
   garage:
@@ -29,3 +78,4 @@ services:
 
 volumes:
   sqlite-data:
+  static-data:
