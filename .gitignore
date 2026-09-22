@@ -14,3 +14,4 @@ db.sqlite3
 
 # Claude Code worktree state (never commit another session's checkout)
 .claude/worktrees/
+graphify-out/
