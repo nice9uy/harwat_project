@@ -1,0 +1,31 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Containerfile
+      target: final
+    env_file:
+      - ../.env.prod
+    # Named volume backs the /app/data directory that Containerfile symlinks
+    # db.sqlite3 into (BASE_DIR / 'db.sqlite3' == /app/db.sqlite3) — podman
+    # can't mount a named volume directly onto a single file, so the volume
+    # targets the containing directory instead. Persists the SQLite DB across
+    # `up -d --build` rebuilds.
+    volumes:
+      - sqlite-data:/app/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - pgbouncer
+      - valkey
+      - garage
+    restart: unless-stopped
+
+  garage:
+    volumes:
+      - ../podman/garage.prod.toml:/etc/garage.toml:ro
+    command: ["/garage", "server"]
+
+volumes:
+  sqlite-data:

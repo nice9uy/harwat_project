@@ -1,0 +1,35 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Containerfile
+      target: builder
+    command: ["python", "manage.py", "runbolt", "--dev", "--host", "0.0.0.0", "--port", "8000"]
+    volumes:
+      - ..:/app
+      - app-dev-venv:/app/.venv
+    environment:
+      DJANGO_DEBUG: "True"
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - pgbouncer
+      - valkey
+      - garage
+    working_dir: /app
+
+  garage:
+    environment:
+      GARAGE_DEFAULT_ACCESS_KEY: ${GARAGE_DEFAULT_ACCESS_KEY}
+      GARAGE_DEFAULT_SECRET_KEY: ${GARAGE_DEFAULT_SECRET_KEY}
+      GARAGE_DEFAULT_BUCKET: ${GARAGE_DEFAULT_BUCKET}
+    volumes:
+      - ../podman/garage.dev.toml:/etc/garage.toml:ro
+    command: ["/garage", "server", "--single-node", "--default-bucket"]
+
+volumes:
+  app-dev-venv:

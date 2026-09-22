@@ -12,6 +12,9 @@ wheels/
 # Local dev database
 db.sqlite3
 
+# Collected static files (collectstatic output)
+staticfiles/
+
 # Claude Code worktree state (never commit another session's checkout)
 .claude/worktrees/
 graphify-out/
@@ -20,3 +23,7 @@ graphify-out/
 bin/
 .kilo/
 
+# Podman infra secrets (generated/copied locally, never committed)
+.env.dev
+.env.prod
+podman/garage.prod.toml

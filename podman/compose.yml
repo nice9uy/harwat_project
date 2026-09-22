@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bmn_harwat}
+      POSTGRES_USER: ${POSTGRES_USER:-bmn_harwat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  pgbouncer:
+    image: edoburu/pgbouncer
+    environment:
+      DB_HOST: postgres
+      DB_USER: ${POSTGRES_USER:-bmn_harwat}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB:-bmn_harwat}
+      POOL_MODE: transaction
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    command: ["valkey-server", "--appendonly", "yes"]
+    volumes:
+      - valkey-data:/data
+    restart: unless-stopped
+
+  garage:
+    image: dxflrs/garage:v2.3.0
+    ports:
+      - "3900:3900"
+      - "3901:3901"
+      - "3902:3902"
+      - "3903:3903"
+    volumes:
+      - garage-data:/var/lib/garage/data
+      - garage-meta:/var/lib/garage/meta
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  valkey-data:
+  garage-data:
+  garage-meta:
