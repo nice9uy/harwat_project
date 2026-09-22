@@ -6,4 +6,5 @@ app_name = "fleet"
 
 urlpatterns = [
     path("", views.vehicle_list, name="vehicle_list"),
+    path("tambah/", views.vehicle_create, name="vehicle_create"),
 ]

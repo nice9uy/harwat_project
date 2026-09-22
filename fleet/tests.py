@@ -114,3 +114,42 @@ class VehicleListViewTests(TestCase):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("fleet:vehicle_list"))
         self.assertContains(response, 'href="/armada/"')
+
+
+class VehicleCreateViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.client.login(username="teknisi1", password="rahasia-123")
+
+    def test_get_renders_empty_form(self):
+        response = self.client.get(reverse("fleet:vehicle_create"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Tambah Kendaraan")
+
+    def test_post_valid_data_creates_vehicle_and_redirects(self):
+        response = self.client.post(reverse("fleet:vehicle_create"), {
+            "nopol": "B 1234 AB",
+            "jenis": Vehicle.Jenis.MOBIL,
+            "merek": "Toyota Avanza",
+            "tahun": 2021,
+            "status": Vehicle.Status.SIAP_PAKAI,
+            "odometer_km": 1000,
+            "penanggung_jawab": "Siti Amalia",
+        })
+        self.assertRedirects(response, reverse("fleet:vehicle_list"))
+        self.assertEqual(Vehicle.objects.count(), 1)
+        self.assertEqual(Vehicle.objects.first().nopol, "B 1234 AB")
+
+    def test_post_missing_required_field_reshows_form_with_error(self):
+        response = self.client.post(reverse("fleet:vehicle_create"), {
+            "nopol": "",
+            "jenis": Vehicle.Jenis.MOBIL,
+            "merek": "Toyota Avanza",
+            "tahun": 2021,
+            "status": Vehicle.Status.SIAP_PAKAI,
+            "odometer_km": 1000,
+            "penanggung_jawab": "Siti Amalia",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Vehicle.objects.count(), 0)
+        self.assertContains(response, "This field is required.")
