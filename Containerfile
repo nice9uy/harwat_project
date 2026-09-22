@@ -26,6 +26,15 @@ ENV PATH="/app/.venv/bin:${PATH}"
 
 RUN python manage.py collectstatic --noinput
 
+# db.sqlite3 (BASE_DIR / 'db.sqlite3', i.e. /app/db.sqlite3) needs to survive
+# rebuilds in prod. Podman can't mount a named volume directly onto a single
+# file path (it either creates an empty directory there if nothing pre-exists,
+# or hard-fails to mount if a file does) — so the volume backs the directory
+# /app/data instead, and db.sqlite3 is a symlink into it. Persistence is wired
+# up in podman/compose.prod.yml's `sqlite-data:/app/data` volume mount.
+RUN mkdir -p /app/data && chown app:app /app/data \
+    && ln -s data/db.sqlite3 db.sqlite3 && chown -h app:app db.sqlite3
+
 USER app
 
 EXPOSE 8000
