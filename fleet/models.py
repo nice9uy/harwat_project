@@ -1,0 +1,30 @@
+from django.db import models
+
+
+class Vehicle(models.Model):
+    class Jenis(models.TextChoices):
+        TRUK = "truk", "Truk"
+        JEEP = "jeep", "Jeep"
+        MOTOR = "motor", "Motor"
+        AMBULANS = "ambulans", "Ambulans"
+        MOBIL = "mobil", "Mobil"
+        LAINNYA = "lainnya", "Lainnya"
+
+    class Status(models.TextChoices):
+        SIAP_PAKAI = "siap_pakai", "Siap Pakai"
+        DALAM_PERBAIKAN = "dalam_perbaikan", "Dalam Perbaikan"
+        PERLU_SERVIS = "perlu_servis", "Perlu Servis"
+
+    nopol = models.CharField(max_length=20, unique=True, verbose_name="Nomor Polisi")
+    jenis = models.CharField(max_length=20, choices=Jenis.choices)
+    merek = models.CharField(max_length=100, verbose_name="Merek/Model")
+    tahun = models.PositiveSmallIntegerField(verbose_name="Tahun")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.SIAP_PAKAI)
+    odometer_km = models.PositiveIntegerField(default=0, verbose_name="Odometer (KM)")
+    penanggung_jawab = models.CharField(max_length=150, verbose_name="Penanggung Jawab")
+
+    class Meta:
+        ordering = ["nopol"]
+
+    def __str__(self):
+        return self.nopol
