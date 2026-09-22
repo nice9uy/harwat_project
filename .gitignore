@@ -18,3 +18,5 @@ graphify-out/
 
 # Tailwind standalone CLI (platform-specific binary, not committed)
 bin/
+.kilo/
+
