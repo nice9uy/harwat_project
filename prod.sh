@@ -11,6 +11,7 @@ if [ ! -f .env.prod ]; then
     {
         echo "DJANGO_DEBUG=False"
         echo "DJANGO_SECRET_KEY=$(openssl rand -hex 32)"
+        echo "DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1"
         echo "POSTGRES_DB=bmn_harwat"
         echo "POSTGRES_USER=bmn_harwat"
         echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
