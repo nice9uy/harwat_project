@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     "django_bolt",
-    "core",
+    "accounts",
 ]
 
 MIDDLEWARE = [
@@ -124,8 +124,8 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
-LOGIN_URL = 'core:login'
-LOGIN_REDIRECT_URL = 'core:dashboard'
+LOGIN_URL = 'accounts:login'
+LOGIN_REDIRECT_URL = 'accounts:dashboard'
 
 
 # Email

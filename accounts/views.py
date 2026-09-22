@@ -40,13 +40,13 @@ def login_view(request):
     else:
         form = LoginForm(request)
 
-    return render(request, "core/login.html", {"form": form})
+    return render(request, "accounts/login.html", {"form": form})
 
 
 @require_POST
 def logout_view(request):
     auth_logout(request)
-    return redirect("core:login")
+    return redirect("accounts:login")
 
 
 @login_required
@@ -73,8 +73,8 @@ def dashboard_view(request):
             {"actor": "Rudi Hartono", "action": "melaporkan kendaraan baru Ambulans B 1187 AD", "when": "1 hari lalu"},
         ],
     }
-    return render(request, "core/dashboard.html", context)
+    return render(request, "accounts/dashboard.html", context)
 
 
 def password_reset_placeholder(request):
-    return render(request, "core/password_reset_placeholder.html")
+    return render(request, "accounts/password_reset_placeholder.html")
