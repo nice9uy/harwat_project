@@ -153,3 +153,42 @@ class VehicleCreateViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Vehicle.objects.count(), 0)
         self.assertContains(response, "This field is required.")
+
+
+class VehicleUpdateViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.client.login(username="teknisi1", password="rahasia-123")
+        self.vehicle = Vehicle.objects.create(
+            nopol="B 9021 XY", jenis=Vehicle.Jenis.TRUK, merek="Hino Dutro",
+            tahun=2019, status=Vehicle.Status.SIAP_PAKAI, odometer_km=45000,
+            penanggung_jawab="Budi Santoso",
+        )
+
+    def test_get_renders_prefilled_form(self):
+        response = self.client.get(reverse("fleet:vehicle_update", args=[self.vehicle.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Edit Kendaraan")
+        self.assertContains(response, 'value="B 9021 XY"')
+
+    def test_post_updates_vehicle_and_redirects(self):
+        response = self.client.post(
+            reverse("fleet:vehicle_update", args=[self.vehicle.pk]),
+            {
+                "nopol": "B 9021 XY",
+                "jenis": Vehicle.Jenis.TRUK,
+                "merek": "Hino Dutro",
+                "tahun": 2019,
+                "status": Vehicle.Status.DALAM_PERBAIKAN,
+                "odometer_km": 46000,
+                "penanggung_jawab": "Budi Santoso",
+            },
+        )
+        self.assertRedirects(response, reverse("fleet:vehicle_list"))
+        self.vehicle.refresh_from_db()
+        self.assertEqual(self.vehicle.status, Vehicle.Status.DALAM_PERBAIKAN)
+        self.assertEqual(self.vehicle.odometer_km, 46000)
+
+    def test_get_nonexistent_vehicle_returns_404(self):
+        response = self.client.get(reverse("fleet:vehicle_update", args=[9999]))
+        self.assertEqual(response.status_code, 404)

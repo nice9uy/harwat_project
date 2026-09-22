@@ -19,6 +19,7 @@
                     <th class="py-2 px-4 font-medium">Status</th>
                     <th class="py-2 px-4 font-medium">Odometer</th>
                     <th class="py-2 px-4 font-medium">Penanggung Jawab</th>
+                    <th class="py-2 px-4 font-medium">Aksi</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -39,10 +40,13 @@
                     </td>
                     <td class="py-2 px-4">{{ vehicle.odometer_km }} km</td>
                     <td class="py-2 px-4">{{ vehicle.penanggung_jawab }}</td>
+                    <td class="py-2 px-4">
+                        <a href="{% url 'fleet:vehicle_update' vehicle.pk %}" class="text-navy hover:text-gold">Edit</a>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="py-6 px-4 text-center text-slate-400">Belum ada data kendaraan.</td>
+                    <td colspan="8" class="py-6 px-4 text-center text-slate-400">Belum ada data kendaraan.</td>
                 </tr>
                 {% endfor %}
             </tbody>
