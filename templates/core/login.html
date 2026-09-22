@@ -39,7 +39,7 @@
                         {{ form.remember_me }}
                         <span>Ingat saya</span>
                     </label>
-                    <a href="#" class="text-navy hover:text-gold">Lupa password?</a>
+                    <a href="{% url 'core:password_reset_placeholder' %}" class="text-navy hover:text-gold">Lupa password?</a>
                 </div>
                 <button type="submit" class="w-full rounded-md bg-navy px-3 py-2 text-sm font-medium text-white hover:bg-navy-light focus:outline-none focus:ring-2 focus:ring-gold/50">
                     Masuk

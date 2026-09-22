@@ -40,3 +40,10 @@ class LoginViewTests(TestCase):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("core:login"))
         self.assertRedirects(response, reverse("core:dashboard"))
+
+
+class PasswordResetPlaceholderTests(TestCase):
+    def test_placeholder_page_renders(self):
+        response = self.client.get(reverse("core:password_reset_placeholder"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "belum tersedia")

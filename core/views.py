@@ -38,3 +38,7 @@ def logout_view(request):
 @login_required
 def dashboard_view(request):
     return render(request, "core/login.html", {"form": LoginForm(request)})
+
+
+def password_reset_placeholder(request):
+    return render(request, "core/password_reset_placeholder.html")
