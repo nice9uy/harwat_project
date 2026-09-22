@@ -18,3 +18,8 @@ graphify-out/
 
 # Tailwind standalone CLI (platform-specific binary, not committed)
 bin/
+
+# Podman infra secrets (generated/copied locally, never committed)
+.env.dev
+.env.prod
+podman/garage.prod.toml
