@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Armada — BMN Harwat{% endblock %}
+{% block page_title %}Armada{% endblock %}
+{% block content %}
+<div class="space-y-4">
+    <div class="flex items-center justify-between">
+        <p class="text-sm text-slate-500">Daftar kendaraan dalam armada.</p>
+    </div>
+
+    <div class="bg-white rounded-lg border border-slate-200 overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead class="text-slate-500 border-b border-slate-200">
+                <tr>
+                    <th class="py-2 px-4 font-medium">Nopol</th>
+                    <th class="py-2 px-4 font-medium">Jenis</th>
+                    <th class="py-2 px-4 font-medium">Merek</th>
+                    <th class="py-2 px-4 font-medium">Tahun</th>
+                    <th class="py-2 px-4 font-medium">Status</th>
+                    <th class="py-2 px-4 font-medium">Odometer</th>
+                    <th class="py-2 px-4 font-medium">Penanggung Jawab</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for vehicle in vehicles %}
+                <tr>
+                    <td class="py-2 px-4 font-medium text-navy">{{ vehicle.nopol }}</td>
+                    <td class="py-2 px-4">{{ vehicle.get_jenis_display }}</td>
+                    <td class="py-2 px-4">{{ vehicle.merek }}</td>
+                    <td class="py-2 px-4">{{ vehicle.tahun }}</td>
+                    <td class="py-2 px-4">
+                        {% if vehicle.status == "siap_pakai" %}
+                        <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">{{ vehicle.get_status_display }}</span>
+                        {% elif vehicle.status == "dalam_perbaikan" %}
+                        <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">{{ vehicle.get_status_display }}</span>
+                        {% else %}
+                        <span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">{{ vehicle.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-4">{{ vehicle.odometer_km }} km</td>
+                    <td class="py-2 px-4">{{ vehicle.penanggung_jawab }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="py-6 px-4 text-center text-slate-400">Belum ada data kendaraan.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,4 +1,6 @@
+from django.contrib.auth.models import User
 from django.test import TestCase
+from django.urls import reverse
 
 from .forms import VehicleForm
 from .models import Vehicle
@@ -77,3 +79,38 @@ class VehicleFormTests(TestCase):
         form = VehicleForm()
         self.assertIn("rounded-md", form.fields["nopol"].widget.attrs["class"])
         self.assertIn("rounded-md", form.fields["jenis"].widget.attrs["class"])
+
+
+class VehicleListViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
+
+    def test_redirects_when_not_authenticated(self):
+        response = self.client.get(reverse("fleet:vehicle_list"))
+        self.assertRedirects(
+            response,
+            f"{reverse('accounts:login')}?next={reverse('fleet:vehicle_list')}",
+        )
+
+    def test_lists_vehicles(self):
+        Vehicle.objects.create(
+            nopol="B 9021 XY", jenis=Vehicle.Jenis.TRUK, merek="Hino Dutro",
+            tahun=2019, status=Vehicle.Status.SIAP_PAKAI, odometer_km=45000,
+            penanggung_jawab="Budi Santoso",
+        )
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("fleet:vehicle_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "B 9021 XY")
+        self.assertContains(response, "Budi Santoso")
+        self.assertContains(response, "Siap Pakai")
+
+    def test_empty_state(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("fleet:vehicle_list"))
+        self.assertContains(response, "Belum ada data kendaraan.")
+
+    def test_sidebar_armada_link_points_to_list(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("fleet:vehicle_list"))
+        self.assertContains(response, 'href="/armada/"')
