@@ -64,4 +64,4 @@ podman-compose --env-file "$(pwd)/.env.prod" -f podman/compose.yml -f podman/com
 # Idempotent — safe to run on every invocation, not just first-run. Nothing
 # else in this stack ever runs migrations, and db.sqlite3 is schemaless on a
 # fresh volume, so skipping this would leave every table missing.
-podman-compose --env-file "$(pwd)/.env.prod" -f podman/compose.yml -f podman/compose.prod.yml exec -T app python manage.py migrate --noinput
+podman-compose --env-file "$(pwd)/.env.prod" -f podman/compose.yml -f podman/compose.prod.yml exec -T app1 python manage.py migrate --noinput
