@@ -1,12 +1,12 @@
 services:
   app:
     build:
-      context: .
+      context: ..
       dockerfile: Containerfile
       target: builder
     command: ["python", "manage.py", "runbolt", "--dev", "--host", "0.0.0.0", "--port", "8000"]
     volumes:
-      - .:/app
+      - ..:/app
       - app-dev-venv:/app/.venv
     environment:
       DJANGO_DEBUG: "True"
@@ -28,7 +28,7 @@ services:
       GARAGE_DEFAULT_SECRET_KEY: ${GARAGE_DEFAULT_SECRET_KEY}
       GARAGE_DEFAULT_BUCKET: ${GARAGE_DEFAULT_BUCKET}
     volumes:
-      - ./podman/garage.dev.toml:/etc/garage.toml:ro
+      - ../podman/garage.dev.toml:/etc/garage.toml:ro
     command: ["/garage", "server", "--single-node", "--default-bucket"]
 
 volumes:
