@@ -1,0 +1,21 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Containerfile
+      target: final
+    env_file:
+      - ../.env.prod
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - pgbouncer
+      - valkey
+      - garage
+    restart: unless-stopped
+
+  garage:
+    volumes:
+      - ../podman/garage.prod.toml:/etc/garage.toml:ro
+    command: ["/garage", "server"]
