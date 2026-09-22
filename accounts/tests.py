@@ -2,6 +2,8 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
+from fleet.models import Vehicle
+
 
 class LoginViewTests(TestCase):
     def setUp(self):
@@ -75,3 +77,21 @@ class DashboardViewTests(TestCase):
         self.assertContains(response, "Truk Angkut B 9021 XY")
         self.assertContains(response, "Servis berkala lewat 12 hari")
         self.assertContains(response, "Budi Santoso")
+
+    def test_dashboard_shows_real_fleet_summary_counts(self):
+        Vehicle.objects.create(
+            nopol="B 9021 XY", jenis=Vehicle.Jenis.TRUK, merek="Hino Dutro",
+            tahun=2019, status=Vehicle.Status.SIAP_PAKAI, odometer_km=45000,
+            penanggung_jawab="Budi Santoso",
+        )
+        Vehicle.objects.create(
+            nopol="B 4412 KM", jenis=Vehicle.Jenis.JEEP, merek="Jeep Wrangler",
+            tahun=2020, status=Vehicle.Status.DALAM_PERBAIKAN, odometer_km=30000,
+            penanggung_jawab="Siti Amalia",
+        )
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:dashboard"))
+        self.assertEqual(response.context["fleet_summary"]["total"], 2)
+        self.assertEqual(response.context["fleet_summary"]["ready"], 1)
+        self.assertEqual(response.context["fleet_summary"]["in_repair"], 1)
+        self.assertEqual(response.context["fleet_summary"]["due_soon"], 0)
