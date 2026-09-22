@@ -1,0 +1,204 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Grep",
+        "hooks": [
+          {
+            "type": "agent",
+            "model": "haiku",
+            "prompt": "You are handling a Grep tool call on behalf of the main session so search work runs on the cheap model instead of the primary one. The original call's JSON (tool_input has pattern/path/glob/flags) is below. Perform the equivalent search yourself using your own Grep/Bash/Read tools, with the same pattern and scope. Then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put your full findings (file:line matches, concise) in hookSpecificOutput.additionalContext so the caller can use them directly instead of re-running the search.\n\n$ARGUMENTS",
+            "timeout": 90
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(grep *)",
+            "prompt": "You are handling a shell grep command on behalf of the main session so search work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the grep invocation) is below. Perform the equivalent search yourself using your own Bash/Grep/Read tools. Then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put your full findings (concise) in hookSpecificOutput.additionalContext so the caller can use them directly instead of re-running the search.\n\n$ARGUMENTS",
+            "timeout": 90
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(ls *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(pwd *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(cat *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(head *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(tail *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(wc *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(find *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(which *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(whoami *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(date *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(echo *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(env *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(printenv *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(df *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(du *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(ps *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(file *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(stat *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(tree *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(git status *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(git log *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(git diff *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(git branch *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(git show *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          },
+          {
+            "type": "agent",
+            "model": "haiku",
+            "if": "Bash(git remote *)",
+            "prompt": "You are handling a simple, read-only shell command on behalf of the main session so lightweight work runs on the cheap model instead of the primary one. The original call's JSON (tool_input.command has the exact command) is below. Run it yourself using your own Bash tool, then return a PreToolUse decision: deny the original call (hookSpecificOutput.permissionDecision = \"deny\", permissionDecisionReason = \"handled by haiku delegate\"), and put the command's output (concise, truncate if long) in hookSpecificOutput.additionalContext so the caller gets the result directly instead of re-running it.\n\n$ARGUMENTS",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}
