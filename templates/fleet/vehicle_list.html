@@ -41,7 +41,13 @@
                     <td class="py-2 px-4">{{ vehicle.odometer_km }} km</td>
                     <td class="py-2 px-4">{{ vehicle.penanggung_jawab }}</td>
                     <td class="py-2 px-4">
-                        <a href="{% url 'fleet:vehicle_update' vehicle.pk %}" class="text-navy hover:text-gold">Edit</a>
+                        <div class="flex items-center gap-3">
+                            <a href="{% url 'fleet:vehicle_update' vehicle.pk %}" class="text-navy hover:text-gold">Edit</a>
+                            <form method="post" action="{% url 'fleet:vehicle_delete' vehicle.pk %}" onsubmit="return confirm('Hapus kendaraan {{ vehicle.nopol }}?');">
+                                {% csrf_token %}
+                                <button type="submit" class="text-red-600 hover:text-red-800">Hapus</button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 {% empty %}

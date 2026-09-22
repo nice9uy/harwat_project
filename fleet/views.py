@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from .forms import VehicleForm
 from .models import Vehicle
@@ -34,3 +35,11 @@ def vehicle_update(request, pk):
     else:
         form = VehicleForm(instance=vehicle)
     return render(request, "fleet/vehicle_form.html", {"form": form, "is_edit": True, "vehicle": vehicle})
+
+
+@login_required
+@require_POST
+def vehicle_delete(request, pk):
+    vehicle = get_object_or_404(Vehicle, pk=pk)
+    vehicle.delete()
+    return redirect("fleet:vehicle_list")
