@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — BMN Harwat{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <section>
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Ringkasan Armada</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white rounded-lg border border-slate-200 p-4">
+                <p class="text-sm text-slate-500">Total Kendaraan</p>
+                <p class="text-2xl font-semibold text-navy mt-1">{{ fleet_summary.total }}</p>
+            </div>
+            <div class="bg-white rounded-lg border border-slate-200 p-4">
+                <p class="text-sm text-slate-500">Siap Pakai</p>
+                <p class="text-2xl font-semibold text-green-700 mt-1">{{ fleet_summary.ready }}</p>
+            </div>
+            <div class="bg-white rounded-lg border border-slate-200 p-4">
+                <p class="text-sm text-slate-500">Dalam Perbaikan</p>
+                <p class="text-2xl font-semibold text-amber-600 mt-1">{{ fleet_summary.in_repair }}</p>
+            </div>
+            <div class="bg-white rounded-lg border border-slate-200 p-4">
+                <p class="text-sm text-slate-500">Butuh Servis Segera</p>
+                <p class="text-2xl font-semibold text-red-600 mt-1">{{ fleet_summary.due_soon }}</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="bg-white rounded-lg border border-slate-200 p-4">
+        <h2 class="text-sm font-semibold text-slate-700 mb-3">Jadwal Perawatan Mendatang</h2>
+        <table class="w-full text-sm text-left">
+            <thead class="text-slate-500 border-b border-slate-200">
+                <tr>
+                    <th class="py-2 pr-4 font-medium">Kendaraan</th>
+                    <th class="py-2 pr-4 font-medium">Jenis Servis</th>
+                    <th class="py-2 pr-4 font-medium">Tanggal</th>
+                    <th class="py-2 font-medium">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for item in upcoming_maintenance %}
+                <tr>
+                    <td class="py-2 pr-4">{{ item.vehicle }}</td>
+                    <td class="py-2 pr-4">{{ item.service_type }}</td>
+                    <td class="py-2 pr-4">{{ item.date }}</td>
+                    <td class="py-2">
+                        <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{{ item.status }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-lg border border-red-200 p-4">
+            <h2 class="text-sm font-semibold text-red-700 mb-3">Alert Overdue</h2>
+            <ul class="space-y-2 text-sm">
+                {% for alert in overdue_alerts %}
+                <li class="flex items-start justify-between gap-3 rounded-md bg-red-50 px-3 py-2">
+                    <div>
+                        <p class="font-medium text-slate-800">{{ alert.vehicle }}</p>
+                        <p class="text-slate-500">{{ alert.issue }}</p>
+                    </div>
+                    <span class="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">{{ alert.severity }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+            <h2 class="text-sm font-semibold text-slate-700 mb-3">Aktivitas Terbaru</h2>
+            <ul class="space-y-3 text-sm">
+                {% for activity in recent_activity %}
+                <li>
+                    <p class="text-slate-800"><span class="font-medium">{{ activity.actor }}</span> {{ activity.action }}</p>
+                    <p class="text-xs text-slate-400">{{ activity.when }}</p>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </section>
+</div>
+{% endblock %}

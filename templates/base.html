@@ -1,0 +1,43 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}BMN Harwat{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'dist/output.css' %}">
+    <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+    <script src="{% static 'vendor/alpinejs.min.js' %}" defer></script>
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <div class="flex min-h-screen">
+        <aside class="w-64 shrink-0 bg-navy text-slate-100 flex flex-col">
+            <div class="px-6 py-5 text-lg font-semibold tracking-wide border-b border-white/10">
+                BMN Harwat
+            </div>
+            <nav class="flex-1 px-3 py-4 space-y-1 text-sm">
+                <a href="{% url 'core:dashboard' %}" class="flex items-center gap-2 rounded-md px-3 py-2 bg-white/10 text-gold font-medium">Dashboard</a>
+                <a href="#" class="flex items-center gap-2 rounded-md px-3 py-2 text-slate-200 hover:bg-white/5">Armada</a>
+                <a href="#" class="flex items-center gap-2 rounded-md px-3 py-2 text-slate-200 hover:bg-white/5">Jadwal</a>
+                <a href="#" class="flex items-center gap-2 rounded-md px-3 py-2 text-slate-200 hover:bg-white/5">Servis</a>
+                <a href="#" class="flex items-center gap-2 rounded-md px-3 py-2 text-slate-200 hover:bg-white/5">Laporan</a>
+            </nav>
+        </aside>
+        <div class="flex-1 flex flex-col min-w-0">
+            <header class="h-16 flex items-center justify-between px-6 border-b border-slate-200 bg-white">
+                <h1 class="text-base font-semibold">{% block page_title %}{% endblock %}</h1>
+                <div class="flex items-center gap-3 text-sm">
+                    <span>{{ request.user.get_username }}</span>
+                    <form method="post" action="{% url 'core:logout' %}" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" class="text-slate-500 hover:text-navy">Keluar</button>
+                    </form>
+                </div>
+            </header>
+            <main class="flex-1 p-6">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+</body>
+</html>
