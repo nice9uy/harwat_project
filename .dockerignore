@@ -1,8 +1,14 @@
 .venv/
 .git/
-__pycache__/
-*.pyc
+**/__pycache__/
+**/*.pyc
 db.sqlite3
 .claude/
 .superpowers/
 docs/
+bin/
+
+# Never bake env files (secrets) into the image — prod env reaches the
+# container via compose's `env_file:`, not the image filesystem.
+.env
+.env.*
