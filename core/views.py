@@ -1,14 +1,28 @@
-from django.contrib.auth import login as auth_login
+from django.conf import settings
+from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect, render, resolve_url
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_POST
 
 from .forms import LoginForm
 
 
+def _get_success_url(request):
+    next_url = request.POST.get("next") or request.GET.get("next", "")
+    if next_url and url_has_allowed_host_and_scheme(
+        url=next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return next_url
+    return resolve_url(settings.LOGIN_REDIRECT_URL)
+
+
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect("core:dashboard")
+        return redirect(_get_success_url(request))
 
     if request.method == "POST":
         form = LoginForm(request, data=request.POST)
@@ -17,20 +31,20 @@ def login_view(request):
             auth_login(request, user)
             request.session.set_expiry(1209600 if form.cleaned_data.get("remember_me") else 0)
 
+            success_url = _get_success_url(request)
             if request.headers.get("HX-Request") == "true":
                 response = HttpResponse(status=204)
-                response["HX-Redirect"] = "/dashboard/"
+                response["HX-Redirect"] = success_url
                 return response
-            return redirect("core:dashboard")
+            return redirect(success_url)
     else:
         form = LoginForm(request)
 
     return render(request, "core/login.html", {"form": form})
 
 
+@require_POST
 def logout_view(request):
-    from django.contrib.auth import logout as auth_logout
-
     auth_logout(request)
     return redirect("core:login")
 
