@@ -12,3 +12,7 @@ bin/
 # container via compose's `env_file:`, not the image filesystem.
 .env
 .env.*
+
+# Same reason: garage.prod.toml is generated at prod.sh runtime and holds the
+# real GARAGE_RPC_SECRET — it must never enter the build context either.
+podman/*.prod.toml
