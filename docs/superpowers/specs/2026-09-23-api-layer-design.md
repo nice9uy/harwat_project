@@ -46,7 +46,27 @@ Out of scope (explicit):
 
 ## Components
 
-### 1. JWT auth routes — `harwat_main/api.py`
+### 0. One `api.py` per app, not one shared file
+
+`django-bolt`'s `runbolt` autodiscovers a **separate `BoltAPI()` instance per Django app**: it
+scans every entry in `INSTALLED_APPS` for a top-level `<app>/api.py` (or `bolt_api.py`) with a
+module-level `BoltAPI()` assignment, and merges whatever it finds — this is documented in the
+installed package's own `runbolt.py` (`autodiscover_apis()`), the exact same mechanism that
+already picks up `harwat_main/api.py` today. It's optional per app, same as `admin.py` — `fleet`
+doesn't have one yet either, `accounts` never got one built. This spec gives each app that needs
+API routes its own file, matching the existing `views.py`/`urls.py`/`forms.py` per-app pattern
+already used throughout this codebase, instead of piling every route into the one file that
+happened to exist first:
+
+- `harwat_main/api.py` — stays the project-level instance, keeps its existing `/api/health`
+  boilerplate unchanged, gains only the OpenAPI docs config (Component 5 — a project-wide
+  concern, not any one app's).
+- `accounts/api.py` — **new**, its own `BoltAPI()`. Owns `/auth/login`, `/auth/refresh`,
+  `/auth/logout` — accounts already owns Django auth/session concerns, this is the same domain,
+  just a second door into it.
+- `fleet/api.py` — **new**, its own `BoltAPI()`. Owns `/api/vehicles` and `/api/fleet/summary`.
+
+### 1. JWT auth routes — `accounts/api.py`
 
 `django-bolt` ships `JWTAuthViews`, a ready-made login/refresh/logout/logout-all route set
 authenticating via Django's own `aauthenticate()` — but its `/auth/login` response puts the
@@ -57,16 +77,19 @@ the access and refresh tokens **in the response body** to store and send back as
 mobile HTTP client or a server-to-server integration).
 
 So this spec does **not** call `JWTAuthViews(...).register(api)` — it writes three small routes
-directly on `harwat_main/api.py`'s existing `api` object, using the same underlying primitives
+on `accounts/api.py`'s own `BoltAPI()` instance, using the same underlying primitives
 `JWTAuthViews` itself uses, but returning tokens in the body:
 
 ```python
 from django.contrib.auth import aauthenticate
+from django_bolt import BoltAPI
 from django_bolt.auth import (
     JWTAuthentication, LoginCredentials, create_token_pair,
     rotate_refresh_token, TokenRotationError,
 )
 from django_bolt.exceptions import HTTPException
+
+api = BoltAPI()
 
 refresh_auth = JWTAuthentication(secret=settings.SECRET_KEY, cookie=None, token_type="refresh")
 
@@ -139,11 +162,14 @@ generated from a `queryset` + serializer, the library's idiomatic tool for exact
 resource, not hand-written `@api.get/post/put/delete` per action):
 
 ```python
+from django_bolt import BoltAPI
 from django_bolt.views import ViewSet
 from django_bolt.serializers import Serializer
 from django_bolt.auth import JWTAuthentication, IsAuthenticated
 
 from .models import Vehicle
+
+api = BoltAPI()
 
 class VehicleSerializer(Serializer):
     id: int = field(read_only=True)
@@ -211,15 +237,18 @@ handler — the same bridge `django-bolt` itself uses internally, per its `concu
 helpers seen in the installed package; implementation confirms the idiomatic call against
 that module rather than hand-rolling a thread bridge.)
 
-### 5. API docs
+### 5. API docs — `harwat_main/api.py`
 
 `django-bolt` ships OpenAPI schema generation plus Swagger/Redoc/Scalar/Stoplight/Rapidoc render
 plugins built in (`django_bolt.openapi`). Enable one (Scalar — modern, no extra config beyond
 picking it) at a fixed path, e.g. `/api/docs`, via `BoltAPI`'s own `OpenAPIConfig` /
-`ScalarRenderPlugin` — exact wiring confirmed against the installed `openapi` module during
-implementation. This is what makes "gampang diintegrasikan" concretely true: an external
-developer gets a live, try-it-out API reference for free, no separate docs to hand-write or
-maintain.
+`ScalarRenderPlugin`, configured on `harwat_main/api.py`'s instance — the project-level file,
+since the docs page is expected to aggregate routes from every app's `BoltAPI()` instance
+(`accounts/api.py`, `fleet/api.py`) once `runbolt` merges them, not just its own `/api/health`.
+Whether that aggregation is automatic or needs an explicit step is confirmed against the
+installed `openapi`/`runbolt` code during implementation — exact wiring not guessed here. This
+is what makes "gampang diintegrasikan" concretely true: an external developer gets a live,
+try-it-out API reference for free, no separate docs to hand-write or maintain.
 
 ## Error handling
 
