@@ -188,8 +188,18 @@ class LaporanViewTests(TestCase):
         response = self.client.get(reverse("accounts:laporan"))
         self.assertContains(response, "BIODATA")
 
+    def _current_captcha(self):
+        self.client.get(reverse("accounts:laporan"))
+        return self.client.session["laporan_captcha"]
+
+    def test_shows_captcha_code(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:laporan"))
+        self.assertContains(response, self.client.session["laporan_captcha"])
+
     def test_post_valid_data_creates_laporan_and_redirects(self):
         self.client.login(username="teknisi1", password="rahasia-123")
+        code = self._current_captcha()
         foto = SimpleUploadedFile("foto.gif", TINY_GIF, content_type="image/gif")
         response = self.client.post(reverse("accounts:laporan"), {
             "nip": "199001012015031001",
@@ -198,6 +208,7 @@ class LaporanViewTests(TestCase):
             "jabatan": "Teknisi",
             "satuan": "Satuan Kerja ABC",
             "foto": foto,
+            "captcha": code,
         })
         self.assertRedirects(response, reverse("accounts:laporan"))
         self.assertEqual(Laporan.objects.count(), 1)
@@ -207,15 +218,51 @@ class LaporanViewTests(TestCase):
 
     def test_post_missing_field_shows_error_and_does_not_save(self):
         self.client.login(username="teknisi1", password="rahasia-123")
+        code = self._current_captcha()
         response = self.client.post(reverse("accounts:laporan"), {
             "nip": "199001012015031001",
             "nama": "",
             "pangkat": "Penata Muda / III-a",
             "jabatan": "Teknisi",
             "satuan": "Satuan Kerja ABC",
+            "captcha": code,
         })
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Laporan.objects.count(), 0)
+
+    def test_post_wrong_captcha_shows_error_and_does_not_save(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        code = self._current_captcha()
+        wrong_code = "ZZZZZZ" if code != "ZZZZZZ" else "YYYYYY"
+        foto = SimpleUploadedFile("foto.gif", TINY_GIF, content_type="image/gif")
+        response = self.client.post(reverse("accounts:laporan"), {
+            "nip": "199001012015031001",
+            "nama": "Budi Santoso",
+            "pangkat": "Penata Muda / III-a",
+            "jabatan": "Teknisi",
+            "satuan": "Satuan Kerja ABC",
+            "foto": foto,
+            "captcha": wrong_code,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Kode keamanan tidak sesuai.")
+        self.assertEqual(Laporan.objects.count(), 0)
+
+    def test_captcha_is_case_insensitive(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        code = self._current_captcha()
+        foto = SimpleUploadedFile("foto.gif", TINY_GIF, content_type="image/gif")
+        response = self.client.post(reverse("accounts:laporan"), {
+            "nip": "199001012015031001",
+            "nama": "Budi Santoso",
+            "pangkat": "Penata Muda / III-a",
+            "jabatan": "Teknisi",
+            "satuan": "Satuan Kerja ABC",
+            "foto": foto,
+            "captcha": code.lower(),
+        })
+        self.assertRedirects(response, reverse("accounts:laporan"))
+        self.assertEqual(Laporan.objects.count(), 1)
 
 
 class DashboardViewTests(TestCase):

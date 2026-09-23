@@ -1,3 +1,6 @@
+import secrets
+import string
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login as auth_login, logout as auth_logout
@@ -88,17 +91,29 @@ def password_reset_placeholder(request):
     return render(request, "accounts/password_reset_placeholder.html")
 
 
+CAPTCHA_ALPHABET = "".join(c for c in string.ascii_uppercase + string.digits if c not in "0O1IL")
+
+
+def _new_captcha_code():
+    return "".join(secrets.choice(CAPTCHA_ALPHABET) for _ in range(6))
+
+
 @login_required
 def laporan_view(request):
     if request.method == "POST":
-        form = LaporanForm(request.POST, request.FILES)
+        expected = request.session.get("laporan_captcha", "")
+        form = LaporanForm(request.POST, request.FILES, expected_captcha=expected)
         if form.is_valid():
             form.save()
+            del request.session["laporan_captcha"]
             messages.success(request, "Laporan berhasil dikirim.")
             return redirect("accounts:laporan")
     else:
         form = LaporanForm()
-    return render(request, "accounts/laporan.html", {"form": form})
+
+    captcha_code = _new_captcha_code()
+    request.session["laporan_captcha"] = captcha_code
+    return render(request, "accounts/laporan.html", {"form": form, "captcha_code": captcha_code})
 
 
 @login_required

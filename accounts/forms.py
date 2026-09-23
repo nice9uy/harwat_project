@@ -15,8 +15,8 @@ TEXT_INPUT_CLASSES = (
 FILE_INPUT_CLASSES = (
     "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm "
     "text-slate-900 shadow-sm file:mr-3 file:rounded-md file:border-0 "
-    "file:bg-navy file:px-3 file:py-1.5 file:text-sm file:font-medium "
-    "file:text-white hover:file:bg-navy-light "
+    "file:bg-green-600 file:px-3 file:py-1.5 file:text-sm file:font-medium "
+    "file:text-white hover:file:bg-green-700 "
     "dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
 )
 
@@ -58,6 +58,8 @@ class UserCreateForm(UserCreationForm):
 
 
 class LaporanForm(forms.ModelForm):
+    captcha = forms.CharField(label="Kode Keamanan", max_length=10)
+
     class Meta:
         model = Laporan
         fields = ["nip", "nama", "pangkat", "jabatan", "satuan", "foto"]
@@ -65,8 +67,9 @@ class LaporanForm(forms.ModelForm):
             "foto": forms.FileInput(attrs={"accept": "image/*", "capture": "environment"}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, expected_captcha="", **kwargs):
         super().__init__(*args, **kwargs)
+        self._expected_captcha = expected_captcha
         for name, field in self.fields.items():
             field.widget.attrs["class"] = FILE_INPUT_CLASSES if name == "foto" else TEXT_INPUT_CLASSES
         self.fields["nip"].label = "NIP/NRP"
@@ -75,3 +78,11 @@ class LaporanForm(forms.ModelForm):
         self.fields["pangkat"].widget.attrs["placeholder"] = "Kapten (TNI) / Penata Muda - III-a (PNS)"
         self.fields["jabatan"].widget.attrs["placeholder"] = "Teknisi"
         self.fields["satuan"].widget.attrs["placeholder"] = "Satuan Kerja ABC"
+        self.fields["captcha"].widget.attrs["placeholder"] = "Ketik kode di atas"
+        self.fields["captcha"].widget.attrs["autocomplete"] = "off"
+
+    def clean_captcha(self):
+        value = self.cleaned_data["captcha"].strip().upper()
+        if not self._expected_captcha or value != self._expected_captcha:
+            raise forms.ValidationError("Kode keamanan tidak sesuai.")
+        return value
