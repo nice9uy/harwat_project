@@ -182,6 +182,13 @@ class LaporanViewTests(TestCase):
         self.assertContains(response, f'href="{reverse("accounts:pemeriksaan")}" class=')
         self.assertNotContains(response, 'target="_blank"')
 
+    def test_jenis_pemeriksaan_has_qr_scan_button(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:pemeriksaan"))
+        self.assertContains(response, "Scan QR Code Kendaraan")
+        self.assertContains(response, 'id="qr-reader"')
+        self.assertContains(response, "/static/vendor/html5-qrcode.min.js")
+
     def test_shows_all_fields(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("accounts:pemeriksaan"))
