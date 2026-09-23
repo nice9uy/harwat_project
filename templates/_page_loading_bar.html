@@ -1,14 +1,16 @@
 <div id="page-loading-bar"
-     class="fixed inset-x-0 top-0 z-[100] h-0.5 origin-left scale-x-0 bg-gold shadow-[0_0_8px_var(--color-gold)]"
-     style="transition: transform 350ms ease-out, opacity 200ms ease-out 150ms;"></div>
+     class="fixed inset-x-0 top-0 z-[100] h-0.5 bg-gold shadow-[0_0_8px_var(--color-gold)]"
+     style="transform: scaleX(0); transform-origin: 0 0; opacity: 0;"></div>
 <script>
 (function () {
     var bar = document.getElementById('page-loading-bar');
     var timer = null;
     var progress = 0;
+    var startedAt = 0;
+    var MIN_VISIBLE_MS = 300;
 
     function setWidth(pct, durationMs) {
-        bar.style.transition = 'transform ' + durationMs + 'ms ease-out';
+        bar.style.transition = 'transform ' + durationMs + 'ms ease-out, opacity 150ms ease-out';
         bar.style.opacity = '1';
         bar.style.transform = 'scaleX(' + (pct / 100) + ')';
     }
@@ -16,10 +18,13 @@
     function start() {
         clearInterval(timer);
         progress = 0;
-        setWidth(0, 0);
+        startedAt = Date.now();
+        bar.style.transition = 'none';
+        bar.style.opacity = '1';
+        bar.style.transform = 'scaleX(0)';
         requestAnimationFrame(function () {
             progress = 25;
-            setWidth(progress, 300);
+            setWidth(progress, 250);
         });
         timer = setInterval(function () {
             progress = Math.min(progress + Math.random() * 8, 90);
@@ -27,17 +32,48 @@
         }, 350);
     }
 
+    function finish() {
+        var wait = Math.max(MIN_VISIBLE_MS - (Date.now() - startedAt), 0);
+        setTimeout(function () {
+            clearInterval(timer);
+            setWidth(100, 200);
+            setTimeout(function () {
+                bar.style.transition = 'opacity 200ms ease-out';
+                bar.style.opacity = '0';
+            }, 200);
+        }, wait);
+    }
+
     function reset() {
         clearInterval(timer);
-        progress = 0;
         bar.style.transition = 'none';
         bar.style.opacity = '0';
         bar.style.transform = 'scaleX(0)';
     }
 
+    // Boosted (htmx) nav — swapped via AJAX, page never actually unloads,
+    // so start/finish is driven by the request lifecycle instead of by
+    // browser navigation timing.
+    document.body.addEventListener('htmx:beforeRequest', function (evt) {
+        if (evt.detail.boosted) start();
+    });
+    document.body.addEventListener('htmx:afterSettle', function (evt) {
+        if (evt.detail.boosted) finish();
+    });
+    document.body.addEventListener('htmx:responseError', function (evt) {
+        if (evt.detail.boosted) finish();
+    });
+    document.body.addEventListener('htmx:sendError', function (evt) {
+        if (evt.detail.boosted) finish();
+    });
+
+    // Plain (non-boosted) full-page navigation elsewhere — login, logout,
+    // the Laporan form. Real navigation may outrun the animation on a fast
+    // local server, but this still covers slower/remote responses.
     document.addEventListener('click', function (event) {
         var link = event.target.closest('a[href]');
-        if (!link || link.target === '_blank' || link.hasAttribute('download')) return;
+        if (!link || link.closest('[hx-boost]')) return;
+        if (link.target === '_blank' || link.hasAttribute('download')) return;
         if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
 
         var url;
@@ -54,6 +90,7 @@
 
     document.addEventListener('submit', function (event) {
         var form = event.target;
+        if (form.closest('[hx-boost]')) return;
         if (form.hasAttribute('hx-post') || form.hasAttribute('hx-get')) return;
         start();
     });
