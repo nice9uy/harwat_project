@@ -1,9 +1,21 @@
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from .forms import VehicleForm
 from .models import Vehicle
+
+
+def _is_htmx(request):
+    return request.headers.get("HX-Request") == "true"
+
+
+def _htmx_redirect(url):
+    response = HttpResponse(status=204)
+    response["HX-Redirect"] = url
+    return response
 
 
 @login_required
@@ -18,10 +30,13 @@ def vehicle_create(request):
         form = VehicleForm(request.POST)
         if form.is_valid():
             form.save()
+            if _is_htmx(request):
+                return _htmx_redirect(reverse("fleet:vehicle_list"))
             return redirect("fleet:vehicle_list")
     else:
         form = VehicleForm()
-    return render(request, "fleet/vehicle_form.html", {"form": form, "is_edit": False})
+    template = "fleet/_vehicle_form_fields.html" if _is_htmx(request) else "fleet/vehicle_form.html"
+    return render(request, template, {"form": form, "is_edit": False})
 
 
 @login_required
@@ -31,10 +46,13 @@ def vehicle_update(request, pk):
         form = VehicleForm(request.POST, instance=vehicle)
         if form.is_valid():
             form.save()
+            if _is_htmx(request):
+                return _htmx_redirect(reverse("fleet:vehicle_list"))
             return redirect("fleet:vehicle_list")
     else:
         form = VehicleForm(instance=vehicle)
-    return render(request, "fleet/vehicle_form.html", {"form": form, "is_edit": True, "vehicle": vehicle})
+    template = "fleet/_vehicle_form_fields.html" if _is_htmx(request) else "fleet/vehicle_form.html"
+    return render(request, template, {"form": form, "is_edit": True, "vehicle": vehicle})
 
 
 @login_required

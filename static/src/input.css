@@ -8,3 +8,9 @@
   --color-navy-light: #132C4F;
   --color-gold: #C9A227;
 }
+
+/* Alpine.js: hide [x-cloak] elements until Alpine initializes, so a
+   modal that starts x-show="false" doesn't flash visible on page load. */
+[x-cloak] {
+  display: none !important;
+}

@@ -2,10 +2,17 @@
 {% block title %}Armada — BMN Harwat{% endblock %}
 {% block page_title %}Armada{% endblock %}
 {% block content %}
-<div class="space-y-4">
+<div class="space-y-4" x-data="{ modalOpen: false }">
     <div class="flex items-center justify-between">
         <p class="text-sm text-slate-500 dark:text-slate-400">Daftar kendaraan dalam armada.</p>
-        <a href="{% url 'fleet:vehicle_create' %}" class="rounded-md bg-navy px-3 py-2 text-sm font-medium text-white hover:bg-navy-light">+ Tambah Kendaraan</a>
+        <button type="button"
+                @click="modalOpen = true"
+                hx-get="{% url 'fleet:vehicle_create' %}"
+                hx-target="#vehicle-modal-body"
+                hx-swap="innerHTML"
+                class="rounded-md bg-navy px-3 py-2 text-sm font-medium text-white hover:bg-navy-light">
+            + Tambah Kendaraan
+        </button>
     </div>
 
     <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
@@ -42,7 +49,14 @@
                     <td class="py-2 px-4">{{ vehicle.penanggung_jawab }}</td>
                     <td class="py-2 px-4">
                         <div class="flex items-center gap-3">
-                            <a href="{% url 'fleet:vehicle_update' vehicle.pk %}" class="text-navy dark:text-slate-300 hover:text-gold">Edit</a>
+                            <button type="button"
+                                    @click="modalOpen = true"
+                                    hx-get="{% url 'fleet:vehicle_update' vehicle.pk %}"
+                                    hx-target="#vehicle-modal-body"
+                                    hx-swap="innerHTML"
+                                    class="text-navy dark:text-slate-300 hover:text-gold">
+                                Edit
+                            </button>
                             <form method="post" action="{% url 'fleet:vehicle_delete' vehicle.pk %}" onsubmit="return confirm('Hapus kendaraan {{ vehicle.nopol|escapejs }}?');">
                                 {% csrf_token %}
                                 <button type="submit" class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">Hapus</button>
@@ -57,6 +71,16 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+
+    <div x-show="modalOpen"
+         x-cloak
+         @click.self="modalOpen = false"
+         @keydown.escape.window="modalOpen = false"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+        <div class="w-full max-w-lg bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl">
+            <div id="vehicle-modal-body"></div>
+        </div>
     </div>
 </div>
 {% endblock %}

@@ -110,6 +110,12 @@ class VehicleListViewTests(TestCase):
         response = self.client.get(reverse("fleet:vehicle_list"))
         self.assertContains(response, "Belum ada data kendaraan.")
 
+    def test_tambah_button_opens_modal_via_htmx(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("fleet:vehicle_list"))
+        self.assertContains(response, f'hx-get="{reverse("fleet:vehicle_create")}"')
+        self.assertContains(response, 'id="vehicle-modal-body"')
+
     def test_sidebar_armada_link_points_to_list(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("fleet:vehicle_list"))
@@ -170,6 +176,30 @@ class VehicleCreateViewTests(TestCase):
         self.assertEqual(Vehicle.objects.count(), 0)
         self.assertContains(response, "This field is required.")
 
+    def test_htmx_get_returns_form_partial_without_full_page(self):
+        response = self.client.get(reverse("fleet:vehicle_create"), HTTP_HX_REQUEST="true")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Tambah Kendaraan")
+        self.assertNotContains(response, "<html")
+
+    def test_htmx_post_valid_data_returns_hx_redirect(self):
+        response = self.client.post(
+            reverse("fleet:vehicle_create"),
+            {
+                "nopol": "B 1234 AB",
+                "jenis": Vehicle.Jenis.MOBIL,
+                "merek": "Toyota Avanza",
+                "tahun": 2021,
+                "status": Vehicle.Status.SIAP_PAKAI,
+                "odometer_km": 1000,
+                "penanggung_jawab": "Siti Amalia",
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response["HX-Redirect"], reverse("fleet:vehicle_list"))
+        self.assertEqual(Vehicle.objects.count(), 1)
+
     def test_post_duplicate_nopol_reshows_form_with_error(self):
         Vehicle.objects.create(
             nopol="B 1234 AB", jenis=Vehicle.Jenis.MOBIL, merek="Toyota Avanza",
@@ -205,6 +235,31 @@ class VehicleUpdateViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Edit Kendaraan")
         self.assertContains(response, 'value="B 9021 XY"')
+
+    def test_htmx_get_returns_form_partial_without_full_page(self):
+        response = self.client.get(
+            reverse("fleet:vehicle_update", args=[self.vehicle.pk]), HTTP_HX_REQUEST="true"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Edit Kendaraan")
+        self.assertNotContains(response, "<html")
+
+    def test_htmx_post_valid_data_returns_hx_redirect(self):
+        response = self.client.post(
+            reverse("fleet:vehicle_update", args=[self.vehicle.pk]),
+            {
+                "nopol": "B 9021 XY",
+                "jenis": Vehicle.Jenis.TRUK,
+                "merek": "Hino Dutro",
+                "tahun": 2019,
+                "status": Vehicle.Status.DALAM_PERBAIKAN,
+                "odometer_km": 46000,
+                "penanggung_jawab": "Budi Santoso",
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response["HX-Redirect"], reverse("fleet:vehicle_list"))
 
     def test_post_updates_vehicle_and_redirects(self):
         response = self.client.post(
