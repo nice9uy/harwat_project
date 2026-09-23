@@ -158,50 +158,55 @@ class LaporanViewTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
 
+    def test_url_is_pemeriksaan_and_old_laporan_url_redirects(self):
+        self.assertEqual(reverse("accounts:pemeriksaan"), "/pemeriksaan/")
+        response = self.client.get("/laporan/")
+        self.assertRedirects(response, "/pemeriksaan/", status_code=301, fetch_redirect_response=False)
+
     def test_redirects_when_not_authenticated(self):
-        response = self.client.get(reverse("accounts:laporan"))
+        response = self.client.get(reverse("accounts:pemeriksaan"))
         self.assertRedirects(
             response,
-            f"{reverse('accounts:login')}?next={reverse('accounts:laporan')}",
+            f"{reverse('accounts:login')}?next={reverse('accounts:pemeriksaan')}",
         )
 
     def test_renders_when_authenticated(self):
         self.client.login(username="teknisi1", password="rahasia-123")
-        response = self.client.get(reverse("accounts:laporan"))
+        response = self.client.get(reverse("accounts:pemeriksaan"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Form Pemeriksaan")
 
     def test_sidebar_link_navigates_in_same_tab(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("accounts:dashboard"))
-        self.assertContains(response, f'href="{reverse("accounts:laporan")}" class=')
+        self.assertContains(response, f'href="{reverse("accounts:pemeriksaan")}" class=')
         self.assertNotContains(response, 'target="_blank"')
 
     def test_shows_all_fields(self):
         self.client.login(username="teknisi1", password="rahasia-123")
-        response = self.client.get(reverse("accounts:laporan"))
+        response = self.client.get(reverse("accounts:pemeriksaan"))
         for field in ("nip", "nama", "pangkat", "jabatan", "satuan", "foto"):
             self.assertContains(response, f'id="id_{field}"')
 
     def test_shows_biodata_tab(self):
         self.client.login(username="teknisi1", password="rahasia-123")
-        response = self.client.get(reverse("accounts:laporan"))
+        response = self.client.get(reverse("accounts:pemeriksaan"))
         self.assertContains(response, "BIODATA")
 
     def _current_captcha(self):
-        self.client.get(reverse("accounts:laporan"))
+        self.client.get(reverse("accounts:pemeriksaan"))
         return self.client.session["laporan_captcha"]
 
     def test_shows_captcha_code(self):
         self.client.login(username="teknisi1", password="rahasia-123")
-        response = self.client.get(reverse("accounts:laporan"))
+        response = self.client.get(reverse("accounts:pemeriksaan"))
         self.assertContains(response, self.client.session["laporan_captcha"])
 
     def test_post_valid_data_creates_laporan_and_redirects(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         code = self._current_captcha()
         foto = SimpleUploadedFile("foto.gif", TINY_GIF, content_type="image/gif")
-        response = self.client.post(reverse("accounts:laporan"), {
+        response = self.client.post(reverse("accounts:pemeriksaan"), {
             "nip": "199001012015031001",
             "nama": "Budi Santoso",
             "pangkat": "Penata Muda / III-a",
@@ -210,7 +215,7 @@ class LaporanViewTests(TestCase):
             "foto": foto,
             "captcha": code,
         })
-        self.assertRedirects(response, reverse("accounts:laporan"))
+        self.assertRedirects(response, reverse("accounts:pemeriksaan"))
         self.assertEqual(Laporan.objects.count(), 1)
         laporan = Laporan.objects.get()
         self.assertEqual(laporan.nip, "199001012015031001")
@@ -219,7 +224,7 @@ class LaporanViewTests(TestCase):
     def test_post_missing_field_shows_error_and_does_not_save(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         code = self._current_captcha()
-        response = self.client.post(reverse("accounts:laporan"), {
+        response = self.client.post(reverse("accounts:pemeriksaan"), {
             "nip": "199001012015031001",
             "nama": "",
             "pangkat": "Penata Muda / III-a",
@@ -235,7 +240,7 @@ class LaporanViewTests(TestCase):
         code = self._current_captcha()
         wrong_code = "ZZZZZZ" if code != "ZZZZZZ" else "YYYYYY"
         foto = SimpleUploadedFile("foto.gif", TINY_GIF, content_type="image/gif")
-        response = self.client.post(reverse("accounts:laporan"), {
+        response = self.client.post(reverse("accounts:pemeriksaan"), {
             "nip": "199001012015031001",
             "nama": "Budi Santoso",
             "pangkat": "Penata Muda / III-a",
@@ -252,7 +257,7 @@ class LaporanViewTests(TestCase):
         self.client.login(username="teknisi1", password="rahasia-123")
         code = self._current_captcha()
         foto = SimpleUploadedFile("foto.gif", TINY_GIF, content_type="image/gif")
-        response = self.client.post(reverse("accounts:laporan"), {
+        response = self.client.post(reverse("accounts:pemeriksaan"), {
             "nip": "199001012015031001",
             "nama": "Budi Santoso",
             "pangkat": "Penata Muda / III-a",
@@ -261,7 +266,7 @@ class LaporanViewTests(TestCase):
             "foto": foto,
             "captcha": code.lower(),
         })
-        self.assertRedirects(response, reverse("accounts:laporan"))
+        self.assertRedirects(response, reverse("accounts:pemeriksaan"))
         self.assertEqual(Laporan.objects.count(), 1)
 
 
@@ -397,6 +402,6 @@ class FormTambahViewTests(TestCase):
         self.client.login(username="teknisi1", password="rahasia-123")
         content = self.client.get(reverse("accounts:dashboard")).content.decode()
         self.assertLess(
-            content.index(f'href="{reverse("accounts:laporan")}"'),
+            content.index(f'href="{reverse("accounts:pemeriksaan")}"'),
             content.index(f'href="{reverse("accounts:form_tambah")}"'),
         )

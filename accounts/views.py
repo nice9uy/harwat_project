@@ -107,7 +107,7 @@ def laporan_view(request):
             form.save()
             del request.session["laporan_captcha"]
             messages.success(request, "Laporan berhasil dikirim.")
-            return redirect("accounts:laporan")
+            return redirect("accounts:pemeriksaan")
     else:
         form = LaporanForm()
 
