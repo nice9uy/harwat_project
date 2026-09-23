@@ -46,29 +46,13 @@
           scanLoading: false,
           scanError: '',
           scanner: null,
-          loadQrLib() {
-              if (window.Html5Qrcode) return Promise.resolve();
-              return new Promise((resolve, reject) => {
-                  const s = document.createElement('script');
-                  s.src = '{% static 'vendor/html5-qrcode.min.js' %}';
-                  s.onload = resolve;
-                  s.onerror = () => reject('pemindai gagal dimuat');
-                  document.head.appendChild(s);
-              });
-          },
           async startScan() {
               this.scanError = '';
               this.scanOpen = true;
+              this.scanner ??= bmnQrScanner('{% static 'vendor/html5-qrcode.min.js' %}');
               try {
-                  await this.loadQrLib();
                   await this.$nextTick();
-                  this.scanner = new Html5Qrcode('qr-reader');
-                  await this.scanner.start(
-                      { facingMode: 'environment' },
-                      { fps: 10, qrbox: { width: 240, height: 240 } },
-                      (text) => { this.stopScan(); this.lookup(text); },
-                      () => {},
-                  );
+                  await this.scanner.start('qr-reader', (text) => { this.stopScan(); this.lookup(text); });
               } catch (err) {
                   this.scanError = 'Kamera tidak bisa dibuka: ' + err;
               }
@@ -77,16 +61,15 @@
               // QR text is 'No. Registrasi: X' plus other lines; the vehicle
               // is looked up by that number so the fields (including Group
               // Kendaraan, which isn't in the QR) come from the database.
-              const line = text.split('\n').find((l) => l.startsWith('No. Registrasi:'));
+              const nopol = bmnNopolFromQr(text);
               this.kendaraan = null;
-              if (!line) {
+              if (!nopol) {
                   this.scanError = 'QR Code bukan QR kendaraan.';
                   return;
               }
               this.scanError = '';
               this.scanLoading = true;
               try {
-                  const nopol = line.slice(line.indexOf(':') + 1).trim();
                   const response = await fetch('{% url 'fleet:vehicle_lookup' %}?nopol=' + encodeURIComponent(nopol));
                   const data = await response.json();
                   if (response.ok) this.kendaraan = data;
@@ -98,14 +81,8 @@
               }
           },
           async stopScan() {
-              const scanner = this.scanner;
-              this.scanner = null;
               this.scanOpen = false;
-              if (!scanner) return;
-              try {
-                  if (scanner.isScanning) await scanner.stop();
-                  scanner.clear();
-              } catch (err) {}
+              if (this.scanner) await this.scanner.stop();
           },
           lanjutkan() {
               // Required fields may sit in a collapsed accordion panel, where
@@ -222,20 +199,7 @@
         </div>
     </div>
 
-    <div x-show="scanOpen"
-         x-cloak
-         @keydown.escape.window="if (scanOpen) stopScan()"
-         class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/70 px-4 py-8 sm:py-4">
-        <div class="w-full max-w-sm bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-xl my-auto">
-            <h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-3">Scan QR Code</h2>
-            <div id="qr-reader" class="w-full overflow-hidden rounded-md bg-black"></div>
-            <p x-show="scanError" x-text="scanError" class="text-xs text-red-600 dark:text-red-400 mt-2"></p>
-            <p x-show="!scanError" class="text-xs text-slate-500 dark:text-slate-400 mt-2">Arahkan kamera ke QR Code kendaraan.</p>
-            <div class="flex justify-end pt-3">
-                <button type="button" @click="stopScan()" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Batal</button>
-            </div>
-        </div>
-    </div>
+    {% include "accounts/_qr_scan_modal.html" %}
 
     <div x-show="modalOpen"
          x-cloak

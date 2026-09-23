@@ -18,6 +18,7 @@ urlpatterns = [
     path("laporan/", RedirectView.as_view(pattern_name="accounts:pemeriksaan", permanent=True)),
     path("form-tambah/", views.form_tambah_view, name="form_tambah"),
     path("history/", views.history_view, name="history"),
+    path("history/kendaraan/", views.history_kendaraan_view, name="history_kendaraan"),
     path("perbaikan/", views.perbaikan_view, name="perbaikan"),
     path("pengaturan/", views.pengaturan_view, name="pengaturan"),
     path("pengaturan/user/tambah/", views.user_create, name="user_create"),

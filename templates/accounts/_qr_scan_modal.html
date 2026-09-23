@@ -1,0 +1,15 @@
+{# Camera modal for bmnQrScanner; expects scanOpen, scanError and stopScan() in scope. #}
+<div x-show="scanOpen"
+     x-cloak
+     @keydown.escape.window="if (scanOpen) stopScan()"
+     class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/70 px-4 py-8 sm:py-4">
+    <div class="w-full max-w-sm bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-xl my-auto">
+        <h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-3">Scan QR Code</h2>
+        <div id="qr-reader" class="w-full overflow-hidden rounded-md bg-black"></div>
+        <p x-show="scanError" x-text="scanError" class="text-xs text-red-600 dark:text-red-400 mt-2"></p>
+        <p x-show="!scanError" class="text-xs text-slate-500 dark:text-slate-400 mt-2">Arahkan kamera ke QR Code kendaraan.</p>
+        <div class="flex justify-end pt-3">
+            <button type="button" @click="stopScan()" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Batal</button>
+        </div>
+    </div>
+</div>

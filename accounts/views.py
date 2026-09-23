@@ -7,6 +7,7 @@ from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.db.models import Count, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render, resolve_url
 from django.urls import reverse
@@ -14,6 +15,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from fleet.images import compress_photo
+from fleet.models import Vehicle
 from fleet.services import get_fleet_summary
 
 from . import pemeriksaan
@@ -173,6 +175,23 @@ def form_tambah_view(request):
 @login_required
 def history_view(request):
     return render(request, "accounts/history.html")
+
+
+@login_required
+def history_kendaraan_view(request):
+    """Inspection history of the vehicle whose QR code was scanned."""
+    vehicle = Vehicle.objects.filter(nopol=request.GET.get("nopol", "").strip()).first()
+    riwayat = []
+    if vehicle is not None:
+        riwayat = (
+            vehicle.pemeriksaan_golongan_b.select_related("pemeriksa")
+            .annotate(
+                jumlah_b=Count("items", filter=Q(items__kondisi="B")),
+                jumlah_rr=Count("items", filter=Q(items__kondisi="RR")),
+                jumlah_rb=Count("items", filter=Q(items__kondisi="RB")),
+            )
+        )
+    return render(request, "accounts/_history_kendaraan.html", {"vehicle": vehicle, "riwayat": riwayat})
 
 
 @login_required

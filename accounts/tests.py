@@ -604,3 +604,54 @@ class PemeriksaanCaptchaCheckTests(TestCase):
         self.assertRegex(response.content.decode(), r'<button type="button" @click="kirim\(\)"[^>]*>Konfirmasi &amp; Kirim</button>')
         self.assertContains(response, "x-show=\"kendaraan && kendaraan.group_kode === 'B'\"")
         self.assertContains(response, "belum tersedia.")
+
+
+class HistoryScanTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.client.login(username="teknisi1", password="rahasia-123")
+        self.vehicle = Vehicle.objects.create(nopol="B 9021 XY", merek="Hino Dutro")
+
+    def _inspection(self, rusak_berat=0):
+        pemeriksa = Laporan.objects.create(
+            nip="1", nama="Budi Santoso", pangkat="Kapten", jabatan="Teknisi", satuan="ABC", foto="laporan/x.gif",
+        )
+        hasil = PemeriksaanGolonganB.objects.create(
+            pemeriksa=pemeriksa, vehicle=self.vehicle, pembagian_kelas="2", eselon_reparasi="3",
+            macam_pemeriksaan="tehnis", buku_jalan="ada",
+        )
+        for nomor in range(1, 41):
+            PemeriksaanGolonganBItem.objects.create(
+                pemeriksaan=hasil, nomor=nomor, nama_alat=f"Alat {nomor}",
+                kondisi="RB" if nomor <= rusak_berat else "B",
+            )
+        return hasil
+
+    def test_history_page_has_scan_button(self):
+        response = self.client.get(reverse("accounts:history"))
+        self.assertContains(response, "Scan QR Code Kendaraan")
+        self.assertContains(response, 'id="qr-reader"')
+        self.assertContains(response, reverse("accounts:history_kendaraan"))
+        self.assertContains(response, "/static/js/qr-scan.js")
+
+    def test_scanned_vehicle_shows_its_inspections(self):
+        self._inspection(rusak_berat=3)
+        response = self.client.get(reverse("accounts:history_kendaraan"), {"nopol": "B 9021 XY"})
+        self.assertContains(response, "Riwayat Pemeriksaan (1)")
+        self.assertContains(response, "Budi Santoso (Kapten)")
+        self.assertContains(response, "B 37")
+        self.assertContains(response, "RB 3")
+        self.assertContains(response, "Kelas 2 · Eselon 3 · Tehnis")
+
+    def test_vehicle_without_inspections(self):
+        response = self.client.get(reverse("accounts:history_kendaraan"), {"nopol": "B 9021 XY"})
+        self.assertContains(response, "Belum ada riwayat pemeriksaan untuk kendaraan ini.")
+
+    def test_unknown_vehicle(self):
+        response = self.client.get(reverse("accounts:history_kendaraan"), {"nopol": "Z 1 ZZ"})
+        self.assertContains(response, "Kendaraan tidak ditemukan.")
+
+    def test_requires_login(self):
+        self.client.logout()
+        response = self.client.get(reverse("accounts:history_kendaraan"), {"nopol": "B 9021 XY"})
+        self.assertEqual(response.status_code, 302)
