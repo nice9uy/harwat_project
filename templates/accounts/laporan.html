@@ -152,6 +152,10 @@
             </div>
           </div>
         </template>
+
+        <div x-show="kendaraan" x-cloak>
+            {% include "accounts/_pemeriksaan_accordion.html" %}
+        </div>
     </div>
 
     <div x-show="scanOpen"

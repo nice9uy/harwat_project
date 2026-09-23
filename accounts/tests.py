@@ -192,6 +192,23 @@ class LaporanViewTests(TestCase):
         for label in ("No. Registrasi", "Merk/Type", "No. Chasis", "No. Mesin", "Group Kendaraan"):
             self.assertContains(response, f">{label}</label>")
 
+    def test_jenis_pemeriksaan_has_inspection_accordion(self):
+        from .pemeriksaan import ALAT
+        self.assertEqual(len(ALAT), 40)
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:pemeriksaan"))
+        for text in ("Pembagian Kelas", "Eselon Reparasi", "Macam Pemeriksaan", "Tiba-tiba",
+                     "Daftar Alat 1–20", "Daftar Alat 21–40"):
+            self.assertContains(response, text)
+        self.assertContains(response, 'name="pembagian_kelas" value="6"')
+        self.assertContains(response, 'name="eselon_reparasi" value="4"')
+        self.assertContains(response, 'name="macam_pemeriksaan" value="tiba_tiba"')
+        for no, nama in ((1, "Motor"), (20, "Gear Belakang"), (21, "Rantai"), (40, "Cat")):
+            self.assertContains(response, f"{no}.</span> {nama}")
+            self.assertContains(response, f'name="alat_{no}_jml"')
+            for kode in ("B", "RR", "RB"):
+                self.assertContains(response, f'name="alat_{no}_kondisi" value="{kode}"')
+
     def test_shows_all_fields(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("accounts:pemeriksaan"))

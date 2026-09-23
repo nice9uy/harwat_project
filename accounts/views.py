@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 
 from fleet.services import get_fleet_summary
 
+from . import pemeriksaan
 from .forms import LaporanForm, LoginForm, UserCreateForm
 
 
@@ -113,7 +114,15 @@ def laporan_view(request):
 
     captcha_code = _new_captcha_code()
     request.session["laporan_captcha"] = captcha_code
-    return render(request, "accounts/laporan.html", {"form": form, "captcha_code": captcha_code})
+    return render(request, "accounts/laporan.html", {
+        "form": form,
+        "captcha_code": captcha_code,
+        "pembagian_kelas": pemeriksaan.PEMBAGIAN_KELAS,
+        "eselon_reparasi": pemeriksaan.ESELON_REPARASI,
+        "macam_pemeriksaan": pemeriksaan.MACAM_PEMERIKSAAN,
+        "kondisi": pemeriksaan.KONDISI,
+        "alat_bagian": pemeriksaan.ALAT_BAGIAN,
+    })
 
 
 @login_required
