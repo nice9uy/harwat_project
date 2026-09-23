@@ -148,21 +148,12 @@ class VehicleListViewTests(TestCase):
         response = self.client.get(reverse("fleet:vehicle_list"))
         self.assertContains(response, 'href="/armada/"')
 
-    def test_apostrophe_in_nopol_does_not_break_confirm_js(self):
-        Vehicle.objects.create(
-            nopol="B 1' OR '1'='1",
-            jenis=Vehicle.Jenis.MOBIL, merek="Test", tahun=2021,
-            status=Vehicle.Status.SIAP_PAKAI, odometer_km=0, penanggung_jawab="Test",
-        )
+    def test_delete_confirm_modal_escapes_nopol(self):
+        vehicle = Vehicle.objects.create(nopol="B 1' <b>X</b>", merek="Test", odometer_km=0)
         self.client.login(username="teknisi1", password="rahasia-123")
-        response = self.client.get(reverse("fleet:vehicle_list"))
-        content = response.content.decode()
-        # find the onsubmit attribute's JS string and confirm no raw ' survives inside it
-        import re
-        match = re.search(r"onsubmit=\"return confirm\('Hapus kendaraan ([^;]*?)\?'\);\"", content)
-        self.assertIsNotNone(match, "onsubmit confirm() attribute not found in rendered HTML")
-        js_string_content = match.group(1)
-        self.assertNotIn("'", js_string_content)
+        response = self.client.get(reverse("fleet:vehicle_delete_confirm", args=[vehicle.pk]))
+        self.assertContains(response, "B 1&#x27; &lt;b&gt;X&lt;/b&gt;")
+        self.assertNotContains(response, "<b>X</b>")
 
 
 @override_settings(MEDIA_ROOT=MEDIA_ROOT)
@@ -318,6 +309,7 @@ class VehicleUpdateViewTests(TestCase):
         self.assertEqual(response.status_code, 404)
 
 
+@override_settings(MEDIA_ROOT=MEDIA_ROOT)
 class VehicleDeleteViewTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
@@ -337,6 +329,26 @@ class VehicleDeleteViewTests(TestCase):
         response = self.client.get(reverse("fleet:vehicle_delete", args=[self.vehicle.pk]))
         self.assertEqual(response.status_code, 405)
         self.assertEqual(Vehicle.objects.count(), 1)
+
+    def test_list_hapus_opens_confirm_modal_instead_of_js_confirm(self):
+        response = self.client.get(reverse("fleet:vehicle_list"))
+        url = reverse("fleet:vehicle_delete_confirm", args=[self.vehicle.pk])
+        self.assertContains(response, f'hx-get="{url}"', count=2)
+        self.assertNotContains(response, "confirm(")
+
+    def test_confirm_modal_posts_to_delete(self):
+        response = self.client.get(reverse("fleet:vehicle_delete_confirm", args=[self.vehicle.pk]))
+        self.assertContains(response, "Hapus Kendaraan")
+        self.assertContains(response, "B 9021 XY")
+        self.assertContains(response, f'action="{reverse("fleet:vehicle_delete", args=[self.vehicle.pk])}"')
+        self.assertEqual(Vehicle.objects.count(), 1)
+
+    def test_delete_removes_photo_files(self):
+        foto = VehiclePhoto.objects.create(vehicle=self.vehicle, image=_png_upload())
+        storage, name = foto.image.storage, foto.image.name
+        self.assertTrue(storage.exists(name))
+        self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.pk]))
+        self.assertFalse(storage.exists(name))
 
 
 class VehicleQrCodeTests(TestCase):

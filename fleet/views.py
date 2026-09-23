@@ -59,9 +59,18 @@ def vehicle_update(request, pk):
 
 
 @login_required
+def vehicle_delete_confirm(request, pk):
+    vehicle = get_object_or_404(Vehicle, pk=pk)
+    return render(request, "fleet/_vehicle_delete_confirm.html", {"vehicle": vehicle})
+
+
+@login_required
 @require_POST
 def vehicle_delete(request, pk):
     vehicle = get_object_or_404(Vehicle, pk=pk)
+    # Rows cascade, but the image files would otherwise stay on disk.
+    for foto in vehicle.fotos.all():
+        foto.image.delete(save=False)
     vehicle.delete()
     return redirect("fleet:vehicle_list")
 
