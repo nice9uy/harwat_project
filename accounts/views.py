@@ -118,7 +118,7 @@ def laporan_view(request):
 
 @login_required
 def form_tambah_view(request):
-    return render(request, "accounts/form_tambah.html")
+    return render(request, "accounts/form_tambah.html", {"form": LaporanForm()})
 
 
 @login_required

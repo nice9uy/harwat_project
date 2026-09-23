@@ -388,6 +388,8 @@ class FormTambahViewTests(TestCase):
         self.assertContains(response, "Form Tambah")
         self.assertContains(response, "BIODATA")
         self.assertContains(response, "TAMBAH KENDARAAN")
+        for field in ("nip", "nama", "pangkat", "jabatan", "satuan", "foto"):
+            self.assertContains(response, f'id="id_{field}"')
 
     def test_sidebar_link_below_form_laporan(self):
         self.client.login(username="teknisi1", password="rahasia-123")
