@@ -157,8 +157,13 @@
           </div>
         </template>
 
-        <div x-show="kendaraan" x-cloak>
+        <div x-show="kendaraan" x-cloak class="space-y-4">
             {% include "accounts/_pemeriksaan_accordion.html" %}
+            {# Next step not decided yet; the button is in place for it. #}
+            <button type="button" id="pemeriksaan-lanjutkan"
+                    class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
+                Lanjutkan
+            </button>
         </div>
     </div>
 
