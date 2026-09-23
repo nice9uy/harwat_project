@@ -70,7 +70,7 @@
             {% if form.captcha.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.captcha.errors.0 }}</p>{% endif %}
             <div class="flex items-center gap-3 pt-4">
                 <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">Konfirmasi &amp; Kirim</button>
-                <button type="button" @click="modalOpen = false" class="text-sm text-slate-500 dark:text-slate-400 hover:text-navy dark:hover:text-gold">Batal</button>
+                <button type="button" @click="modalOpen = false" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Batal</button>
             </div>
         </div>
     </div>
