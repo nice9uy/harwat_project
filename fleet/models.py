@@ -26,7 +26,6 @@ class Vehicle(models.Model):
     penanggung_jawab = models.CharField(max_length=150, blank=True, verbose_name="Penanggung Jawab")
     no_chasis = models.CharField(max_length=50, blank=True, verbose_name="No. Chasis")
     no_mesin = models.CharField(max_length=50, blank=True, verbose_name="No. Mesin")
-    foto = models.ImageField(upload_to="kendaraan/", blank=True, verbose_name="Foto Kendaraan")
 
     class Meta:
         ordering = ["nopol"]
@@ -46,3 +45,14 @@ class Vehicle(models.Model):
         # Changes whenever the QR content changes, so the image URL changes
         # too and browsers never show a QR cached from before an edit.
         return hashlib.sha256(self.qr_text().encode()).hexdigest()[:10]
+
+
+class VehiclePhoto(models.Model):
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name="fotos")
+    image = models.ImageField(upload_to="kendaraan/", verbose_name="Foto Kendaraan")
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"Foto {self.vehicle.nopol} #{self.pk}"

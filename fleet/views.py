@@ -23,7 +23,7 @@ def _htmx_redirect(url):
 
 @login_required
 def vehicle_list(request):
-    vehicles = Vehicle.objects.all()
+    vehicles = Vehicle.objects.prefetch_related("fotos")
     return render(request, "fleet/vehicle_list.html", {"vehicles": vehicles})
 
 

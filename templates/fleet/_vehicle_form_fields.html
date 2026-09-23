@@ -38,8 +38,9 @@
     </div>
     <div>
         <label for="{{ form.foto.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Foto Kendaraan</label>
-        {% if vehicle.foto %}<img src="{{ vehicle.foto.url }}" alt="Foto {{ vehicle.nopol }}" class="mb-2 h-24 rounded-md border border-slate-300 dark:border-slate-600 object-cover">{% endif %}
+        {% if vehicle.fotos.all %}<div class="mb-2">{% include "fleet/_vehicle_photos.html" %}</div>{% endif %}
         {{ form.foto }}
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Pilih minimal 4 foto sekaligus.{% if is_edit %} Kosongkan untuk mempertahankan foto sekarang; unggahan baru mengganti semua foto.{% endif %}</p>
         {% if form.foto.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.foto.errors.0 }}</p>{% endif %}
     </div>
     <div class="flex items-center gap-3 pt-2">

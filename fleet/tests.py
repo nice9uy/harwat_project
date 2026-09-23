@@ -8,7 +8,19 @@ from PIL import Image
 from django.urls import reverse
 
 from .forms import VehicleForm
-from .models import Vehicle
+from .models import Vehicle, VehiclePhoto
+
+MEDIA_ROOT = tempfile.mkdtemp()
+
+
+def _png_upload(name="mobil.png"):
+    buffer = io.BytesIO()
+    Image.new("RGB", (4, 4), "red").save(buffer, format="PNG")
+    return SimpleUploadedFile(name, buffer.getvalue(), content_type="image/png")
+
+
+def _photos(count=4):
+    return [_png_upload(f"mobil-{i}.png") for i in range(count)]
 
 
 class VehicleModelTests(TestCase):
@@ -64,8 +76,8 @@ class VehicleFormTests(TestCase):
             "status": Vehicle.Status.SIAP_PAKAI,
             "odometer_km": 45000,
             "penanggung_jawab": "Budi Santoso",
-        })
-        self.assertTrue(form.is_valid())
+        }, files={"foto": _photos()})
+        self.assertTrue(form.is_valid(), form.errors)
 
     def test_missing_nopol_is_invalid(self):
         form = VehicleForm(data={
@@ -153,6 +165,7 @@ class VehicleListViewTests(TestCase):
         self.assertNotIn("'", js_string_content)
 
 
+@override_settings(MEDIA_ROOT=MEDIA_ROOT)
 class VehicleCreateViewTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
@@ -172,6 +185,7 @@ class VehicleCreateViewTests(TestCase):
             "status": Vehicle.Status.SIAP_PAKAI,
             "odometer_km": 1000,
             "penanggung_jawab": "Siti Amalia",
+            "foto": _photos(),
         })
         self.assertRedirects(response, reverse("fleet:vehicle_list"))
         self.assertEqual(Vehicle.objects.count(), 1)
@@ -208,6 +222,7 @@ class VehicleCreateViewTests(TestCase):
                 "status": Vehicle.Status.SIAP_PAKAI,
                 "odometer_km": 1000,
                 "penanggung_jawab": "Siti Amalia",
+                "foto": _photos(),
             },
             HTTP_HX_REQUEST="true",
         )
@@ -235,6 +250,7 @@ class VehicleCreateViewTests(TestCase):
         self.assertContains(response, "already exists")
 
 
+@override_settings(MEDIA_ROOT=MEDIA_ROOT)
 class VehicleUpdateViewTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
@@ -244,6 +260,8 @@ class VehicleUpdateViewTests(TestCase):
             tahun=2019, status=Vehicle.Status.SIAP_PAKAI, odometer_km=45000,
             penanggung_jawab="Budi Santoso",
         )
+        for upload in _photos():
+            VehiclePhoto.objects.create(vehicle=self.vehicle, image=upload)
 
     def test_get_renders_prefilled_form(self):
         response = self.client.get(reverse("fleet:vehicle_update", args=[self.vehicle.pk]))
@@ -321,12 +339,6 @@ class VehicleDeleteViewTests(TestCase):
         self.assertEqual(Vehicle.objects.count(), 1)
 
 
-def _png_upload(name="mobil.png"):
-    buffer = io.BytesIO()
-    Image.new("RGB", (4, 4), "red").save(buffer, format="PNG")
-    return SimpleUploadedFile(name, buffer.getvalue(), content_type="image/png")
-
-
 class VehicleQrCodeTests(TestCase):
     def test_qr_text_lists_vehicle_identity(self):
         vehicle = Vehicle(nopol="B 9021 XY", merek="Hino Dutro", no_chasis="MHFXX123", no_mesin="W04DTR456")
@@ -381,24 +393,60 @@ class VehicleQrCodeTests(TestCase):
         self.assertIn("No. Mesin: W04DTR456", vehicle.qr_text())
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+@override_settings(MEDIA_ROOT=MEDIA_ROOT)
 class VehicleFotoUploadTests(TestCase):
     def setUp(self):
         User.objects.create_user(username="teknisi1", password="rahasia-123")
         self.client.login(username="teknisi1", password="rahasia-123")
 
-    def test_create_with_foto_saves_image_and_lists_it(self):
-        response = self.client.post(reverse("fleet:vehicle_create"), {
+    def _create(self, photos):
+        return self.client.post(reverse("fleet:vehicle_create"), {
             "nopol": "B 1234 AB",
             "merek": "Toyota Avanza",
             "odometer_km": 1000,
-            "foto": _png_upload(),
+            "foto": photos,
         })
+
+    def test_create_with_four_fotos_saves_them_and_lists_them(self):
+        response = self._create(_photos(4))
         self.assertRedirects(response, reverse("fleet:vehicle_list"))
         vehicle = Vehicle.objects.get()
-        self.assertTrue(vehicle.foto.name.startswith("kendaraan/"))
+        self.assertEqual(vehicle.fotos.count(), 4)
+        self.assertTrue(all(f.image.name.startswith("kendaraan/") for f in vehicle.fotos.all()))
         response = self.client.get(reverse("fleet:vehicle_list"))
-        self.assertContains(response, f'src="{vehicle.foto.url}"')
+        for foto in vehicle.fotos.all():
+            self.assertContains(response, f'src="{foto.image.url}"')
+
+    def test_create_with_fewer_than_four_fotos_is_rejected(self):
+        response = self._create(_photos(3))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Vehicle.objects.count(), 0)
+        self.assertContains(response, "Unggah minimal 4 foto kendaraan (baru 3).")
+
+    def test_create_without_fotos_is_rejected(self):
+        response = self._create([])
+        self.assertEqual(Vehicle.objects.count(), 0)
+        self.assertContains(response, "Unggah minimal 4 foto kendaraan (baru 0).")
+
+    def test_edit_with_new_fotos_replaces_all_old_ones(self):
+        self._create(_photos(4))
+        vehicle = Vehicle.objects.get()
+        old_ids = set(vehicle.fotos.values_list("id", flat=True))
+        response = self.client.post(reverse("fleet:vehicle_update", args=[vehicle.pk]), {
+            "nopol": "B 1234 AB", "merek": "Toyota Avanza", "odometer_km": 1000, "foto": _photos(5),
+        })
+        self.assertRedirects(response, reverse("fleet:vehicle_list"))
+        self.assertEqual(vehicle.fotos.count(), 5)
+        self.assertFalse(old_ids & set(vehicle.fotos.values_list("id", flat=True)))
+
+    def test_edit_with_too_few_new_fotos_keeps_old_ones(self):
+        self._create(_photos(4))
+        vehicle = Vehicle.objects.get()
+        response = self.client.post(reverse("fleet:vehicle_update", args=[vehicle.pk]), {
+            "nopol": "B 1234 AB", "merek": "Toyota Avanza", "odometer_km": 1000, "foto": _photos(2),
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(vehicle.fotos.count(), 4)
 
     def test_form_posts_as_multipart_for_htmx(self):
         response = self.client.get(reverse("fleet:vehicle_create"), HTTP_HX_REQUEST="true")

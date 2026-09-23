@@ -1,0 +1,9 @@
+{% if vehicle.fotos.all %}
+<div class="grid grid-cols-4 gap-1 w-max">
+    {% for foto in vehicle.fotos.all %}
+    <a href="{{ foto.image.url }}" target="_blank" rel="noopener">
+        <img src="{{ foto.image.url }}" loading="lazy" alt="Foto {{ vehicle.nopol }} {{ forloop.counter }}" class="h-10 w-10 rounded object-cover border border-slate-200 dark:border-slate-700">
+    </a>
+    {% endfor %}
+</div>
+{% else %}-{% endif %}

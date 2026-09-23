@@ -1,6 +1,8 @@
 from django import forms
 
-from .models import Vehicle
+from .models import Vehicle, VehiclePhoto
+
+MIN_FOTO = 4
 
 TEXT_INPUT_CLASSES = (
     "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm "
@@ -20,13 +22,31 @@ FILE_INPUT_CLASSES = (
 )
 
 
+class MultipleImageInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class MultipleImageField(forms.ImageField):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("widget", MultipleImageInput(attrs={"accept": "image/*"}))
+        super().__init__(*args, **kwargs)
+
+    def clean(self, data, initial=None):
+        if not data:
+            return []
+        files = data if isinstance(data, (list, tuple)) else [data]
+        return [super(MultipleImageField, self).clean(f, initial) for f in files]
+
+
 class VehicleForm(forms.ModelForm):
+    # On create: at least MIN_FOTO photos. On edit: leave empty to keep the
+    # current photos, or upload a new set (again at least MIN_FOTO) to
+    # replace all of them.
+    foto = MultipleImageField(required=False, label="Foto Kendaraan")
+
     class Meta:
         model = Vehicle
-        fields = ["nopol", "merek", "odometer_km", "no_chasis", "no_mesin", "foto"]
-        widgets = {
-            "foto": forms.FileInput(attrs={"accept": "image/*", "capture": "environment"}),
-        }
+        fields = ["nopol", "merek", "odometer_km", "no_chasis", "no_mesin"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -34,3 +54,21 @@ class VehicleForm(forms.ModelForm):
             field.widget.attrs["class"] = FILE_INPUT_CLASSES if name == "foto" else TEXT_INPUT_CLASSES
         self.fields["nopol"].widget.attrs["placeholder"] = "B 9021 XY"
         self.fields["merek"].widget.attrs["placeholder"] = "Toyota Hilux"
+
+    def clean_foto(self):
+        files = self.cleaned_data["foto"]
+        keeping_existing = not files and self.instance.pk and self.instance.fotos.count() >= MIN_FOTO
+        if not keeping_existing and len(files) < MIN_FOTO:
+            raise forms.ValidationError(f"Unggah minimal {MIN_FOTO} foto kendaraan (baru {len(files)}).")
+        return files
+
+    def save(self, commit=True):
+        vehicle = super().save(commit=commit)
+        files = self.cleaned_data["foto"]
+        if commit and files:
+            for old in vehicle.fotos.all():
+                old.image.delete(save=False)
+            vehicle.fotos.all().delete()
+            for f in files:
+                VehiclePhoto.objects.create(vehicle=vehicle, image=f)
+        return vehicle
