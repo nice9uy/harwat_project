@@ -69,8 +69,9 @@ class LaporanForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for name, field in self.fields.items():
             field.widget.attrs["class"] = FILE_INPUT_CLASSES if name == "foto" else TEXT_INPUT_CLASSES
-        self.fields["nip"].widget.attrs["placeholder"] = "199001012015031001"
+        self.fields["nip"].label = "NIP/NRP"
+        self.fields["nip"].widget.attrs["placeholder"] = "199001012015031001 (PNS) / 21990123456789 (TNI)"
         self.fields["nama"].widget.attrs["placeholder"] = "Budi Santoso"
-        self.fields["pangkat"].widget.attrs["placeholder"] = "Penata Muda / III-a"
+        self.fields["pangkat"].widget.attrs["placeholder"] = "Kapten (TNI) / Penata Muda - III-a (PNS)"
         self.fields["jabatan"].widget.attrs["placeholder"] = "Teknisi"
         self.fields["satuan"].widget.attrs["placeholder"] = "Satuan Kerja ABC"
