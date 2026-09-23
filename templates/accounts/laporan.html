@@ -9,7 +9,8 @@
           modalOpen: {% if form.captcha.errors %}true{% else %}false{% endif %},
           fotoPreview: null,
           scanOpen: false,
-          scanResult: '',
+          kendaraan: null,
+          scanLoading: false,
           scanError: '',
           scanner: null,
           loadQrLib() {
@@ -32,11 +33,35 @@
                   await this.scanner.start(
                       { facingMode: 'environment' },
                       { fps: 10, qrbox: { width: 240, height: 240 } },
-                      (text) => { this.scanResult = text; this.stopScan(); },
+                      (text) => { this.stopScan(); this.lookup(text); },
                       () => {},
                   );
               } catch (err) {
                   this.scanError = 'Kamera tidak bisa dibuka: ' + err;
+              }
+          },
+          async lookup(text) {
+              // QR text is 'No. Registrasi: X' plus other lines; the vehicle
+              // is looked up by that number so the fields (including Group
+              // Kendaraan, which isn't in the QR) come from the database.
+              const line = text.split('\n').find((l) => l.startsWith('No. Registrasi:'));
+              this.kendaraan = null;
+              if (!line) {
+                  this.scanError = 'QR Code bukan QR kendaraan.';
+                  return;
+              }
+              this.scanError = '';
+              this.scanLoading = true;
+              try {
+                  const nopol = line.slice(line.indexOf(':') + 1).trim();
+                  const response = await fetch('{% url 'fleet:vehicle_lookup' %}?nopol=' + encodeURIComponent(nopol));
+                  const data = await response.json();
+                  if (response.ok) this.kendaraan = data;
+                  else this.scanError = data.error;
+              } catch (err) {
+                  this.scanError = 'Gagal mengambil data kendaraan.';
+              } finally {
+                  this.scanLoading = false;
               }
           },
           async stopScan() {
@@ -100,17 +125,33 @@
             Scan QR Code Kendaraan
         </button>
 
-        <div x-show="scanResult" x-cloak class="rounded-md border border-slate-300 dark:border-slate-600 px-3 py-3 text-sm">
-            <p class="font-medium text-navy dark:text-slate-100 mb-2">Hasil Scan</p>
-            <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-                <template x-for="line in scanResult.split('\n')">
-                    <div class="contents">
-                        <dt class="text-slate-500 dark:text-slate-400" x-text="line.includes(':') ? line.split(':')[0] : ''"></dt>
-                        <dd class="text-slate-900 dark:text-slate-100 break-all" x-text="line.includes(':') ? line.slice(line.indexOf(':') + 1).trim() : line"></dd>
-                    </div>
-                </template>
-            </dl>
-        </div>
+        <p x-show="scanLoading" x-cloak class="text-sm text-slate-500 dark:text-slate-400">Mengambil data kendaraan…</p>
+        <p x-show="!scanOpen && scanError" x-cloak x-text="scanError" class="rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300"></p>
+
+        <template x-if="kendaraan">
+          <div class="space-y-4">
+            <div>
+                <label for="scan-nopol" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. Registrasi</label>
+                <input id="scan-nopol" type="text" readonly :value="kendaraan.nopol || '-'" class="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+            </div>
+            <div>
+                <label for="scan-merek" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Merk/Type</label>
+                <input id="scan-merek" type="text" readonly :value="kendaraan.merek || '-'" class="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+            </div>
+            <div>
+                <label for="scan-no_chasis" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. Chasis</label>
+                <input id="scan-no_chasis" type="text" readonly :value="kendaraan.no_chasis || '-'" class="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+            </div>
+            <div>
+                <label for="scan-no_mesin" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. Mesin</label>
+                <input id="scan-no_mesin" type="text" readonly :value="kendaraan.no_mesin || '-'" class="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+            </div>
+            <div>
+                <label for="scan-group_kendaraan" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Group Kendaraan</label>
+                <input id="scan-group_kendaraan" type="text" readonly :value="kendaraan.group_kendaraan || '-'" class="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+            </div>
+          </div>
+        </template>
     </div>
 
     <div x-show="scanOpen"

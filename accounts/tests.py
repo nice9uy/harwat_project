@@ -188,6 +188,9 @@ class LaporanViewTests(TestCase):
         self.assertContains(response, "Scan QR Code Kendaraan")
         self.assertContains(response, 'id="qr-reader"')
         self.assertContains(response, "/static/vendor/html5-qrcode.min.js")
+        self.assertContains(response, reverse("fleet:vehicle_lookup"))
+        for label in ("No. Registrasi", "Merk/Type", "No. Chasis", "No. Mesin", "Group Kendaraan"):
+            self.assertContains(response, f">{label}</label>")
 
     def test_shows_all_fields(self):
         self.client.login(username="teknisi1", password="rahasia-123")

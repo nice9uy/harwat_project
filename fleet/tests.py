@@ -544,3 +544,30 @@ class VehicleGroupKendaraanTests(TestCase):
         response = self.client.get(reverse("admin:fleet_vehicle_changelist"))
         self.assertContains(response, "Group Kendaraan")
         self.assertContains(response, "Golongan B")
+
+
+class VehicleLookupTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username="teknisi1", password="rahasia-123")
+        Vehicle.objects.create(nopol="B 9021 XY", merek="Hino Dutro", no_chasis="MHFXX123", no_mesin="W04DTR456")
+
+    def test_requires_login(self):
+        response = self.client.get(reverse("fleet:vehicle_lookup"), {"nopol": "B 9021 XY"})
+        self.assertEqual(response.status_code, 302)
+
+    def test_returns_fields_shown_after_scan(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("fleet:vehicle_lookup"), {"nopol": " B 9021 XY "})
+        self.assertEqual(response.json(), {
+            "nopol": "B 9021 XY",
+            "merek": "Hino Dutro",
+            "no_chasis": "MHFXX123",
+            "no_mesin": "W04DTR456",
+            "group_kendaraan": "Golongan B",
+        })
+
+    def test_unknown_nopol_returns_404(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("fleet:vehicle_lookup"), {"nopol": "Z 0000 ZZ"})
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json(), {"error": "Kendaraan tidak ditemukan."})

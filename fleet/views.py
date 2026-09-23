@@ -1,5 +1,5 @@
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -108,3 +108,18 @@ def vehicle_photos(request, pk):
 def vehicle_qr_modal(request, pk):
     vehicle = get_object_or_404(Vehicle, pk=pk)
     return render(request, "fleet/_vehicle_qr_modal.html", {"vehicle": vehicle})
+
+
+@login_required
+def vehicle_lookup(request):
+    """Vehicle details for a scanned QR code, looked up by No. Registrasi."""
+    vehicle = Vehicle.objects.filter(nopol=request.GET.get("nopol", "").strip()).first()
+    if vehicle is None:
+        return JsonResponse({"error": "Kendaraan tidak ditemukan."}, status=404)
+    return JsonResponse({
+        "nopol": vehicle.nopol,
+        "merek": vehicle.merek,
+        "no_chasis": vehicle.no_chasis,
+        "no_mesin": vehicle.no_mesin,
+        "group_kendaraan": vehicle.get_group_kendaraan_display(),
+    })
