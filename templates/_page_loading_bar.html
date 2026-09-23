@@ -1,0 +1,63 @@
+<div id="page-loading-bar"
+     class="fixed inset-x-0 top-0 z-[100] h-0.5 origin-left scale-x-0 bg-gold shadow-[0_0_8px_var(--color-gold)]"
+     style="transition: transform 350ms ease-out, opacity 200ms ease-out 150ms;"></div>
+<script>
+(function () {
+    var bar = document.getElementById('page-loading-bar');
+    var timer = null;
+    var progress = 0;
+
+    function setWidth(pct, durationMs) {
+        bar.style.transition = 'transform ' + durationMs + 'ms ease-out';
+        bar.style.opacity = '1';
+        bar.style.transform = 'scaleX(' + (pct / 100) + ')';
+    }
+
+    function start() {
+        clearInterval(timer);
+        progress = 0;
+        setWidth(0, 0);
+        requestAnimationFrame(function () {
+            progress = 25;
+            setWidth(progress, 300);
+        });
+        timer = setInterval(function () {
+            progress = Math.min(progress + Math.random() * 8, 90);
+            setWidth(progress, 400);
+        }, 350);
+    }
+
+    function reset() {
+        clearInterval(timer);
+        progress = 0;
+        bar.style.transition = 'none';
+        bar.style.opacity = '0';
+        bar.style.transform = 'scaleX(0)';
+    }
+
+    document.addEventListener('click', function (event) {
+        var link = event.target.closest('a[href]');
+        if (!link || link.target === '_blank' || link.hasAttribute('download')) return;
+        if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+
+        var url;
+        try {
+            url = new URL(link.href, window.location.href);
+        } catch (err) {
+            return;
+        }
+        if (url.origin !== window.location.origin) return;
+        if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash) return;
+
+        start();
+    });
+
+    document.addEventListener('submit', function (event) {
+        var form = event.target;
+        if (form.hasAttribute('hx-post') || form.hasAttribute('hx-get')) return;
+        start();
+    });
+
+    window.addEventListener('pageshow', reset);
+})();
+</script>
