@@ -74,6 +74,22 @@
                   scanner.clear();
               } catch (err) {}
           },
+          lanjutkan() {
+              // Required fields may sit in a collapsed accordion panel, where
+              // the browser cannot point at them; open that panel first.
+              const invalid = [...$refs.pemeriksaan.querySelectorAll('input, select, textarea')]
+                  .find((el) => !el.checkValidity());
+              if (!invalid) {
+                  this.modalOpen = true;
+                  return;
+              }
+              const panel = invalid.closest('[data-panel]');
+              if (panel) window.dispatchEvent(new CustomEvent('buka-panel', { detail: JSON.parse(panel.dataset.panel) }));
+              this.$nextTick(() => {
+                  invalid.closest('section')?.scrollIntoView({ block: 'center' });
+                  invalid.reportValidity();
+              });
+          },
           next() {
               for (const el of $refs.biodata.querySelectorAll('input, select, textarea')) {
                   if (!el.reportValidity()) return;
@@ -103,9 +119,10 @@
         </nav>
     </div>
     {% csrf_token %}
-    {% if form.non_field_errors %}
+    {% if form.non_field_errors or pemeriksaan_form.errors %}
     <div class="max-w-md mx-auto mb-4 rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
-        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+        {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+        {% for field, errors in pemeriksaan_form.errors.items %}{% for error in errors %}<p>{{ error }}</p>{% endfor %}{% endfor %}
     </div>
     {% endif %}
     <div x-ref="biodata" x-show="step === 1" class="max-w-md mx-auto space-y-4">
@@ -157,10 +174,10 @@
           </div>
         </template>
 
-        <div x-show="kendaraan" x-cloak class="space-y-4">
+        <div x-show="kendaraan" x-cloak x-ref="pemeriksaan" class="space-y-4">
             {% include "accounts/_pemeriksaan_accordion.html" %}
-            {# Next step not decided yet; the button is in place for it. #}
-            <button type="button" id="pemeriksaan-lanjutkan"
+            <input type="hidden" name="vehicle" :value="kendaraan ? kendaraan.id : ''">
+            <button type="button" id="pemeriksaan-lanjutkan" @click="lanjutkan()"
                     class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
                 Lanjutkan
             </button>

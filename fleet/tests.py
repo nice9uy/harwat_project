@@ -559,6 +559,7 @@ class VehicleLookupTests(TestCase):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("fleet:vehicle_lookup"), {"nopol": " B 9021 XY "})
         self.assertEqual(response.json(), {
+            "id": Vehicle.objects.get().pk,
             "nopol": "B 9021 XY",
             "merek": "Hino Dutro",
             "no_chasis": "MHFXX123",

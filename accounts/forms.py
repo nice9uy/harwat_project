@@ -2,7 +2,10 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.models import User
 
-from .models import Laporan
+from fleet.models import Vehicle
+
+from . import pemeriksaan as checklist
+from .models import Laporan, PemeriksaanGolonganB
 
 TEXT_INPUT_CLASSES = (
     "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm "
@@ -90,3 +93,58 @@ class LaporanForm(forms.ModelForm):
         if not self._expected_captcha or value != self._expected_captcha:
             raise forms.ValidationError("Kode keamanan tidak sesuai.")
         return value
+
+
+class PemeriksaanGolonganBForm(forms.ModelForm):
+    """Tab PEMERIKSAAN: scanned vehicle, classification and the 40 parts.
+
+    Part fields come from the accordion as alat_<n>_jml / _kondisi / _foto /
+    _keterangan for n = 1..40 and are validated here into ``cleaned_items``.
+    """
+
+    class Meta:
+        model = PemeriksaanGolonganB
+        fields = ["vehicle", "pembagian_kelas", "eselon_reparasi", "macam_pemeriksaan", "buku_jalan", "kesatuan"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["vehicle"].queryset = Vehicle.objects.filter(
+            group_kendaraan=Vehicle.GroupKendaraan.GOLONGAN_B
+        )
+        self.fields["vehicle"].error_messages["required"] = "Scan QR Code kendaraan terlebih dahulu."
+        self.cleaned_items = []
+
+    def clean(self):
+        cleaned = super().clean()
+        kondisi_valid = {kode for kode, _ in checklist.KONDISI}
+        items, errors = [], []
+        for nomor, nama in checklist.ALAT_BERNOMOR:
+            prefix = f"alat_{nomor}_"
+            kondisi = self.data.get(prefix + "kondisi", "")
+            if kondisi not in kondisi_valid:
+                errors.append(f"Kondisi {nomor}. {nama} belum dipilih.")
+            jumlah_raw = self.data.get(prefix + "jml", "").strip()
+            jumlah = None
+            if jumlah_raw:
+                if not jumlah_raw.isdigit():
+                    errors.append(f"Jumlah {nomor}. {nama} harus angka 0 atau lebih.")
+                else:
+                    jumlah = int(jumlah_raw)
+            foto = self.files.get(prefix + "foto")
+            if foto:
+                try:
+                    foto = forms.ImageField().clean(foto)
+                except forms.ValidationError:
+                    errors.append(f"Foto {nomor}. {nama} bukan gambar yang valid.")
+            items.append({
+                "nomor": nomor,
+                "nama_alat": nama,
+                "jumlah": jumlah,
+                "kondisi": kondisi,
+                "foto": foto or None,
+                "keterangan": self.data.get(prefix + "keterangan", "").strip(),
+            })
+        if errors:
+            raise forms.ValidationError(errors)
+        self.cleaned_items = items
+        return cleaned

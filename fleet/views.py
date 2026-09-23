@@ -1,3 +1,4 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -81,6 +82,9 @@ def vehicle_delete_confirm(request, pk):
 @require_POST
 def vehicle_delete(request, pk):
     vehicle = get_object_or_404(Vehicle, pk=pk)
+    if vehicle.pemeriksaan_golongan_b.exists():
+        messages.error(request, f"Kendaraan {vehicle.nopol} tidak bisa dihapus karena sudah punya data pemeriksaan.")
+        return redirect("fleet:vehicle_list")
     # Rows cascade, but the image files would otherwise stay on disk.
     for foto in vehicle.fotos.all():
         foto.image.delete(save=False)
@@ -117,6 +121,7 @@ def vehicle_lookup(request):
     if vehicle is None:
         return JsonResponse({"error": "Kendaraan tidak ditemukan."}, status=404)
     return JsonResponse({
+        "id": vehicle.pk,
         "nopol": vehicle.nopol,
         "merek": vehicle.merek,
         "no_chasis": vehicle.no_chasis,

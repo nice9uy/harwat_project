@@ -1,7 +1,7 @@
 {# Inspection checklist from the paper form, shown after a vehicle is scanned. #}
-<div x-data="{ open: 'klasifikasi' }" class="divide-y divide-slate-200 dark:divide-slate-700 rounded-md border border-slate-300 dark:border-slate-600 overflow-hidden">
+<div x-data="{ open: 'klasifikasi' }" @buka-panel.window="open = $event.detail" class="divide-y divide-slate-200 dark:divide-slate-700 rounded-md border border-slate-300 dark:border-slate-600 overflow-hidden">
     {# Panel: klasifikasi #}
-    <section>
+    <section data-panel='"klasifikasi"'>
         <button type="button" @click="open = open === 'klasifikasi' ? null : 'klasifikasi'"
                 :aria-expanded="open === 'klasifikasi'"
                 class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-navy dark:text-slate-100 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700">
@@ -14,7 +14,7 @@
                 <div class="grid grid-cols-6 gap-2">
                     {% for kelas in pembagian_kelas %}
                     <label class="flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 py-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-blue-600 has-checked:bg-blue-600 has-checked:text-white">
-                        <input type="radio" name="pembagian_kelas" value="{{ kelas }}" class="sr-only">{{ kelas }}
+                        <input type="radio" name="pembagian_kelas" value="{{ kelas }}" required class="sr-only">{{ kelas }}
                     </label>
                     {% endfor %}
                 </div>
@@ -24,7 +24,7 @@
                 <div class="grid grid-cols-4 gap-2">
                     {% for eselon in eselon_reparasi %}
                     <label class="flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 py-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-blue-600 has-checked:bg-blue-600 has-checked:text-white">
-                        <input type="radio" name="eselon_reparasi" value="{{ eselon }}" class="sr-only">{{ eselon }}
+                        <input type="radio" name="eselon_reparasi" value="{{ eselon }}" required class="sr-only">{{ eselon }}
                     </label>
                     {% endfor %}
                 </div>
@@ -34,7 +34,7 @@
                 <div class="grid grid-cols-2 gap-2">
                     {% for value, label in macam_pemeriksaan %}
                     <label class="flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 py-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-blue-600 has-checked:bg-blue-600 has-checked:text-white">
-                        <input type="radio" name="macam_pemeriksaan" value="{{ value }}" class="sr-only">{{ label }}
+                        <input type="radio" name="macam_pemeriksaan" value="{{ value }}" required class="sr-only">{{ label }}
                     </label>
                     {% endfor %}
                 </div>
@@ -44,7 +44,7 @@
                 <div class="grid grid-cols-2 gap-2">
                     {% for value, label in buku_jalan %}
                     <label class="flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 py-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-blue-600 has-checked:bg-blue-600 has-checked:text-white">
-                        <input type="radio" name="buku_jalan" value="{{ value }}" class="sr-only">{{ label }}
+                        <input type="radio" name="buku_jalan" value="{{ value }}" required class="sr-only">{{ label }}
                     </label>
                     {% endfor %}
                 </div>
@@ -58,7 +58,7 @@
     </section>
 
     {% for no, nama in alat %}
-    <section x-data="{ jml: '', kondisi: '', foto: null }">
+    <section data-panel="{{ no }}" x-data="{ jml: '', kondisi: '', foto: null }">
         <button type="button" @click="open = open === {{ no }} ? null : {{ no }}"
                 :aria-expanded="open === {{ no }}"
                 class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-navy dark:text-slate-100 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700">
@@ -84,7 +84,7 @@
                     {% for kode, arti in kondisi %}
                     <label class="flex flex-col items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 py-2 text-slate-700 dark:text-slate-200 cursor-pointer
                         {% if kode == 'B' %}has-checked:border-green-600 has-checked:bg-green-600{% elif kode == 'RR' %}has-checked:border-amber-500 has-checked:bg-amber-500{% else %}has-checked:border-red-600 has-checked:bg-red-600{% endif %} has-checked:text-white">
-                        <input type="radio" name="alat_{{ no }}_kondisi" value="{{ kode }}" x-model="kondisi" class="sr-only">
+                        <input type="radio" name="alat_{{ no }}_kondisi" value="{{ kode }}" x-model="kondisi" required class="sr-only">
                         <span class="text-sm font-semibold">{{ kode }}</span>
                         <span class="text-[11px] leading-tight">{{ arti }}</span>
                     </label>

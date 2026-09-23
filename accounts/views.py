@@ -6,16 +6,19 @@ from django.contrib import messages
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import redirect, render, resolve_url
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from fleet.images import compress_photo
 from fleet.services import get_fleet_summary
 
 from . import pemeriksaan
-from .forms import LaporanForm, LoginForm, UserCreateForm
+from .forms import LaporanForm, LoginForm, PemeriksaanGolonganBForm, UserCreateForm
+from .models import PemeriksaanGolonganBItem
 
 
 def _get_success_url(request):
@@ -104,18 +107,32 @@ def laporan_view(request):
     if request.method == "POST":
         expected = request.session.get("laporan_captcha", "")
         form = LaporanForm(request.POST, request.FILES, expected_captcha=expected)
-        if form.is_valid():
-            form.save()
+        pemeriksaan_form = PemeriksaanGolonganBForm(request.POST, request.FILES)
+        if form.is_valid() and pemeriksaan_form.is_valid():
+            with transaction.atomic():
+                pemeriksa = form.save()
+                hasil = pemeriksaan_form.save(commit=False)
+                hasil.pemeriksa = pemeriksa
+                hasil.save()
+                for item in pemeriksaan_form.cleaned_items:
+                    foto = item.pop("foto")
+                    PemeriksaanGolonganBItem.objects.create(
+                        pemeriksaan=hasil,
+                        foto=compress_photo(foto) if foto else "",
+                        **item,
+                    )
             del request.session["laporan_captcha"]
-            messages.success(request, "Laporan berhasil dikirim.")
+            messages.success(request, f"Pemeriksaan {hasil.vehicle.nopol} berhasil disimpan.")
             return redirect("accounts:pemeriksaan")
     else:
         form = LaporanForm()
+        pemeriksaan_form = PemeriksaanGolonganBForm()
 
     captcha_code = _new_captcha_code()
     request.session["laporan_captcha"] = captcha_code
     return render(request, "accounts/laporan.html", {
         "form": form,
+        "pemeriksaan_form": pemeriksaan_form,
         "captcha_code": captcha_code,
         "pembagian_kelas": pemeriksaan.PEMBAGIAN_KELAS,
         "eselon_reparasi": pemeriksaan.ESELON_REPARASI,

@@ -7,7 +7,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import Laporan, RevokedToken
+from accounts.models import Laporan, PemeriksaanGolonganB, PemeriksaanGolonganBItem, RevokedToken
 from fleet.models import Vehicle
 
 # 1x1 transparent GIF — smallest valid image Pillow will accept for an
@@ -154,9 +154,28 @@ class UserCreateViewTests(TestCase):
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+def _pemeriksaan_data(vehicle, **overrides):
+    """POST fields of the PEMERIKSAAN tab for a fully filled-in inspection."""
+    data = {
+        "vehicle": vehicle.pk,
+        "pembagian_kelas": "2",
+        "eselon_reparasi": "3",
+        "macam_pemeriksaan": "tehnis",
+        "buku_jalan": "ada",
+        "kesatuan": "Yonif Mekanis 202/TM",
+    }
+    for nomor in range(1, 41):
+        data[f"alat_{nomor}_kondisi"] = "B"
+        data[f"alat_{nomor}_jml"] = "1"
+    data.update(overrides)
+    return data
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class LaporanViewTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.vehicle = Vehicle.objects.create(nopol="B 9021 XY", merek="Hino Dutro")
 
     def test_url_is_pemeriksaan_and_old_laporan_url_redirects(self):
         self.assertEqual(reverse("accounts:pemeriksaan"), "/pemeriksaan/")
@@ -250,6 +269,7 @@ class LaporanViewTests(TestCase):
             "satuan": "Satuan Kerja ABC",
             "foto": foto,
             "captcha": code,
+            **_pemeriksaan_data(self.vehicle),
         })
         self.assertRedirects(response, reverse("accounts:pemeriksaan"))
         self.assertEqual(Laporan.objects.count(), 1)
@@ -267,6 +287,7 @@ class LaporanViewTests(TestCase):
             "jabatan": "Teknisi",
             "satuan": "Satuan Kerja ABC",
             "captcha": code,
+            **_pemeriksaan_data(self.vehicle),
         })
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Laporan.objects.count(), 0)
@@ -284,6 +305,7 @@ class LaporanViewTests(TestCase):
             "satuan": "Satuan Kerja ABC",
             "foto": foto,
             "captcha": wrong_code,
+            **_pemeriksaan_data(self.vehicle),
         })
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Kode keamanan tidak sesuai.")
@@ -301,6 +323,7 @@ class LaporanViewTests(TestCase):
             "satuan": "Satuan Kerja ABC",
             "foto": foto,
             "captcha": code.lower(),
+            **_pemeriksaan_data(self.vehicle),
         })
         self.assertRedirects(response, reverse("accounts:pemeriksaan"))
         self.assertEqual(Laporan.objects.count(), 1)
@@ -470,3 +493,76 @@ class HistoryPerbaikanMenuTests(TestCase):
             for name in ("form_tambah", "history", "perbaikan", "pengaturan")
         ]
         self.assertEqual(positions, sorted(positions))
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class PemeriksaanGolonganBSaveTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.client.login(username="teknisi1", password="rahasia-123")
+        self.vehicle = Vehicle.objects.create(nopol="B 9021 XY", merek="Hino Dutro")
+
+    def _post(self, **overrides):
+        self.client.get(reverse("accounts:pemeriksaan"))
+        data = {
+            "nip": "199001012015031001",
+            "nama": "Budi Santoso",
+            "pangkat": "Kapten",
+            "jabatan": "Teknisi",
+            "satuan": "Satuan Kerja ABC",
+            "foto": SimpleUploadedFile("foto.gif", TINY_GIF, content_type="image/gif"),
+            "captcha": self.client.session["laporan_captcha"],
+            **_pemeriksaan_data(self.vehicle),
+        }
+        data.update(overrides)
+        return self.client.post(reverse("accounts:pemeriksaan"), data)
+
+    def test_saves_inspection_linked_to_vehicle_and_pemeriksa(self):
+        response = self._post(
+            alat_1_kondisi="RB", alat_1_jml="2", alat_1_keterangan="Bocor oli",
+            alat_1_foto=SimpleUploadedFile("motor.gif", TINY_GIF, content_type="image/gif"),
+            alat_40_jml="",
+        )
+        self.assertRedirects(response, reverse("accounts:pemeriksaan"))
+        hasil = PemeriksaanGolonganB.objects.get()
+        self.assertEqual(hasil.vehicle, self.vehicle)
+        self.assertEqual(hasil.pemeriksa, Laporan.objects.get())
+        self.assertEqual(
+            (hasil.pembagian_kelas, hasil.eselon_reparasi, hasil.macam_pemeriksaan, hasil.buku_jalan, hasil.kesatuan),
+            ("2", "3", "tehnis", "ada", "Yonif Mekanis 202/TM"),
+        )
+        self.assertEqual(hasil.items.count(), 40)
+        motor = hasil.items.get(nomor=1)
+        self.assertEqual((motor.nama_alat, motor.kondisi, motor.jumlah, motor.keterangan), ("Motor", "RB", 2, "Bocor oli"))
+        self.assertTrue(motor.foto.name.startswith("pemeriksaan/") and motor.foto.name.endswith(".jpg"))
+        cat = hasil.items.get(nomor=40)
+        self.assertEqual((cat.nama_alat, cat.jumlah, cat.foto.name), ("Cat", None, ""))
+
+    def test_missing_item_kondisi_saves_nothing(self):
+        response = self._post(alat_17_kondisi="")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Kondisi 17. Ban Depan belum dipilih.")
+        self.assertEqual(Laporan.objects.count(), 0)
+        self.assertEqual(PemeriksaanGolonganB.objects.count(), 0)
+
+    def test_without_scanned_vehicle_is_rejected(self):
+        response = self._post(vehicle="")
+        self.assertContains(response, "Scan QR Code kendaraan terlebih dahulu.")
+        self.assertEqual(PemeriksaanGolonganB.objects.count(), 0)
+
+    def test_vehicle_outside_golongan_b_is_rejected(self):
+        Vehicle.objects.filter(pk=self.vehicle.pk).update(group_kendaraan="X")
+        self._post()
+        self.assertEqual(PemeriksaanGolonganB.objects.count(), 0)
+
+    def test_vehicle_with_inspection_cannot_be_deleted(self):
+        self._post()
+        response = self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.pk]), follow=True)
+        self.assertTrue(Vehicle.objects.filter(pk=self.vehicle.pk).exists())
+        self.assertContains(response, "tidak bisa dihapus karena sudah punya data pemeriksaan")
+
+    def test_form_marks_classification_and_kondisi_required(self):
+        response = self.client.get(reverse("accounts:pemeriksaan"))
+        for name in ("pembagian_kelas", "eselon_reparasi", "macam_pemeriksaan", "buku_jalan", "alat_40_kondisi"):
+            self.assertRegex(response.content.decode(), rf'name="{name}" value="[^"]+"[^>]*required')
+        self.assertContains(response, 'name="vehicle"')
