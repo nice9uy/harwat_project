@@ -12,6 +12,7 @@ from django_bolt.auth import (
     rotate_refresh_token,
 )
 from django_bolt.exceptions import HTTPException
+from django_bolt.serializers import Serializer
 
 api = BoltAPI()
 
@@ -24,8 +25,18 @@ refresh_auth = JWTAuthentication(
 )
 
 
+class TokenPairResponse(Serializer):
+    access_token: str
+    refresh_token: str
+    token_type: str
+
+
+class DetailResponse(Serializer):
+    detail: str
+
+
 @api.post("/auth/login", tags=["auth"])
-async def login(request, credentials: LoginCredentials):
+async def login(request, credentials: LoginCredentials) -> TokenPairResponse:
     user = await aauthenticate(username=credentials.username, password=credentials.password)
     if user is None or not user.is_active:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -38,7 +49,7 @@ async def login(request, credentials: LoginCredentials):
 
 
 @api.post("/auth/refresh", auth=[refresh_auth], guards=[IsAuthenticated()], tags=["auth"])
-async def refresh(request):
+async def refresh(request) -> TokenPairResponse:
     try:
         pair = await rotate_refresh_token(
             request["context"]["auth_claims"],
@@ -55,7 +66,9 @@ async def refresh(request):
 
 
 @api.post("/auth/logout", auth=[refresh_auth], guards=[IsAuthenticated()], tags=["auth"])
-async def logout(request):
+async def logout(request) -> DetailResponse:
     claims = request["context"]["auth_claims"]
     await revocation_store.revoke(claims["jti"], exp=claims.get("exp"))
+    if claims.get("fam"):
+        await revocation_store.revoke_family(claims["fam"], exp=claims.get("exp"))
     return {"detail": "Logged out"}

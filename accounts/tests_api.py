@@ -80,3 +80,23 @@ class RefreshAndLogoutRouteTests(TransactionTestCase):
         with TestClient(api) as client:
             response = client.post("/auth/logout")
         self.assertEqual(response.status_code, 401)
+
+    def test_logout_revokes_entire_rotation_family(self):
+        with TestClient(api) as client:
+            # Rotate once first, so the original refresh token and the new one share a family
+            rotate_response = client.post(
+                "/auth/refresh", headers={"Authorization": f"Bearer {self.refresh_token}"}
+            )
+            new_refresh_token = rotate_response.json()["refresh_token"]
+
+            # Logout using the NEW token
+            logout_response = client.post(
+                "/auth/logout", headers={"Authorization": f"Bearer {new_refresh_token}"}
+            )
+            self.assertEqual(logout_response.status_code, 200)
+
+            # The new token itself should now be unusable
+            reuse_response = client.post(
+                "/auth/refresh", headers={"Authorization": f"Bearer {new_refresh_token}"}
+            )
+        self.assertEqual(reuse_response.status_code, 401)

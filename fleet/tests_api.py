@@ -109,6 +109,60 @@ class VehicleApiCrudTests(TransactionTestCase):
         self.assertEqual(response.status_code, 409)
         self.assertEqual(Vehicle.objects.count(), 1)
 
+    def test_create_with_invalid_status_choice_returns_422(self):
+        with TestClient(api) as client:
+            response = client.post(
+                "/api/vehicles",
+                headers=self.headers,
+                json={
+                    "nopol": "B 7777 ZZ",
+                    "jenis": "mobil",
+                    "merek": "Toyota Avanza",
+                    "tahun": 2021,
+                    "status": "pisang",
+                    "odometer_km": 1000,
+                    "penanggung_jawab": "Siti Amalia",
+                },
+            )
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(Vehicle.objects.count(), 0)
+
+    def test_create_with_invalid_jenis_choice_returns_422(self):
+        with TestClient(api) as client:
+            response = client.post(
+                "/api/vehicles",
+                headers=self.headers,
+                json={
+                    "nopol": "B 7778 ZZ",
+                    "jenis": "spaceship",
+                    "merek": "Toyota Avanza",
+                    "tahun": 2021,
+                    "status": "siap_pakai",
+                    "odometer_km": 1000,
+                    "penanggung_jawab": "Siti Amalia",
+                },
+            )
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(Vehicle.objects.count(), 0)
+
+    def test_create_with_negative_tahun_returns_422_not_409(self):
+        with TestClient(api) as client:
+            response = client.post(
+                "/api/vehicles",
+                headers=self.headers,
+                json={
+                    "nopol": "B 7779 ZZ",
+                    "jenis": "mobil",
+                    "merek": "Toyota Avanza",
+                    "tahun": -5,
+                    "status": "siap_pakai",
+                    "odometer_km": 1000,
+                    "penanggung_jawab": "Siti Amalia",
+                },
+            )
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(Vehicle.objects.count(), 0)
+
     def test_partial_update_not_available(self):
         vehicle = Vehicle.objects.create(
             nopol="B 5555 CD", jenis=Vehicle.Jenis.MOBIL, merek="Test",

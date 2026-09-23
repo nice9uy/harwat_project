@@ -152,8 +152,14 @@ processes, so an in-memory store wouldn't be shared between them — a token rev
 worker would still work against another.
 
 No scheduled cleanup task for expired `RevokedToken` rows in this spec (the library's own docs
-call this out as a follow-up concern, e.g. a cron/celery job) — out of scope, table grows slowly
-(one row per logout) and isn't a correctness problem, just eventual housekeeping.
+call this out as a follow-up concern, e.g. a cron/celery job) — out of scope. Growth is faster
+than "one row per logout" suggests: `rotate_refresh_token` (called on every successful
+`/auth/refresh`, not just `/auth/logout`) also calls the revocation store's `consume()`, which
+inserts a row on every rotation. With the default 15-minute access / 7-day refresh token
+lifetimes, an active user's client refreshes roughly every 15 minutes, so it writes roughly one
+row every 15 minutes, not one per logout. Still not a correctness problem, just eventual
+housekeeping — the deferral decision stands, but the growth rate driving it is meaningfully
+faster than originally stated.
 
 ### 3. Vehicle CRUD API — `fleet/api.py`
 
@@ -192,12 +198,16 @@ class VehicleViewSet(ViewSet):
 ```
 
 `jenis`/`status` stay plain `str` on the wire (not a msgspec enum) — external clients send/receive
-the same choice values (`"truk"`, `"siap_pakai"`, etc.) already used internally; Django's own
-`choices=` validation on the model fields still rejects an invalid value on save (a `ValidationError`
-that `django-bolt`'s error handling turns into a structured 4xx — exact status/shape confirmed
-against the installed error-handling code during implementation, not guessed here).
-Uniqueness on `nopol` is already enforced at the model layer (`unique=True`) — the same
-constraint the HTML form relies on, hit through a different door.
+the same choice values (`"truk"`, `"siap_pakai"`, etc.) already used internally. `choices=`
+validation on the model fields is **not** enforced by `save()` on its own — Django only runs it
+through `full_clean()`, which `save()` never calls implicitly. `perform_create`/`perform_update`
+therefore call `full_clean()` explicitly before saving, the same way the existing `VehicleForm`
+already does implicitly via `form.is_valid()`; an invalid `jenis`/`status` value raises a
+`ValidationError`, which is translated into a `422` with a field → message-list body. Uniqueness
+on `nopol` is already enforced at the model layer (`unique=True`) — the same constraint the HTML
+form relies on, hit through a different door; `full_clean()` is called with `validate_unique=False`
+so that case is still reported as the more specific `409` (from the DB's own `IntegrityError` on
+save), not folded into the generic `422` path.
 
 ### 4. Fleet summary — `fleet/services.py` (new) + `accounts/views.py` (modified)
 
