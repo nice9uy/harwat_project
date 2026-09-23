@@ -10,7 +10,7 @@
                 <circle cx="6" cy="18" r="1.5" />
                 <circle cx="16.5" cy="18" r="1.5" />
             </svg>
-            GOLONGAN B
+            {{ group_label|upper }}
         </span>
     </nav>
 </div>
@@ -19,7 +19,7 @@
         <p class="text-sm text-slate-500 dark:text-slate-400">Daftar kendaraan dalam armada.</p>
         <button type="button"
                 @click="modalOpen = true"
-                hx-get="{% url 'fleet:vehicle_create' %}"
+                hx-get="{% url 'fleet:vehicle_create' %}?group={{ group }}"
                 hx-target="#vehicle-modal-body"
                 hx-swap="innerHTML"
                 class="rounded-md bg-navy px-3 py-2 text-sm font-medium text-white hover:bg-navy-light">

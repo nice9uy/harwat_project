@@ -21,16 +21,29 @@ def _htmx_redirect(url):
     return response
 
 
+def _group(request):
+    # Which Armada tab the request belongs to (?group=B); unknown or missing
+    # values fall back to the default group.
+    group = request.GET.get("group", "")
+    return group if group in Vehicle.GroupKendaraan.values else Vehicle.GroupKendaraan.GOLONGAN_B
+
+
 @login_required
 def vehicle_list(request):
-    vehicles = Vehicle.objects.prefetch_related("fotos")
-    return render(request, "fleet/vehicle_list.html", {"vehicles": vehicles})
+    group = _group(request)
+    vehicles = Vehicle.objects.filter(group_kendaraan=group).prefetch_related("fotos")
+    return render(request, "fleet/vehicle_list.html", {
+        "vehicles": vehicles,
+        "group": group,
+        "group_label": Vehicle.GroupKendaraan(group).label,
+    })
 
 
 @login_required
 def vehicle_create(request):
     if request.method == "POST":
         form = VehicleForm(request.POST, request.FILES)
+        form.instance.group_kendaraan = _group(request)
         if form.is_valid():
             form.save()
             if _is_htmx(request):
@@ -39,7 +52,7 @@ def vehicle_create(request):
     else:
         form = VehicleForm()
     template = "fleet/_vehicle_form_fields.html" if _is_htmx(request) else "fleet/vehicle_form.html"
-    return render(request, template, {"form": form, "is_edit": False})
+    return render(request, template, {"form": form, "is_edit": False, "group": _group(request)})
 
 
 @login_required

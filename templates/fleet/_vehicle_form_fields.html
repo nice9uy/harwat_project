@@ -1,7 +1,7 @@
 <h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-4">{% if is_edit %}Edit Kendaraan{% else %}Tambah Kendaraan{% endif %}</h2>
 <form method="post" enctype="multipart/form-data"
       hx-encoding="multipart/form-data"
-      hx-post="{% if is_edit %}{% url 'fleet:vehicle_update' vehicle.pk %}{% else %}{% url 'fleet:vehicle_create' %}{% endif %}"
+      hx-post="{% if is_edit %}{% url 'fleet:vehicle_update' vehicle.pk %}{% else %}{% url 'fleet:vehicle_create' %}?group={{ group }}{% endif %}"
       hx-target="this"
       hx-swap="outerHTML"
       class="space-y-4">

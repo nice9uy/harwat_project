@@ -137,7 +137,7 @@ class VehicleListViewTests(TestCase):
     def test_tambah_button_opens_modal_via_htmx(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("fleet:vehicle_list"))
-        self.assertContains(response, f'hx-get="{reverse("fleet:vehicle_create")}"')
+        self.assertContains(response, f'hx-get="{reverse("fleet:vehicle_create")}?group=B"')
         self.assertContains(response, 'id="vehicle-modal-body"')
 
     def test_sidebar_armada_link_points_to_list(self):
@@ -499,3 +499,48 @@ class AdminRegistrationTests(TestCase):
         for name in ("fleet_vehicle", "fleet_vehiclephoto", "accounts_laporan", "accounts_revokedtoken"):
             response = self.client.get(reverse(f"admin:{name}_changelist"))
             self.assertEqual(response.status_code, 200, name)
+
+
+@override_settings(MEDIA_ROOT=MEDIA_ROOT)
+class VehicleGroupKendaraanTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.client.login(username="teknisi1", password="rahasia-123")
+
+    def test_defaults_to_golongan_b(self):
+        vehicle = Vehicle.objects.create(nopol="B 9021 XY", merek="Hino Dutro")
+        self.assertEqual(vehicle.group_kendaraan, "B")
+        self.assertEqual(vehicle.get_group_kendaraan_display(), "Golongan B")
+
+    def test_create_from_golongan_b_tab_stores_group(self):
+        response = self.client.get(reverse("fleet:vehicle_list"))
+        self.assertContains(response, f'hx-get="{reverse("fleet:vehicle_create")}?group=B"')
+        self.assertContains(response, "GOLONGAN B")
+        form = self.client.get(reverse("fleet:vehicle_create") + "?group=B", HTTP_HX_REQUEST="true")
+        self.assertContains(form, f'hx-post="{reverse("fleet:vehicle_create")}?group=B"')
+        self.client.post(reverse("fleet:vehicle_create") + "?group=B", {
+            "nopol": "B 1234 AB", "merek": "Toyota Avanza", "foto": _photos(),
+        })
+        self.assertEqual(Vehicle.objects.get().group_kendaraan, "B")
+
+    def test_unknown_group_falls_back_to_golongan_b(self):
+        self.client.post(reverse("fleet:vehicle_create") + "?group=ZZZ", {
+            "nopol": "B 1234 AB", "merek": "Toyota Avanza", "foto": _photos(),
+        })
+        self.assertEqual(Vehicle.objects.get().group_kendaraan, "B")
+
+    def test_list_only_shows_vehicles_of_the_tab_group(self):
+        Vehicle.objects.create(nopol="B 1111 AA", merek="A")
+        Vehicle.objects.filter(nopol="B 1111 AA").update(group_kendaraan="X")
+        Vehicle.objects.create(nopol="B 2222 BB", merek="B")
+        response = self.client.get(reverse("fleet:vehicle_list"))
+        self.assertContains(response, "B 2222 BB")
+        self.assertNotContains(response, "B 1111 AA")
+
+    def test_admin_shows_and_filters_group(self):
+        User.objects.create_superuser(username="admin", password="rahasia-123")
+        self.client.login(username="admin", password="rahasia-123")
+        Vehicle.objects.create(nopol="B 9021 XY", merek="Hino Dutro")
+        response = self.client.get(reverse("admin:fleet_vehicle_changelist"))
+        self.assertContains(response, "Group Kendaraan")
+        self.assertContains(response, "Golongan B")

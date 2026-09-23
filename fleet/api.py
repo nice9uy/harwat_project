@@ -26,6 +26,7 @@ class VehicleWriteSerializer(Serializer):
     penanggung_jawab: str = ""
     no_chasis: str = ""
     no_mesin: str = ""
+    group_kendaraan: str = "B"
 
 
 class VehicleSerializer(VehicleWriteSerializer):

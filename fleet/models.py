@@ -12,11 +12,21 @@ class Vehicle(models.Model):
         MOBIL = "mobil", "Mobil"
         LAINNYA = "lainnya", "Lainnya"
 
+    class GroupKendaraan(models.TextChoices):
+        GOLONGAN_B = "B", "Golongan B"
+
     class Status(models.TextChoices):
         SIAP_PAKAI = "siap_pakai", "Siap Pakai"
         DALAM_PERBAIKAN = "dalam_perbaikan", "Dalam Perbaikan"
         PERLU_SERVIS = "perlu_servis", "Perlu Servis"
 
+    group_kendaraan = models.CharField(
+        max_length=10,
+        choices=GroupKendaraan.choices,
+        default=GroupKendaraan.GOLONGAN_B,
+        db_index=True,
+        verbose_name="Group Kendaraan",
+    )
     nopol = models.CharField(max_length=20, unique=True, verbose_name="No. Registrasi")
     jenis = models.CharField(max_length=20, choices=Jenis.choices, blank=True)
     merek = models.CharField(max_length=100, verbose_name="Merk/Type")
