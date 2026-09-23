@@ -565,6 +565,7 @@ class VehicleLookupTests(TestCase):
             "no_chasis": "MHFXX123",
             "no_mesin": "W04DTR456",
             "group_kendaraan": "Golongan B",
+            "group_kode": "B",
         })
 
     def test_unknown_nopol_returns_404(self):

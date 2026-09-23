@@ -7,7 +7,7 @@ from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render, resolve_url
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -130,6 +130,7 @@ def laporan_view(request):
 
     captcha_code = _new_captcha_code()
     request.session["laporan_captcha"] = captcha_code
+    request.session["laporan_captcha_gagal"] = 0
     return render(request, "accounts/laporan.html", {
         "form": form,
         "pemeriksaan_form": pemeriksaan_form,
@@ -141,6 +142,27 @@ def laporan_view(request):
         "kondisi": pemeriksaan.KONDISI,
         "alat": pemeriksaan.ALAT_BERNOMOR,
     })
+
+
+CAPTCHA_MAX_GAGAL = 5
+
+
+@login_required
+@require_POST
+def pemeriksaan_captcha_view(request):
+    """Check the Form Pemeriksaan captcha before the (large) form is posted."""
+    expected = request.session.get("laporan_captcha", "")
+    if expected and request.POST.get("captcha", "").strip().upper() == expected:
+        return JsonResponse({"ok": True})
+    gagal = request.session.get("laporan_captcha_gagal", 0) + 1
+    request.session["laporan_captcha_gagal"] = gagal
+    if gagal >= CAPTCHA_MAX_GAGAL:
+        # Rotate the code so it can't be brute-forced through this endpoint.
+        code = _new_captcha_code()
+        request.session["laporan_captcha"] = code
+        request.session["laporan_captcha_gagal"] = 0
+        return JsonResponse({"ok": False, "error": "Terlalu banyak percobaan. Kode baru sudah dibuat.", "code": code})
+    return JsonResponse({"ok": False, "error": "Kode keamanan tidak sesuai."})
 
 
 @login_required

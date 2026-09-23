@@ -127,4 +127,5 @@ def vehicle_lookup(request):
         "no_chasis": vehicle.no_chasis,
         "no_mesin": vehicle.no_mesin,
         "group_kendaraan": vehicle.get_group_kendaraan_display(),
+        "group_kode": vehicle.group_kendaraan,
     })

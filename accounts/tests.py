@@ -566,3 +566,41 @@ class PemeriksaanGolonganBSaveTests(TestCase):
         for name in ("pembagian_kelas", "eselon_reparasi", "macam_pemeriksaan", "buku_jalan", "alat_40_kondisi"):
             self.assertRegex(response.content.decode(), rf'name="{name}" value="[^"]+"[^>]*required')
         self.assertContains(response, 'name="vehicle"')
+
+
+class PemeriksaanCaptchaCheckTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.client.login(username="teknisi1", password="rahasia-123")
+        self.client.get(reverse("accounts:pemeriksaan"))
+        self.url = reverse("accounts:pemeriksaan_captcha")
+
+    def test_correct_code_is_ok_and_keeps_code_for_the_real_submit(self):
+        code = self.client.session["laporan_captcha"]
+        response = self.client.post(self.url, {"captcha": code.lower()})
+        self.assertEqual(response.json(), {"ok": True})
+        self.assertEqual(self.client.session["laporan_captcha"], code)
+
+    def test_wrong_code_is_rejected_without_reload(self):
+        response = self.client.post(self.url, {"captcha": "XXXXXX"})
+        self.assertEqual(response.json(), {"ok": False, "error": "Kode keamanan tidak sesuai."})
+
+    def test_code_rotates_after_five_wrong_attempts(self):
+        old = self.client.session["laporan_captcha"]
+        for _ in range(4):
+            self.client.post(self.url, {"captcha": "XXXXXX"})
+        data = self.client.post(self.url, {"captcha": "XXXXXX"}).json()
+        self.assertFalse(data["ok"])
+        self.assertNotEqual(data["code"], old)
+        self.assertEqual(self.client.session["laporan_captcha"], data["code"])
+
+    def test_get_not_allowed(self):
+        self.assertEqual(self.client.get(self.url).status_code, 405)
+
+    def test_modal_uses_precheck_and_golongan_b_form_is_group_specific(self):
+        response = self.client.get(reverse("accounts:pemeriksaan"))
+        self.assertContains(response, self.url)
+        self.assertContains(response, '@click="kirim()"')
+        self.assertRegex(response.content.decode(), r'<button type="button" @click="kirim\(\)"[^>]*>Konfirmasi &amp; Kirim</button>')
+        self.assertContains(response, "x-show=\"kendaraan && kendaraan.group_kode === 'B'\"")
+        self.assertContains(response, "belum tersedia.")

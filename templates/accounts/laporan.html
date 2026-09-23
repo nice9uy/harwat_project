@@ -8,6 +8,39 @@
           step: 1,
           modalOpen: {% if form.captcha.errors %}true{% else %}false{% endif %},
           fotoPreview: null,
+          captchaCode: '{{ captcha_code|escapejs }}',
+          captchaError: '',
+          sending: false,
+          async kirim() {
+              // Check the captcha first so a typo doesn't reload the page and
+              // throw away everything filled in (including photos).
+              const input = document.getElementById('{{ form.captcha.id_for_label }}');
+              if (!input.reportValidity()) return;
+              this.sending = true;
+              this.captchaError = '';
+              try {
+                  const body = new FormData();
+                  body.append('captcha', input.value);
+                  const response = await fetch('{% url 'accounts:pemeriksaan_captcha' %}', {
+                      method: 'POST',
+                      body,
+                      headers: { 'X-CSRFToken': $root.querySelector('[name=csrfmiddlewaretoken]').value },
+                  });
+                  const data = await response.json();
+                  if (data.ok) {
+                      $root.requestSubmit();
+                      return;
+                  }
+                  this.captchaError = data.error;
+                  if (data.code) this.captchaCode = data.code;
+                  input.value = '';
+                  input.focus();
+              } catch (err) {
+                  this.captchaError = 'Gagal memeriksa kode, coba lagi.';
+              } finally {
+                  this.sending = false;
+              }
+          },
           scanOpen: false,
           kendaraan: null,
           scanLoading: false,
@@ -174,8 +207,13 @@
           </div>
         </template>
 
-        <div x-show="kendaraan" x-cloak x-ref="pemeriksaan" class="space-y-4">
-            {% include "accounts/_pemeriksaan_accordion.html" %}
+        <p x-show="kendaraan && kendaraan.group_kode !== 'B'" x-cloak
+           class="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+            Form pemeriksaan untuk <span x-text="kendaraan && kendaraan.group_kendaraan"></span> belum tersedia.
+        </p>
+
+        <div x-show="kendaraan && kendaraan.group_kode === 'B'" x-cloak x-ref="pemeriksaan" class="space-y-4">
+            {% include "accounts/_pemeriksaan_golongan_b.html" %}
             <input type="hidden" name="vehicle" :value="kendaraan ? kendaraan.id : ''">
             <button type="button" id="pemeriksaan-lanjutkan" @click="lanjutkan()"
                     class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
@@ -207,13 +245,14 @@
         <div class="w-full max-w-sm bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl my-auto">
             <h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-4">Verifikasi Kode Keamanan</h2>
             <div class="select-none rounded-md border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-900 px-3 py-2 text-center text-lg font-mono font-bold tracking-[0.4em] text-navy dark:text-gold mb-3">
-                {{ captcha_code }}
+                <span x-text="captchaCode">{{ captcha_code }}</span>
             </div>
             <label for="{{ form.captcha.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Ketik kode di atas</label>
-            {{ form.captcha }}
-            {% if form.captcha.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.captcha.errors.0 }}</p>{% endif %}
+            <div @keydown.enter.prevent="kirim()">{{ form.captcha }}</div>
+            <p x-show="captchaError" x-cloak x-text="captchaError" class="text-xs text-red-600 dark:text-red-400 mt-1"></p>
+            {% if form.captcha.errors %}<p x-show="!captchaError" class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.captcha.errors.0 }}</p>{% endif %}
             <div class="flex items-center gap-3 pt-4">
-                <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">Konfirmasi &amp; Kirim</button>
+                <button type="button" @click="kirim()" :disabled="sending" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50 disabled:opacity-60" x-text="sending ? 'Memeriksa…' : 'Konfirmasi & Kirim'">Konfirmasi &amp; Kirim</button>
                 <button type="button" @click="modalOpen = false" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Batal</button>
             </div>
         </div>
