@@ -5,7 +5,7 @@ from django_bolt import BoltAPI
 from django_bolt.auth import IsAuthenticated, JWTAuthentication
 from django_bolt.exceptions import HTTPException
 from django_bolt.serializers import Serializer, field
-from django_bolt.views import ModelViewSet
+from django_bolt.views import CreateMixin, DestroyMixin, ListMixin, RetrieveMixin, UpdateMixin, ViewSet
 
 from .models import Vehicle
 
@@ -29,7 +29,7 @@ class VehicleSerializer(VehicleWriteSerializer):
 
 
 @api.viewset("/api/vehicles")
-class VehicleViewSet(ModelViewSet):
+class VehicleViewSet(ListMixin, RetrieveMixin, CreateMixin, UpdateMixin, DestroyMixin, ViewSet):
     queryset = Vehicle.objects.all()
     serializer_class = VehicleSerializer
     create_serializer_class = VehicleWriteSerializer

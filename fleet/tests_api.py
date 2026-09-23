@@ -108,3 +108,13 @@ class VehicleApiCrudTests(TransactionTestCase):
             )
         self.assertEqual(response.status_code, 409)
         self.assertEqual(Vehicle.objects.count(), 1)
+
+    def test_partial_update_not_available(self):
+        vehicle = Vehicle.objects.create(
+            nopol="B 5555 CD", jenis=Vehicle.Jenis.MOBIL, merek="Test",
+            tahun=2020, status=Vehicle.Status.SIAP_PAKAI, odometer_km=0,
+            penanggung_jawab="Test",
+        )
+        with TestClient(api) as client:
+            response = client.patch(f"/api/vehicles/{vehicle.id}", headers=self.headers, json={"odometer_km": 999})
+        self.assertEqual(response.status_code, 404)
