@@ -112,11 +112,11 @@ class VehicleListViewTests(TestCase):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("fleet:vehicle_list"))
         self.assertEqual(response.status_code, 200)
-        for header in ("No. Registrasi", "Merk/ Type", "Km / Mil", "No. Chasis", "No. Mesin"):
+        for header in ("No. Registrasi", "Merk/ Type", "No. Chasis", "No. Mesin"):
             self.assertContains(response, header)
         self.assertContains(response, "B 9021 XY")
         self.assertContains(response, "Hino Dutro")
-        self.assertContains(response, "45000")
+        self.assertNotContains(response, "Km / Mil")
         self.assertContains(response, "MHFXX123")
         self.assertContains(response, "W04DTR456")
 
