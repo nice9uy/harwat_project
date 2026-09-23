@@ -64,7 +64,11 @@ class LaporanForm(forms.ModelForm):
         model = Laporan
         fields = ["nip", "nama", "pangkat", "jabatan", "satuan", "foto"]
         widgets = {
-            "foto": forms.FileInput(attrs={"accept": "image/*", "capture": "environment"}),
+            "foto": forms.FileInput(attrs={
+                "accept": "image/*",
+                "capture": "environment",
+                "@change": "fotoPreview = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : null",
+            }),
         }
 
     def __init__(self, *args, expected_captcha="", **kwargs):

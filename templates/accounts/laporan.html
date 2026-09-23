@@ -14,7 +14,7 @@
 </div>
 <form method="post" enctype="multipart/form-data"
       class="max-w-md mx-auto space-y-4"
-      x-data="{ modalOpen: {% if form.captcha.errors %}true{% else %}false{% endif %} }">
+      x-data="{ modalOpen: {% if form.captcha.errors %}true{% else %}false{% endif %}, fotoPreview: null }">
     {% csrf_token %}
     {% if form.non_field_errors %}
     <div class="rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
@@ -50,9 +50,10 @@
         <label for="{{ form.foto.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Foto</label>
         {{ form.foto }}
         {% if form.foto.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.foto.errors.0 }}</p>{% endif %}
+        <img x-show="fotoPreview" x-cloak :src="fotoPreview" alt="Pratinjau foto" class="mt-2 max-h-56 w-full rounded-md border border-slate-300 dark:border-slate-600 object-contain bg-slate-100 dark:bg-slate-900">
     </div>
     <button type="button" @click="modalOpen = true" class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
-        Kirim Laporan
+        Kirim
     </button>
 
     <div x-show="modalOpen"
