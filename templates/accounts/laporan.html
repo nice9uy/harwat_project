@@ -12,7 +12,9 @@
         </span>
     </nav>
 </div>
-<form method="post" enctype="multipart/form-data" class="max-w-md mx-auto space-y-4">
+<form method="post" enctype="multipart/form-data"
+      class="max-w-md mx-auto space-y-4"
+      x-data="{ modalOpen: {% if form.captcha.errors %}true{% else %}false{% endif %} }">
     {% csrf_token %}
     {% if form.non_field_errors %}
     <div class="rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
@@ -49,17 +51,28 @@
         {{ form.foto }}
         {% if form.foto.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.foto.errors.0 }}</p>{% endif %}
     </div>
-    <div>
-        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kode Keamanan</label>
-        <div class="select-none rounded-md border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-900 px-3 py-2 text-center text-lg font-mono font-bold tracking-[0.4em] text-navy dark:text-gold mb-2">
-            {{ captcha_code }}
-        </div>
-        <label for="{{ form.captcha.id_for_label }}" class="sr-only">Ketik kode di atas</label>
-        {{ form.captcha }}
-        {% if form.captcha.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.captcha.errors.0 }}</p>{% endif %}
-    </div>
-    <button type="submit" class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
+    <button type="button" @click="modalOpen = true" class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
         Kirim Laporan
     </button>
+
+    <div x-show="modalOpen"
+         x-cloak
+         @click.self="modalOpen = false"
+         @keydown.escape.window="modalOpen = false"
+         class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/50 px-4 py-8 sm:py-4">
+        <div class="w-full max-w-sm bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl my-auto">
+            <h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-4">Verifikasi Kode Keamanan</h2>
+            <div class="select-none rounded-md border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-900 px-3 py-2 text-center text-lg font-mono font-bold tracking-[0.4em] text-navy dark:text-gold mb-3">
+                {{ captcha_code }}
+            </div>
+            <label for="{{ form.captcha.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Ketik kode di atas</label>
+            {{ form.captcha }}
+            {% if form.captcha.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.captcha.errors.0 }}</p>{% endif %}
+            <div class="flex items-center gap-3 pt-4">
+                <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">Konfirmasi &amp; Kirim</button>
+                <button type="button" @click="modalOpen = false" class="text-sm text-slate-500 dark:text-slate-400 hover:text-navy dark:hover:text-gold">Batal</button>
+            </div>
+        </div>
+    </div>
 </form>
 {% endblock %}
