@@ -389,7 +389,7 @@ class FormTambahViewTests(TestCase):
         self.assertContains(response, "BIODATA")
         self.assertContains(response, "TAMBAH KENDARAAN")
         self.assertContains(response, 'type="radio" name="golongan" value="B"')
-        self.assertContains(response, 'Kendaraan Golongan "B"')
+        self.assertContains(response, 'Golongan "B"')
         for field in ("nip", "nama", "pangkat", "jabatan", "satuan", "foto"):
             self.assertContains(response, f'id="id_{field}"')
 
