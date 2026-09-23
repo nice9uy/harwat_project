@@ -77,6 +77,11 @@ class PengaturanViewTests(TestCase):
         self.assertContains(response, "belum tersedia")
         self.assertContains(response, 'href="/pengaturan/"')
 
+    def test_shows_username_tab(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:pengaturan"))
+        self.assertContains(response, "teknisi1")
+
 
 class DashboardViewTests(TestCase):
     def setUp(self):
