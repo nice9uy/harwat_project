@@ -328,9 +328,33 @@ def _png_upload(name="mobil.png"):
 
 
 class VehicleQrCodeTests(TestCase):
-    def test_qr_code_is_svg_data_uri(self):
+    def test_qr_text_lists_vehicle_identity(self):
         vehicle = Vehicle(nopol="B 9021 XY", merek="Hino Dutro", no_chasis="MHFXX123", no_mesin="W04DTR456")
-        self.assertTrue(vehicle.qr_code_data_uri().startswith("data:image/svg+xml"))
+        self.assertEqual(
+            vehicle.qr_text(),
+            "No. Registrasi: B 9021 XY\nMerk/Type: Hino Dutro\nNo. Chasis: MHFXX123\nNo. Mesin: W04DTR456",
+        )
+
+    def test_qr_png_has_logo_in_centre(self):
+        from .qr import qr_png_with_logo
+        image = Image.open(io.BytesIO(qr_png_with_logo("No. Registrasi: B 9021 XY")))
+        self.assertEqual(image.format, "PNG")
+        centre = image.getpixel((image.width // 2, image.height // 2))
+        corner = image.getpixel((5, 5))
+        self.assertEqual(corner, (255, 255, 255))
+        self.assertNotIn(centre, [(0, 0, 0), (255, 255, 255)])
+
+    def test_qr_view_requires_login_and_serves_png(self):
+        vehicle = Vehicle.objects.create(nopol="B 9021 XY", merek="Hino Dutro", odometer_km=1)
+        url = reverse("fleet:vehicle_qr", args=[vehicle.pk])
+        self.assertEqual(self.client.get(url).status_code, 302)
+        User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(url)
+        self.assertEqual(response["Content-Type"], "image/png")
+        self.assertNotIn("Content-Disposition", response)
+        response = self.client.get(url + "?unduh=1")
+        self.assertEqual(response["Content-Disposition"], 'attachment; filename="qr-b-9021-xy.png"')
 
     def test_list_shows_qr_code_and_foto_columns(self):
         User.objects.create_user(username="teknisi1", password="rahasia-123")
@@ -340,7 +364,8 @@ class VehicleQrCodeTests(TestCase):
         self.assertContains(response, "QR Code</th>")
         self.assertContains(response, "Foto Kendaraan</th>")
         self.assertContains(response, 'alt="QR Code B 9021 XY"')
-        self.assertContains(response, 'src="data:image/svg+xml')
+        vehicle = Vehicle.objects.get()
+        self.assertContains(response, f'src="{reverse("fleet:vehicle_qr", args=[vehicle.pk])}"')
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())

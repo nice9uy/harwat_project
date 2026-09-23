@@ -53,8 +53,8 @@
                     <td class="py-2 px-4">{{ vehicle.no_chasis|default:"-" }}</td>
                     <td class="py-2 px-4">{{ vehicle.no_mesin|default:"-" }}</td>
                     <td class="py-2 px-4">
-                        <a href="{{ vehicle.qr_code_data_uri }}" download="qr-{{ vehicle.nopol|slugify }}.svg" title="Unduh QR Code">
-                            <img src="{{ vehicle.qr_code_data_uri }}" alt="QR Code {{ vehicle.nopol }}" class="h-16 w-16 rounded bg-white">
+                        <a href="{% url 'fleet:vehicle_qr' vehicle.pk %}?unduh=1" title="Unduh QR Code">
+                            <img src="{% url 'fleet:vehicle_qr' vehicle.pk %}" loading="lazy" alt="QR Code {{ vehicle.nopol }}" class="h-16 w-16 rounded bg-white">
                         </a>
                     </td>
                     <td class="py-2 px-4">
@@ -94,8 +94,8 @@
                 <dd class="text-right truncate">{{ vehicle.no_mesin|default:"-" }}</dd>
             </dl>
             <div class="mt-3 flex items-center gap-3">
-                <a href="{{ vehicle.qr_code_data_uri }}" download="qr-{{ vehicle.nopol|slugify }}.svg" title="Unduh QR Code">
-                    <img src="{{ vehicle.qr_code_data_uri }}" alt="QR Code {{ vehicle.nopol }}" class="h-20 w-20 rounded bg-white">
+                <a href="{% url 'fleet:vehicle_qr' vehicle.pk %}?unduh=1" title="Unduh QR Code">
+                    <img src="{% url 'fleet:vehicle_qr' vehicle.pk %}" loading="lazy" alt="QR Code {{ vehicle.nopol }}" class="h-20 w-20 rounded bg-white">
                 </a>
                 {% if vehicle.foto %}
                 <a href="{{ vehicle.foto.url }}" target="_blank" rel="noopener">

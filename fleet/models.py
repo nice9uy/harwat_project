@@ -1,4 +1,3 @@
-import segno
 from django.db import models
 
 
@@ -33,11 +32,10 @@ class Vehicle(models.Model):
     def __str__(self):
         return self.nopol
 
-    def qr_code_data_uri(self):
-        text = "\n".join([
+    def qr_text(self):
+        return "\n".join([
             f"No. Registrasi: {self.nopol}",
             f"Merk/Type: {self.merek}",
             f"No. Chasis: {self.no_chasis or '-'}",
             f"No. Mesin: {self.no_mesin or '-'}",
         ])
-        return segno.make(text, micro=False).svg_data_uri(scale=4, border=2)

@@ -9,4 +9,5 @@ urlpatterns = [
     path("tambah/", views.vehicle_create, name="vehicle_create"),
     path("<int:pk>/edit/", views.vehicle_update, name="vehicle_update"),
     path("<int:pk>/hapus/", views.vehicle_delete, name="vehicle_delete"),
+    path("<int:pk>/qr.png", views.vehicle_qr, name="vehicle_qr"),
 ]

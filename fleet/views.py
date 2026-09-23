@@ -4,8 +4,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from django.utils.text import slugify
+
 from .forms import VehicleForm
 from .models import Vehicle
+from .qr import qr_png_with_logo
 
 
 def _is_htmx(request):
@@ -61,3 +64,12 @@ def vehicle_delete(request, pk):
     vehicle = get_object_or_404(Vehicle, pk=pk)
     vehicle.delete()
     return redirect("fleet:vehicle_list")
+
+
+@login_required
+def vehicle_qr(request, pk):
+    vehicle = get_object_or_404(Vehicle, pk=pk)
+    response = HttpResponse(qr_png_with_logo(vehicle.qr_text()), content_type="image/png")
+    if request.GET.get("unduh"):
+        response["Content-Disposition"] = f'attachment; filename="qr-{slugify(vehicle.nopol)}.png"'
+    return response
