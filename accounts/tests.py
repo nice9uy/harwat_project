@@ -1,7 +1,10 @@
 from django.contrib.auth.models import User
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
+from accounts.models import RevokedToken
 from fleet.models import Vehicle
 
 
@@ -113,3 +116,18 @@ class DashboardViewTests(TestCase):
         self.assertEqual(response.context["fleet_summary"]["ready"], 0)
         self.assertEqual(response.context["fleet_summary"]["in_repair"], 0)
         self.assertEqual(response.context["fleet_summary"]["due_soon"], 0)
+
+
+class RevokedTokenModelTests(TestCase):
+    def test_create_and_query_by_jti(self):
+        RevokedToken.objects.create(
+            jti="abc123", expires_at=timezone.now() + timezone.timedelta(days=7)
+        )
+        self.assertTrue(RevokedToken.objects.filter(jti="abc123").exists())
+
+    def test_jti_must_be_unique(self):
+        expires = timezone.now() + timezone.timedelta(days=7)
+        RevokedToken.objects.create(jti="dup", expires_at=expires)
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                RevokedToken.objects.create(jti="dup", expires_at=expires)
