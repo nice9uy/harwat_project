@@ -54,7 +54,7 @@ class PemeriksaanGolonganB(models.Model):
     class Meta:
         verbose_name = "Pemeriksaan Golongan B"
         verbose_name_plural = "Pemeriksaan Golongan B"
-        ordering = ["-dibuat_pada"]
+        ordering = ["-dibuat_pada", "-id"]
 
     def __str__(self):
         return f"{self.vehicle.nopol} — {self.dibuat_pada:%d-%m-%Y}"

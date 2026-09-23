@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Perbaikan — BMN Harwat{% endblock %}
 {% block page_title %}Perbaikan{% endblock %}
 {% block content %}
@@ -6,13 +7,41 @@
       x-data="{
           step: 1,
           fotoPreview: null,
+          scanOpen: false,
+          scanError: '',
+          scanner: null,
+          async startScan() {
+              this.scanError = '';
+              this.scanOpen = true;
+              this.scanner ??= bmnQrScanner('{% static 'vendor/html5-qrcode.min.js' %}');
+              try {
+                  await this.$nextTick();
+                  await this.scanner.start('qr-reader', (text) => { this.stopScan(); this.tampilkan(text); });
+              } catch (err) {
+                  this.scanError = 'Kamera tidak bisa dibuka: ' + err;
+              }
+          },
+          async stopScan() {
+              this.scanOpen = false;
+              if (this.scanner) await this.scanner.stop();
+          },
+          tampilkan(text) {
+              const nopol = bmnNopolFromQr(text);
+              if (!nopol) {
+                  this.scanError = 'QR Code bukan QR kendaraan.';
+                  return;
+              }
+              this.scanError = '';
+              htmx.ajax('GET', '{% url 'accounts:perbaikan_kendaraan' %}?nopol=' + encodeURIComponent(nopol), '#perbaikan-hasil');
+          },
           next() {
               for (const el of $refs.biodata.querySelectorAll('input, select, textarea')) {
                   if (!el.reportValidity()) return;
               }
               this.step = 2;
           },
-      }">
+      }"
+      @htmx:before-swap.window="if ($event.detail.boosted) stopScan()">
     <div class="sticky top-16 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 mb-4">
         <nav class="flex gap-6 -mb-px">
             <button type="button" @click="step = 1"
@@ -41,6 +70,19 @@
     </button>
     </div>
     <div x-show="step === 2" x-cloak class="max-w-md mx-auto space-y-4">
+        <button type="button" @click="startScan()"
+                class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z" />
+            </svg>
+            Scan QR Code Kendaraan
+        </button>
+        <p x-show="!scanOpen && scanError" x-cloak x-text="scanError"
+           class="rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300"></p>
+        <div id="perbaikan-hasil" class="space-y-4"></div>
     </div>
+
+    {% include "accounts/_qr_scan_modal.html" %}
 </form>
 {% endblock %}

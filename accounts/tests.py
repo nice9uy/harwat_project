@@ -694,3 +694,33 @@ class HistoryScanTests(TestCase):
         self.client.logout()
         response = self.client.get(reverse("accounts:history_kendaraan"), {"nopol": "B 9021 XY"})
         self.assertEqual(response.status_code, 302)
+
+
+class PerbaikanScanTests(HistoryScanTests):
+    """Reuses HistoryScanTests' setup and _inspection helper."""
+
+    def test_perbaikan_tab_has_scan_button(self):
+        response = self.client.get(reverse("accounts:perbaikan"))
+        self.assertContains(response, "Scan QR Code Kendaraan")
+        self.assertContains(response, 'id="qr-reader"')
+        self.assertContains(response, reverse("accounts:perbaikan_kendaraan"))
+
+    def test_lists_parts_to_repair_from_latest_inspection(self):
+        self._inspection(rusak_berat=5)
+        self._inspection(rusak_berat=2)
+        response = self.client.get(reverse("accounts:perbaikan_kendaraan"), {"nopol": "B 9021 XY"})
+        self.assertContains(response, "Item yang Harus Diperbaiki (2)")
+        self.assertContains(response, "2. Alat 2")
+        self.assertNotContains(response, "3. Alat 3")
+        self.assertContains(response, '@click="buka = buka === 1 ? null : 1"')
+
+    def test_vehicle_never_inspected(self):
+        response = self.client.get(reverse("accounts:perbaikan_kendaraan"), {"nopol": "B 9021 XY"})
+        self.assertContains(response, "belum pernah diperiksa")
+
+    def test_unknown_vehicle_and_login(self):
+        response = self.client.get(reverse("accounts:perbaikan_kendaraan"), {"nopol": "Z 1 ZZ"})
+        self.assertContains(response, "Kendaraan tidak ditemukan.")
+        self.client.logout()
+        response = self.client.get(reverse("accounts:perbaikan_kendaraan"), {"nopol": "B 9021 XY"})
+        self.assertEqual(response.status_code, 302)

@@ -1,0 +1,16 @@
+{% if vehicle %}
+<div class="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 text-sm">
+    <p class="font-semibold text-navy dark:text-slate-100">{{ vehicle.nopol }} <span class="font-normal text-slate-500 dark:text-slate-400">· {{ vehicle.merek }} · {{ vehicle.get_group_kendaraan_display }}</span></p>
+    <p class="text-slate-500 dark:text-slate-400">Pemeriksaan terakhir: {% if terakhir %}{{ terakhir.dibuat_pada|date:"d M Y, H:i" }} oleh {{ terakhir.pemeriksa.nama }}{% else %}-{% endif %}</p>
+</div>
+{% if terakhir %}
+<div>
+    <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Item yang Harus Diperbaiki ({{ perlu_perhatian|length }})</h2>
+    {% include "accounts/_perlu_perhatian.html" %}
+</div>
+{% else %}
+<p class="rounded-md border border-dashed border-slate-300 dark:border-slate-600 px-3 py-6 text-center text-sm text-slate-500 dark:text-slate-400">Kendaraan ini belum pernah diperiksa, jadi belum ada item yang harus diperbaiki.</p>
+{% endif %}
+{% else %}
+<p class="rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">Kendaraan tidak ditemukan.</p>
+{% endif %}

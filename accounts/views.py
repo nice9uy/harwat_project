@@ -177,27 +177,37 @@ def history_view(request):
     return render(request, "accounts/history.html")
 
 
-@login_required
-def history_kendaraan_view(request):
-    """Inspection history of the vehicle whose QR code was scanned."""
-    vehicle = (
+def _vehicle_from_scan(request):
+    return (
         Vehicle.objects.prefetch_related("fotos")
         .filter(nopol=request.GET.get("nopol", "").strip())
         .first()
     )
-    riwayat, terakhir, perlu_perhatian = [], None, []
-    if vehicle is not None:
-        riwayat = list(
-            vehicle.pemeriksaan_golongan_b.select_related("pemeriksa")
-            .annotate(
-                jumlah_b=Count("items", filter=Q(items__kondisi="B")),
-                jumlah_rr=Count("items", filter=Q(items__kondisi="RR")),
-                jumlah_rb=Count("items", filter=Q(items__kondisi="RB")),
-            )
+
+
+def _riwayat_pemeriksaan(vehicle):
+    """Golongan B inspections, newest first, with their B/RR/RB counts;
+    plus the latest one and its parts rated RR/RB (need repair)."""
+    riwayat = list(
+        vehicle.pemeriksaan_golongan_b.select_related("pemeriksa")
+        .annotate(
+            jumlah_b=Count("items", filter=Q(items__kondisi="B")),
+            jumlah_rr=Count("items", filter=Q(items__kondisi="RR")),
+            jumlah_rb=Count("items", filter=Q(items__kondisi="RB")),
         )
-        if riwayat:
-            terakhir = riwayat[0]
-            perlu_perhatian = terakhir.items.exclude(kondisi="B")
+        # Meta.ordering is dropped on GROUP BY queries, so order explicitly.
+        .order_by("-dibuat_pada", "-id")
+    )
+    terakhir = riwayat[0] if riwayat else None
+    perlu_perhatian = terakhir.items.exclude(kondisi="B") if terakhir else []
+    return riwayat, terakhir, perlu_perhatian
+
+
+@login_required
+def history_kendaraan_view(request):
+    """Inspection history of the vehicle whose QR code was scanned."""
+    vehicle = _vehicle_from_scan(request)
+    riwayat, terakhir, perlu_perhatian = _riwayat_pemeriksaan(vehicle) if vehicle else ([], None, [])
     return render(request, "accounts/_history_kendaraan.html", {
         "vehicle": vehicle,
         "riwayat": riwayat,
@@ -209,6 +219,18 @@ def history_kendaraan_view(request):
 @login_required
 def perbaikan_view(request):
     return render(request, "accounts/perbaikan.html", {"form": LaporanForm()})
+
+
+@login_required
+def perbaikan_kendaraan_view(request):
+    """Parts to repair on the scanned vehicle: RR/RB items of its last inspection."""
+    vehicle = _vehicle_from_scan(request)
+    _, terakhir, perlu_perhatian = _riwayat_pemeriksaan(vehicle) if vehicle else ([], None, [])
+    return render(request, "accounts/_perbaikan_daftar.html", {
+        "vehicle": vehicle,
+        "terakhir": terakhir,
+        "perlu_perhatian": perlu_perhatian,
+    })
 
 
 @login_required
