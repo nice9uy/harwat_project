@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
@@ -10,7 +11,7 @@ from django.views.decorators.http import require_POST
 
 from fleet.services import get_fleet_summary
 
-from .forms import LoginForm, UserCreateForm
+from .forms import LaporanForm, LoginForm, UserCreateForm
 
 
 def _get_success_url(request):
@@ -89,7 +90,15 @@ def password_reset_placeholder(request):
 
 @login_required
 def laporan_view(request):
-    return render(request, "accounts/laporan.html")
+    if request.method == "POST":
+        form = LaporanForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Laporan berhasil dikirim.")
+            return redirect("accounts:laporan")
+    else:
+        form = LaporanForm()
+    return render(request, "accounts/laporan.html", {"form": form})
 
 
 @login_required

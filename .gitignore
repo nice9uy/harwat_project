@@ -12,6 +12,9 @@ wheels/
 # Local dev database
 db.sqlite3
 
+# User-uploaded files (dev; prod serves from a mounted volume)
+/media/
+
 # Collected static files (collectstatic output in prod, a dev.sh symlink in
 # dev) — no trailing slash: a symlink isn't a directory, so `staticfiles/`
 # alone wouldn't match it

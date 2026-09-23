@@ -2,4 +2,45 @@
 {% block title %}Form Laporan — BMN Harwat{% endblock %}
 {% block page_title %}Form Laporan{% endblock %}
 {% block content %}
+<form method="post" enctype="multipart/form-data" class="max-w-md mx-auto space-y-4">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+    </div>
+    {% endif %}
+    <div>
+        <label for="{{ form.nip.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">NIP</label>
+        {{ form.nip }}
+        {% if form.nip.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.nip.errors.0 }}</p>{% endif %}
+    </div>
+    <div>
+        <label for="{{ form.nama.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nama</label>
+        {{ form.nama }}
+        {% if form.nama.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.nama.errors.0 }}</p>{% endif %}
+    </div>
+    <div>
+        <label for="{{ form.pangkat.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Pangkat</label>
+        {{ form.pangkat }}
+        {% if form.pangkat.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.pangkat.errors.0 }}</p>{% endif %}
+    </div>
+    <div>
+        <label for="{{ form.jabatan.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Jabatan</label>
+        {{ form.jabatan }}
+        {% if form.jabatan.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.jabatan.errors.0 }}</p>{% endif %}
+    </div>
+    <div>
+        <label for="{{ form.satuan.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Satuan</label>
+        {{ form.satuan }}
+        {% if form.satuan.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.satuan.errors.0 }}</p>{% endif %}
+    </div>
+    <div>
+        <label for="{{ form.foto.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Foto</label>
+        {{ form.foto }}
+        {% if form.foto.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.foto.errors.0 }}</p>{% endif %}
+    </div>
+    <button type="submit" class="w-full rounded-md bg-navy px-4 py-3 text-sm font-medium text-white hover:bg-navy-light focus:outline-none focus:ring-2 focus:ring-gold/50">
+        Kirim Laporan
+    </button>
+</form>
 {% endblock %}

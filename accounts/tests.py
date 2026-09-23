@@ -1,11 +1,21 @@
+import tempfile
+
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import RevokedToken
+from accounts.models import Laporan, RevokedToken
 from fleet.models import Vehicle
+
+# 1x1 transparent GIF — smallest valid image Pillow will accept for an
+# ImageField's upload validation.
+TINY_GIF = (
+    b"GIF87a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\x00\x00\x00!\xf9\x04"
+    b"\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+)
 
 
 class LoginViewTests(TestCase):
@@ -143,6 +153,7 @@ class UserCreateViewTests(TestCase):
         self.assertFalse(User.objects.filter(username="teknisi4").exists())
 
 
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class LaporanViewTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
@@ -164,6 +175,41 @@ class LaporanViewTests(TestCase):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("accounts:dashboard"))
         self.assertContains(response, f'href="{reverse("accounts:laporan")}" target="_blank"')
+
+    def test_shows_all_fields(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:laporan"))
+        for field in ("nip", "nama", "pangkat", "jabatan", "satuan", "foto"):
+            self.assertContains(response, f'id="id_{field}"')
+
+    def test_post_valid_data_creates_laporan_and_redirects(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        foto = SimpleUploadedFile("foto.gif", TINY_GIF, content_type="image/gif")
+        response = self.client.post(reverse("accounts:laporan"), {
+            "nip": "199001012015031001",
+            "nama": "Budi Santoso",
+            "pangkat": "Penata Muda / III-a",
+            "jabatan": "Teknisi",
+            "satuan": "Satuan Kerja ABC",
+            "foto": foto,
+        })
+        self.assertRedirects(response, reverse("accounts:laporan"))
+        self.assertEqual(Laporan.objects.count(), 1)
+        laporan = Laporan.objects.get()
+        self.assertEqual(laporan.nip, "199001012015031001")
+        self.assertEqual(laporan.nama, "Budi Santoso")
+
+    def test_post_missing_field_shows_error_and_does_not_save(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.post(reverse("accounts:laporan"), {
+            "nip": "199001012015031001",
+            "nama": "",
+            "pangkat": "Penata Muda / III-a",
+            "jabatan": "Teknisi",
+            "satuan": "Satuan Kerja ABC",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Laporan.objects.count(), 0)
 
 
 class DashboardViewTests(TestCase):
