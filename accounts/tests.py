@@ -59,6 +59,25 @@ class PasswordResetPlaceholderTests(TestCase):
         self.assertContains(response, "belum tersedia")
 
 
+class PengaturanViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
+
+    def test_redirects_when_not_authenticated(self):
+        response = self.client.get(reverse("accounts:pengaturan"))
+        self.assertRedirects(
+            response,
+            f"{reverse('accounts:login')}?next={reverse('accounts:pengaturan')}",
+        )
+
+    def test_renders_when_authenticated(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:pengaturan"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "belum tersedia")
+        self.assertContains(response, 'href="/pengaturan/"')
+
+
 class DashboardViewTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")

@@ -75,3 +75,8 @@ def dashboard_view(request):
 
 def password_reset_placeholder(request):
     return render(request, "accounts/password_reset_placeholder.html")
+
+
+@login_required
+def pengaturan_view(request):
+    return render(request, "accounts/pengaturan.html")
