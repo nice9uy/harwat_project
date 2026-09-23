@@ -365,6 +365,9 @@ class VehicleQrCodeTests(TestCase):
         self.assertContains(response, "QR Code</th>")
         self.assertContains(response, "Foto Kendaraan</th>")
         self.assertContains(response, 'alt="QR Code B 9021 XY"')
+        # Without download, the page loading bar treats the link as a
+        # navigation and stays stuck because the page never unloads.
+        self.assertContains(response, 'download="qr-b-9021-xy.png"', count=2)
         vehicle = Vehicle.objects.get()
         self.assertContains(
             response, f'src="{reverse("fleet:vehicle_qr", args=[vehicle.pk])}?v={vehicle.qr_version()}"'
