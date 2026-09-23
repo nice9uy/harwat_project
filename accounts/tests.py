@@ -390,4 +390,7 @@ class FormTambahViewTests(TestCase):
     def test_sidebar_link_below_form_laporan(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         content = self.client.get(reverse("accounts:dashboard")).content.decode()
-        self.assertLess(content.index("FORM LAPORAN"), content.index("FORM TAMBAH"))
+        self.assertLess(
+            content.index(f'href="{reverse("accounts:laporan")}"'),
+            content.index(f'href="{reverse("accounts:form_tambah")}"'),
+        )
