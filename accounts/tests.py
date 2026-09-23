@@ -646,6 +646,12 @@ class HistoryScanTests(TestCase):
         response = self.client.get(reverse("accounts:history"))
         for label in ("PROFILE", "STATUS KENDARAAN", "RIWAYAT PEMERIKSAAN", "RIWAYAT PERBAIKAN"):
             self.assertContains(response, label)
+        # The scan button lives in the PROFILE tab only.
+        self.assertRegex(
+            response.content.decode(),
+            r"<div x-show=\"tab === 'profile'\" class=\"space-y-4\">\s*<button type=\"button\" @click=\"startScan\(\)\"",
+        )
+        self.assertContains(response, "Scan QR Code kendaraan di tab")
 
     def test_scanned_vehicle_fills_every_tab(self):
         self._inspection(rusak_berat=2)
