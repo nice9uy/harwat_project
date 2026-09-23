@@ -2,25 +2,45 @@
 {% block title %}Form Laporan — BMN Harwat{% endblock %}
 {% block page_title %}Form Laporan{% endblock %}
 {% block content %}
-<div class="border-b border-slate-200 dark:border-slate-700 mb-4">
-    <nav class="flex gap-6 -mb-px">
-        <span class="inline-flex items-center gap-2 border-b-2 border-gold px-1 py-2 text-sm font-medium text-navy dark:text-gold">
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a7.5 7.5 0 0 1 15 0" />
-            </svg>
-            BIODATA
-        </span>
-    </nav>
-</div>
 <form method="post" enctype="multipart/form-data"
-      class="max-w-md mx-auto space-y-4"
-      x-data="{ modalOpen: {% if form.captcha.errors %}true{% else %}false{% endif %}, fotoPreview: null }">
+      x-data="{
+          step: 1,
+          modalOpen: {% if form.captcha.errors %}true{% else %}false{% endif %},
+          fotoPreview: null,
+          next() {
+              for (const el of $refs.biodata.querySelectorAll('input, select, textarea')) {
+                  if (!el.reportValidity()) return;
+              }
+              this.step = 2;
+          },
+      }">
+    <div class="border-b border-slate-200 dark:border-slate-700 mb-4">
+        <nav class="flex gap-6 -mb-px">
+            <button type="button" @click="step = 1"
+                    :class="step === 1 ? 'border-gold text-navy dark:text-gold' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+                    class="inline-flex items-center gap-2 border-b-2 px-1 py-2 text-sm font-medium">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a7.5 7.5 0 0 1 15 0" />
+                </svg>
+                BIODATA
+            </button>
+            <button type="button" @click="next()"
+                    :class="step === 2 ? 'border-gold text-navy dark:text-gold' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+                    class="inline-flex items-center gap-2 border-b-2 px-1 py-2 text-sm font-medium">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                </svg>
+                JENIS LAPORAN
+            </button>
+        </nav>
+    </div>
     {% csrf_token %}
     {% if form.non_field_errors %}
-    <div class="rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+    <div class="max-w-md mx-auto mb-4 rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
         {% for error in form.non_field_errors %}{{ error }}{% endfor %}
     </div>
     {% endif %}
+    <div x-ref="biodata" x-show="step === 1" class="max-w-md mx-auto space-y-4">
     <div>
         <label for="{{ form.nip.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">NIP/NRP</label>
         {{ form.nip }}
@@ -52,9 +72,22 @@
         {% if form.foto.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.foto.errors.0 }}</p>{% endif %}
         <img x-show="fotoPreview" x-cloak :src="fotoPreview" alt="Pratinjau foto" class="mt-2 max-h-56 w-full rounded-md border border-slate-300 dark:border-slate-600 object-contain bg-slate-100 dark:bg-slate-900">
     </div>
-    <button type="button" @click="modalOpen = true" class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
-        Kirim
+    <button type="button" @click="next()" class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
+        Lanjut
     </button>
+    </div>
+
+    <div x-show="step === 2" x-cloak class="max-w-md mx-auto space-y-4">
+        <p class="rounded-md border border-dashed border-slate-300 dark:border-slate-600 px-3 py-6 text-center text-sm text-slate-500 dark:text-slate-400">Belum ada isian jenis laporan.</p>
+        <div class="flex gap-3">
+            <button type="button" @click="step = 1" class="flex-1 rounded-md border border-slate-300 dark:border-slate-600 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">
+                Kembali
+            </button>
+            <button type="button" @click="modalOpen = true" class="flex-1 rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
+                Kirim
+            </button>
+        </div>
+    </div>
 
     <div x-show="modalOpen"
          x-cloak
