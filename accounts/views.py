@@ -1,13 +1,12 @@
 from django.conf import settings
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
-from django.db import models
 from django.http import HttpResponse
 from django.shortcuts import redirect, render, resolve_url
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from fleet.models import Vehicle
+from fleet.services import get_fleet_summary
 
 from .forms import LoginForm
 
@@ -54,16 +53,8 @@ def logout_view(request):
 
 @login_required
 def dashboard_view(request):
-    status_counts = dict(
-        Vehicle.objects.values_list("status").annotate(count=models.Count("id"))
-    )
     context = {
-        "fleet_summary": {
-            "total": sum(status_counts.values()),
-            "ready": status_counts.get(Vehicle.Status.SIAP_PAKAI, 0),
-            "in_repair": status_counts.get(Vehicle.Status.DALAM_PERBAIKAN, 0),
-            "due_soon": status_counts.get(Vehicle.Status.PERLU_SERVIS, 0),
-        },
+        "fleet_summary": get_fleet_summary(),
         "upcoming_maintenance": [
             {"vehicle": "Truk Angkut B 9021 XY", "service_type": "Ganti oli & filter", "date": "2026-09-28", "status": "Terjadwal"},
             {"vehicle": "Jeep Patroli B 4412 KM", "service_type": "Servis rem", "date": "2026-09-30", "status": "Terjadwal"},
