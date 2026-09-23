@@ -807,3 +807,19 @@ class PerbaikanSaveTests(HistoryScanTests):
         response = self._post(**{f"perbaikan_{good.pk}_aktif": "1", f"perbaikan_{good.pk}_kondisi": "B"})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(PerbaikanGolonganB.objects.count(), 0)
+
+
+
+class TemplateCommentTests(TestCase):
+    def test_no_multiline_hash_comments(self):
+        """Django's {# #} is single-line only; a multi-line one renders as page text."""
+        from pathlib import Path
+
+        from django.conf import settings
+
+        offenders = []
+        for path in Path(settings.BASE_DIR, "templates").rglob("*.html"):
+            for number, line in enumerate(path.read_text().splitlines(), start=1):
+                if "{#" in line and "#}" not in line.split("{#", 1)[1]:
+                    offenders.append(f"{path.relative_to(settings.BASE_DIR)}:{number}")
+        self.assertEqual(offenders, [], "Use {% comment %} for multi-line template comments")

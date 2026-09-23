@@ -2,10 +2,12 @@
 {% block title %}{% if is_edit %}Edit{% else %}Tambah{% endif %} Kendaraan — BMN Harwat{% endblock %}
 {% block page_title %}{% if is_edit %}Edit Kendaraan{% else %}Tambah Kendaraan{% endif %}{% endblock %}
 {% block content %}
-{# Direct-URL / no-JS fallback — the normal path is the modal on vehicle_list.html.
-   "modalOpen" here isn't a modal, just gives the shared partial's Batal button
-   somewhere to send `modalOpen = false` to: this x-effect turns that into a
-   real navigation back to the list. #}
+{% comment %}
+Direct-URL / no-JS fallback — the normal path is the modal on vehicle_list.html.
+"modalOpen" here isn't a modal, just gives the shared partial's Batal button
+somewhere to send `modalOpen = false` to: this x-effect turns that into a
+real navigation back to the list.
+{% endcomment %}
 <div class="max-w-lg bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6"
      x-data="{ modalOpen: true }"
      x-effect="if (!modalOpen) window.location = '{% url 'fleet:vehicle_list' %}'">
