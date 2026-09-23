@@ -28,8 +28,8 @@
                 </button>
             </div>
             <nav class="flex-1 px-3 py-4 space-y-1 text-sm" @click="sidebarOpen = false">
-                <a href="{% url 'accounts:dashboard' %}" class="flex items-center gap-2 rounded-md px-3 py-2 bg-white/10 text-gold font-medium">Dashboard</a>
-                <a href="{% url 'fleet:vehicle_list' %}" class="flex items-center gap-2 rounded-md px-3 py-2 text-slate-200 hover:bg-white/5">Armada</a>
+                <a href="{% url 'accounts:dashboard' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.namespace == 'accounts' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">Dashboard</a>
+                <a href="{% url 'fleet:vehicle_list' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.namespace == 'fleet' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">Armada</a>
                 <a href="#" class="flex items-center gap-2 rounded-md px-3 py-2 text-slate-200 hover:bg-white/5">Jadwal</a>
                 <a href="#" class="flex items-center gap-2 rounded-md px-3 py-2 text-slate-200 hover:bg-white/5">Servis</a>
                 <a href="#" class="flex items-center gap-2 rounded-md px-3 py-2 text-slate-200 hover:bg-white/5">Laporan</a>
