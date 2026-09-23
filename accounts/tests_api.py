@@ -62,3 +62,21 @@ class RefreshAndLogoutRouteTests(TransactionTestCase):
                 headers={"Authorization": f"Bearer {self.refresh_token}"},
             )
         self.assertEqual(reuse_response.status_code, 401)
+
+    def test_refresh_without_authorization_header_returns_401(self):
+        with TestClient(api) as client:
+            response = client.post("/auth/refresh")
+        self.assertEqual(response.status_code, 401)
+
+    def test_refresh_with_malformed_token_returns_401(self):
+        with TestClient(api) as client:
+            response = client.post(
+                "/auth/refresh",
+                headers={"Authorization": "Bearer garbage.garbage.garbage"},
+            )
+        self.assertEqual(response.status_code, 401)
+
+    def test_logout_without_authorization_header_returns_401(self):
+        with TestClient(api) as client:
+            response = client.post("/auth/logout")
+        self.assertEqual(response.status_code, 401)

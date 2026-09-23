@@ -4,6 +4,7 @@ from django.contrib.auth import aauthenticate
 from django_bolt import BoltAPI
 from django_bolt.auth import (
     DjangoORMRevocation,
+    IsAuthenticated,
     JWTAuthentication,
     LoginCredentials,
     TokenRotationError,
@@ -36,7 +37,7 @@ async def login(request, credentials: LoginCredentials):
     }
 
 
-@api.post("/auth/refresh", auth=[refresh_auth], tags=["auth"])
+@api.post("/auth/refresh", auth=[refresh_auth], guards=[IsAuthenticated()], tags=["auth"])
 async def refresh(request):
     try:
         pair = await rotate_refresh_token(
@@ -53,7 +54,7 @@ async def refresh(request):
     }
 
 
-@api.post("/auth/logout", auth=[refresh_auth], tags=["auth"])
+@api.post("/auth/logout", auth=[refresh_auth], guards=[IsAuthenticated()], tags=["auth"])
 async def logout(request):
     claims = request["context"]["auth_claims"]
     await revocation_store.revoke(claims["jti"], exp=claims.get("exp"))
