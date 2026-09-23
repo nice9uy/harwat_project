@@ -117,6 +117,11 @@ def laporan_view(request):
 
 
 @login_required
+def form_tambah_view(request):
+    return render(request, "accounts/form_tambah.html")
+
+
+@login_required
 def pengaturan_view(request):
     users = User.objects.all().order_by("username")
     return render(request, "accounts/pengaturan.html", {"users": users})

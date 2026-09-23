@@ -368,3 +368,26 @@ class RevokedTokenModelTests(TestCase):
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 RevokedToken.objects.create(jti="dup", expires_at=expires)
+
+
+class FormTambahViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
+
+    def test_redirects_when_not_authenticated(self):
+        response = self.client.get(reverse("accounts:form_tambah"))
+        self.assertRedirects(
+            response,
+            f"{reverse('accounts:login')}?next={reverse('accounts:form_tambah')}",
+        )
+
+    def test_renders_when_authenticated(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:form_tambah"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Form Tambah")
+
+    def test_sidebar_link_below_form_laporan(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        content = self.client.get(reverse("accounts:dashboard")).content.decode()
+        self.assertLess(content.index("FORM LAPORAN"), content.index("FORM TAMBAH"))

@@ -66,6 +66,12 @@
                     </svg>
                     FORM LAPORAN
                 </a>
+                <a href="{% url 'accounts:form_tambah' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:form_tambah' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                    <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    </svg>
+                    FORM TAMBAH
+                </a>
 
                 <div class="my-2 border-t border-white/10"></div>
 

@@ -13,6 +13,7 @@ urlpatterns = [
     path("dashboard/", views.dashboard_view, name="dashboard"),
     path("dashboard/partial/", views.dashboard_partial, name="dashboard_partial"),
     path("laporan/", views.laporan_view, name="laporan"),
+    path("form-tambah/", views.form_tambah_view, name="form_tambah"),
     path("pengaturan/", views.pengaturan_view, name="pengaturan"),
     path("pengaturan/user/tambah/", views.user_create, name="user_create"),
 ]
