@@ -14,6 +14,11 @@ class LoginViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Masuk")
 
+    def test_login_page_defaults_to_dark_mode(self):
+        response = self.client.get(reverse("accounts:login"))
+        self.assertContains(response, '<html lang="id" class="dark">')
+        self.assertContains(response, "localStorage.getItem('theme')")
+
     def test_post_valid_credentials_redirects_to_dashboard(self):
         response = self.client.post(
             reverse("accounts:login"),
@@ -70,6 +75,11 @@ class DashboardViewTests(TestCase):
         self.assertContains(response, "Jadwal Perawatan Mendatang")
         self.assertContains(response, "Alert Overdue")
         self.assertContains(response, "Aktivitas Terbaru")
+
+    def test_dashboard_has_theme_toggle(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:dashboard"))
+        self.assertContains(response, 'aria-label="Ganti tema"')
 
     def test_dashboard_shows_mock_fleet_counts(self):
         self.client.login(username="teknisi1", password="rahasia-123")

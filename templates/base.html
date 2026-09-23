@@ -1,15 +1,16 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}BMN Harwat{% endblock %}</title>
+    {% include "_theme_init.html" %}
     <link rel="stylesheet" href="{% static 'dist/output.css' %}">
     <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
     <script src="{% static 'vendor/alpinejs.min.js' %}" defer></script>
 </head>
-<body class="bg-slate-50 text-slate-900">
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100">
     <div class="flex min-h-screen">
         <aside class="w-64 shrink-0 bg-navy text-slate-100 flex flex-col">
             <div class="px-6 py-5 text-lg font-semibold tracking-wide border-b border-white/10">
@@ -24,13 +25,14 @@
             </nav>
         </aside>
         <div class="flex-1 flex flex-col min-w-0">
-            <header class="h-16 flex items-center justify-between px-6 border-b border-slate-200 bg-white">
+            <header class="h-16 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
                 <h1 class="text-base font-semibold">{% block page_title %}{% endblock %}</h1>
                 <div class="flex items-center gap-3 text-sm">
+                    {% include "_theme_toggle.html" %}
                     <span>{{ request.user.get_username }}</span>
                     <form method="post" action="{% url 'accounts:logout' %}" class="inline">
                         {% csrf_token %}
-                        <button type="submit" class="text-slate-500 hover:text-navy">Keluar</button>
+                        <button type="submit" class="text-slate-500 hover:text-navy dark:text-slate-400 dark:hover:text-gold">Keluar</button>
                     </form>
                 </div>
             </header>

@@ -1,17 +1,21 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Masuk — BMN Harwat</title>
+    {% include "_theme_init.html" %}
     <link rel="stylesheet" href="{% static 'dist/output.css' %}">
     <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
 </head>
 <body class="min-h-screen bg-navy flex items-center justify-center px-4">
-    <div class="w-full max-w-sm bg-white rounded-lg shadow-lg p-8">
-        <h1 class="text-xl font-semibold text-navy mb-1">BMN Harwat</h1>
-        <p class="text-sm text-slate-500 mb-6">Pemeliharaan &amp; Perawatan Kendaraan</p>
+    <div class="w-full max-w-sm bg-white dark:bg-slate-800 rounded-lg shadow-lg p-8 relative text-slate-900 dark:text-slate-100">
+        <div class="absolute top-4 right-4">
+            {% include "_theme_toggle.html" %}
+        </div>
+        <h1 class="text-xl font-semibold text-navy dark:text-slate-100 mb-1">BMN Harwat</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Pemeliharaan &amp; Perawatan Kendaraan</p>
 
         <div id="login-form-wrapper">
             <form id="login-form"
@@ -24,16 +28,16 @@
                   class="space-y-4">
                 {% csrf_token %}
                 {% if form.non_field_errors %}
-                <div class="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+                <div class="rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
                     {% for error in form.non_field_errors %}{{ error }}{% endfor %}
                 </div>
                 {% endif %}
                 <div>
-                    <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">Username</label>
+                    <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Username</label>
                     {{ form.username }}
                 </div>
                 <div>
-                    <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                    <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password</label>
                     {{ form.password }}
                 </div>
                 <div class="flex items-center justify-between text-sm">
@@ -41,7 +45,7 @@
                         {{ form.remember_me }}
                         <span>Ingat saya</span>
                     </label>
-                    <a href="{% url 'accounts:password_reset_placeholder' %}" class="text-navy hover:text-gold">Lupa password?</a>
+                    <a href="{% url 'accounts:password_reset_placeholder' %}" class="text-navy dark:text-slate-300 hover:text-gold">Lupa password?</a>
                 </div>
                 <button type="submit" class="w-full rounded-md bg-navy px-3 py-2 text-sm font-medium text-white hover:bg-navy-light focus:outline-none focus:ring-2 focus:ring-gold/50">
                     Masuk

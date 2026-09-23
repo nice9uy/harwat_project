@@ -5,13 +5,16 @@ from .models import Vehicle
 TEXT_INPUT_CLASSES = (
     "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm "
     "text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-gold "
-    "focus:outline-none focus:ring-2 focus:ring-gold/40"
+    "focus:outline-none focus:ring-2 focus:ring-gold/40 "
+    "dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 "
+    "dark:placeholder:text-slate-500"
 )
 
 SELECT_CLASSES = (
     "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm "
     "text-slate-900 shadow-sm focus:border-gold focus:outline-none "
-    "focus:ring-2 focus:ring-gold/40"
+    "focus:ring-2 focus:ring-gold/40 "
+    "dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
 )
 
 SELECT_FIELD_NAMES = {"jenis", "status"}
