@@ -18,7 +18,4 @@ ALAT = [
     "Standar", "Footstep", "Peredam Letus", "Chasis", "Cat",
 ]
 
-ALAT_BAGIAN = [
-    ("Daftar Alat 1–20", list(enumerate(ALAT[:20], start=1))),
-    ("Daftar Alat 21–40", list(enumerate(ALAT[20:], start=21))),
-]
+ALAT_BERNOMOR = list(enumerate(ALAT, start=1))
