@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Laporan, PemeriksaanGolonganB, PemeriksaanGolonganBItem, RevokedToken
+from .models import Laporan, PemeriksaanGolonganB, PemeriksaanGolonganBItem, PerbaikanGolonganB, RevokedToken
 
 
 @admin.register(Laporan)
@@ -41,3 +41,16 @@ class PemeriksaanGolonganBItemAdmin(admin.ModelAdmin):
     list_filter = ["kondisi", "nama_alat"]
     list_select_related = ["pemeriksaan__vehicle"]
     search_fields = ["pemeriksaan__vehicle__nopol", "nama_alat", "keterangan"]
+
+
+@admin.register(PerbaikanGolonganB)
+class PerbaikanGolonganBAdmin(admin.ModelAdmin):
+    list_display = ["item", "kendaraan", "kondisi", "jumlah", "teknisi", "dibuat_pada"]
+    list_filter = ["kondisi"]
+    list_select_related = ["item__pemeriksaan__vehicle", "teknisi"]
+    search_fields = ["item__pemeriksaan__vehicle__nopol", "item__nama_alat", "teknisi__nama", "keterangan"]
+    date_hierarchy = "dibuat_pada"
+
+    @admin.display(description="Kendaraan", ordering="item__pemeriksaan__vehicle__nopol")
+    def kendaraan(self, obj):
+        return obj.item.pemeriksaan.vehicle

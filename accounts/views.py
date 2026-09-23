@@ -1,17 +1,18 @@
 import secrets
 import string
 
+from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render, resolve_url
 from django.urls import reverse
-from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 from django.views.decorators.http import require_POST
 
 from fleet.images import compress_photo
@@ -19,8 +20,8 @@ from fleet.models import Vehicle
 from fleet.services import get_fleet_summary
 
 from . import pemeriksaan
-from .forms import LaporanForm, LoginForm, PemeriksaanGolonganBForm, UserCreateForm
-from .models import PemeriksaanGolonganBItem
+from .forms import BiodataForm, LaporanForm, LoginForm, PemeriksaanGolonganBForm, UserCreateForm
+from .models import PemeriksaanGolonganBItem, PerbaikanGolonganB
 
 
 def _get_success_url(request):
@@ -203,33 +204,122 @@ def _riwayat_pemeriksaan(vehicle):
     return riwayat, terakhir, perlu_perhatian
 
 
+def _perlu_perbaikan(terakhir):
+    """RR/RB parts of the latest inspection whose latest repair isn't Baik yet.
+
+    Each item gets ``perbaikan_terakhir`` (its most recent repair or None).
+    """
+    if terakhir is None:
+        return []
+    items = terakhir.items.exclude(kondisi="B").prefetch_related(
+        Prefetch("perbaikan", queryset=PerbaikanGolonganB.objects.select_related("teknisi"))
+    )
+    daftar = []
+    for item in items:
+        repairs = list(item.perbaikan.all())
+        item.perbaikan_terakhir = repairs[0] if repairs else None
+        if item.perbaikan_terakhir is None or item.perbaikan_terakhir.kondisi != "B":
+            daftar.append(item)
+    return daftar
+
+
 @login_required
 def history_kendaraan_view(request):
     """Inspection history of the vehicle whose QR code was scanned."""
     vehicle = _vehicle_from_scan(request)
-    riwayat, terakhir, perlu_perhatian = _riwayat_pemeriksaan(vehicle) if vehicle else ([], None, [])
+    riwayat, terakhir, _ = _riwayat_pemeriksaan(vehicle) if vehicle else ([], None, [])
+    riwayat_perbaikan = []
+    if vehicle is not None:
+        riwayat_perbaikan = PerbaikanGolonganB.objects.filter(
+            item__pemeriksaan__vehicle=vehicle
+        ).select_related("item", "teknisi")
     return render(request, "accounts/_history_kendaraan.html", {
         "vehicle": vehicle,
         "riwayat": riwayat,
         "terakhir": terakhir,
-        "perlu_perhatian": perlu_perhatian,
+        # Parts repaired back to Baik no longer need attention.
+        "perlu_perhatian": _perlu_perbaikan(terakhir),
+        "riwayat_perbaikan": riwayat_perbaikan,
     })
+
+
+def _clean_perbaikan(data, files, daftar):
+    """Validate the repair fields of the items the technician opened.
+
+    Returns (entries, errors); entries are dicts ready for PerbaikanGolonganB.
+    """
+    kondisi_valid = {kode for kode, _ in pemeriksaan.KONDISI}
+    entries, errors = [], []
+    for item in daftar:
+        prefix = f"perbaikan_{item.pk}_"
+        if not data.get(prefix + "aktif"):
+            continue
+        label = f"{item.nomor}. {item.nama_alat}"
+        kondisi = data.get(prefix + "kondisi", "")
+        if kondisi not in kondisi_valid:
+            errors.append(f"Kondisi perbaikan {label} belum dipilih.")
+        jumlah_raw = data.get(prefix + "jml", "").strip()
+        if jumlah_raw and not jumlah_raw.isdigit():
+            errors.append(f"Jumlah perbaikan {label} harus angka 0 atau lebih.")
+        foto = files.get(prefix + "foto")
+        if foto:
+            try:
+                foto = forms.ImageField().clean(foto)
+            except forms.ValidationError:
+                errors.append(f"Foto perbaikan {label} bukan gambar yang valid.")
+        entries.append({
+            "item": item,
+            "kondisi": kondisi,
+            "jumlah": int(jumlah_raw) if jumlah_raw.isdigit() else None,
+            "keterangan": data.get(prefix + "keterangan", "").strip(),
+            "foto": foto or None,
+        })
+    if not entries and not errors:
+        errors.append("Pilih minimal satu item lalu klik Perbaikan untuk mengisinya.")
+    return entries, errors
 
 
 @login_required
 def perbaikan_view(request):
-    return render(request, "accounts/perbaikan.html", {"form": LaporanForm()})
+    errors = []
+    if request.method == "POST":
+        form = BiodataForm(request.POST, request.FILES)
+        vehicle = Vehicle.objects.filter(pk=request.POST.get("vehicle") or None).first()
+        if vehicle is None:
+            errors.append("Scan QR Code kendaraan terlebih dahulu.")
+        else:
+            _, terakhir, _ = _riwayat_pemeriksaan(vehicle)
+            entries, errors = _clean_perbaikan(request.POST, request.FILES, _perlu_perbaikan(terakhir))
+        if form.is_valid() and not errors:
+            with transaction.atomic():
+                teknisi = form.save()
+                for entry in entries:
+                    foto = entry.pop("foto")
+                    PerbaikanGolonganB.objects.create(
+                        teknisi=teknisi, foto=compress_photo(foto) if foto else "", **entry,
+                    )
+            messages.success(request, f"Perbaikan {vehicle.nopol} berhasil disimpan ({len(entries)} item).")
+            return redirect(f"{reverse('accounts:perbaikan')}?{urlencode({'nopol': vehicle.nopol})}")
+    else:
+        form = BiodataForm()
+    return render(request, "accounts/perbaikan.html", {
+        "form": form,
+        "perbaikan_errors": errors,
+        "nopol": request.GET.get("nopol", ""),
+        "kondisi": pemeriksaan.KONDISI,
+    })
 
 
 @login_required
 def perbaikan_kendaraan_view(request):
     """Parts to repair on the scanned vehicle: RR/RB items of its last inspection."""
     vehicle = _vehicle_from_scan(request)
-    _, terakhir, perlu_perhatian = _riwayat_pemeriksaan(vehicle) if vehicle else ([], None, [])
+    _, terakhir, _ = _riwayat_pemeriksaan(vehicle) if vehicle else ([], None, [])
     return render(request, "accounts/_perbaikan_daftar.html", {
         "vehicle": vehicle,
         "terakhir": terakhir,
-        "perlu_perhatian": perlu_perhatian,
+        "daftar": _perlu_perbaikan(terakhir),
+        "kondisi": pemeriksaan.KONDISI,
     })
 
 

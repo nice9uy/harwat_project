@@ -7,7 +7,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import Laporan, PemeriksaanGolonganB, PemeriksaanGolonganBItem, RevokedToken
+from accounts.models import Laporan, PemeriksaanGolonganB, PemeriksaanGolonganBItem, PerbaikanGolonganB, RevokedToken
 from fleet.models import Vehicle
 
 # 1x1 transparent GIF — smallest valid image Pillow will accept for an
@@ -724,3 +724,86 @@ class PerbaikanScanTests(HistoryScanTests):
         self.client.logout()
         response = self.client.get(reverse("accounts:perbaikan_kendaraan"), {"nopol": "B 9021 XY"})
         self.assertEqual(response.status_code, 302)
+
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class PerbaikanSaveTests(HistoryScanTests):
+    """Reuses HistoryScanTests' setup and _inspection helper."""
+
+    def _post(self, **fields):
+        data = {
+            "nip": "2", "nama": "Andi Teknisi", "pangkat": "Serka", "jabatan": "Mekanik", "satuan": "Bengkel",
+            "foto": SimpleUploadedFile("teknisi.gif", TINY_GIF, content_type="image/gif"),
+            "vehicle": self.vehicle.pk,
+        }
+        data.update(fields)
+        return self.client.post(reverse("accounts:perbaikan"), data)
+
+    def _daftar(self):
+        return self.client.get(reverse("accounts:perbaikan_kendaraan"), {"nopol": "B 9021 XY"})
+
+    def test_each_item_has_perbaikan_button_and_fields(self):
+        hasil = self._inspection(rusak_berat=1)
+        item = hasil.items.get(nomor=1)
+        response = self._daftar()
+        self.assertContains(response, "Batal Perbaikan")
+        for suffix in ("aktif", "jml", "keterangan", "foto"):
+            self.assertContains(response, f'name="perbaikan_{item.pk}_{suffix}"')
+        self.assertContains(response, f'name="perbaikan_{item.pk}_kondisi" value="B"')
+        self.assertContains(response, 'id="simpan-perbaikan"')
+
+    def test_repaired_to_baik_disappears_from_list(self):
+        hasil = self._inspection(rusak_berat=2)
+        motor = hasil.items.get(nomor=1)
+        response = self._post(**{
+            f"perbaikan_{motor.pk}_aktif": "1",
+            f"perbaikan_{motor.pk}_kondisi": "B",
+            f"perbaikan_{motor.pk}_jml": "1",
+            f"perbaikan_{motor.pk}_keterangan": "Ganti gasket",
+            f"perbaikan_{motor.pk}_foto": SimpleUploadedFile("after.gif", TINY_GIF, content_type="image/gif"),
+        })
+        self.assertRedirects(response, reverse("accounts:perbaikan") + "?nopol=B+9021+XY")
+        perbaikan = PerbaikanGolonganB.objects.get()
+        self.assertEqual((perbaikan.item, perbaikan.kondisi, perbaikan.jumlah), (motor, "B", 1))
+        self.assertEqual(perbaikan.teknisi.nama, "Andi Teknisi")
+        self.assertTrue(perbaikan.foto.name.startswith("perbaikan/"))
+        daftar = self._daftar()
+        self.assertContains(daftar, "Item yang Harus Diperbaiki (1)")
+        self.assertNotContains(daftar, "1. Alat 1")
+        self.assertContains(daftar, "2. Alat 2")
+        # History reflects it too.
+        history = self.client.get(reverse("accounts:history_kendaraan"), {"nopol": "B 9021 XY"})
+        self.assertContains(history, "Perlu Perhatian (1)")
+        self.assertContains(history, "Teknisi: Andi Teknisi (Serka)")
+        self.assertContains(history, "Ganti gasket")
+
+    def test_repair_still_rusak_stays_on_list(self):
+        hasil = self._inspection(rusak_berat=1)
+        motor = hasil.items.get(nomor=1)
+        self._post(**{f"perbaikan_{motor.pk}_aktif": "1", f"perbaikan_{motor.pk}_kondisi": "RR"})
+        daftar = self._daftar()
+        self.assertContains(daftar, "1. Alat 1")
+        self.assertContains(daftar, "masih rusak ringan")
+
+    def test_inactive_items_are_ignored_and_one_is_required(self):
+        hasil = self._inspection(rusak_berat=1)
+        motor = hasil.items.get(nomor=1)
+        response = self._post(**{f"perbaikan_{motor.pk}_kondisi": "B"})
+        self.assertContains(response, "Pilih minimal satu item")
+        self.assertEqual(PerbaikanGolonganB.objects.count(), 0)
+
+    def test_missing_kondisi_saves_nothing(self):
+        hasil = self._inspection(rusak_berat=1)
+        motor = hasil.items.get(nomor=1)
+        response = self._post(**{f"perbaikan_{motor.pk}_aktif": "1"})
+        self.assertContains(response, "Kondisi perbaikan 1. Alat 1 belum dipilih.")
+        self.assertEqual(PerbaikanGolonganB.objects.count(), 0)
+        self.assertEqual(Laporan.objects.filter(nama="Andi Teknisi").count(), 0)
+
+    def test_item_not_needing_repair_cannot_be_posted(self):
+        hasil = self._inspection(rusak_berat=0)
+        good = hasil.items.get(nomor=1)
+        response = self._post(**{f"perbaikan_{good.pk}_aktif": "1", f"perbaikan_{good.pk}_kondisi": "B"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(PerbaikanGolonganB.objects.count(), 0)

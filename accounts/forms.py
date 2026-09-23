@@ -60,8 +60,8 @@ class UserCreateForm(UserCreationForm):
         self.fields["username"].widget.attrs["placeholder"] = "teknisi2"
 
 
-class LaporanForm(forms.ModelForm):
-    captcha = forms.CharField(label="Kode Keamanan", max_length=10)
+class BiodataForm(forms.ModelForm):
+    """The shared BIODATA tab (stored as a Laporan / Biodata Pemeriksa row)."""
 
     class Meta:
         model = Laporan
@@ -74,9 +74,8 @@ class LaporanForm(forms.ModelForm):
             }),
         }
 
-    def __init__(self, *args, expected_captcha="", **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._expected_captcha = expected_captcha
         for name, field in self.fields.items():
             field.widget.attrs["class"] = FILE_INPUT_CLASSES if name == "foto" else TEXT_INPUT_CLASSES
         self.fields["nip"].label = "NIP/NRP"
@@ -85,6 +84,15 @@ class LaporanForm(forms.ModelForm):
         self.fields["pangkat"].widget.attrs["placeholder"] = "Kapten (TNI) / Penata Muda - III-a (PNS)"
         self.fields["jabatan"].widget.attrs["placeholder"] = "Teknisi"
         self.fields["satuan"].widget.attrs["placeholder"] = "Satuan Kerja ABC"
+
+
+class LaporanForm(BiodataForm):
+    captcha = forms.CharField(label="Kode Keamanan", max_length=10)
+
+    def __init__(self, *args, expected_captcha="", **kwargs):
+        super().__init__(*args, **kwargs)
+        self._expected_captcha = expected_captcha
+        self.fields["captcha"].widget.attrs["class"] = TEXT_INPUT_CLASSES
         self.fields["captcha"].widget.attrs["placeholder"] = "Ketik kode di atas"
         self.fields["captcha"].widget.attrs["autocomplete"] = "off"
 

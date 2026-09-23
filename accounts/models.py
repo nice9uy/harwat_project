@@ -81,3 +81,33 @@ class PemeriksaanGolonganBItem(models.Model):
 
     def __str__(self):
         return f"{self.nomor}. {self.nama_alat}"
+
+
+class PerbaikanGolonganB(models.Model):
+    """A repair of one damaged part (RR/RB) found in a Golongan B inspection.
+
+    The part drops off the to-repair list once its latest repair has
+    kondisi B (Baik).
+    """
+
+    teknisi = models.ForeignKey(
+        Laporan, on_delete=models.CASCADE, related_name="perbaikan_golongan_b",
+        verbose_name="Biodata Teknisi",
+    )
+    item = models.ForeignKey(
+        PemeriksaanGolonganBItem, on_delete=models.CASCADE, related_name="perbaikan",
+        verbose_name="Item Pemeriksaan",
+    )
+    kondisi = models.CharField(max_length=2, choices=checklist.KONDISI)
+    jumlah = models.PositiveIntegerField(null=True, blank=True)
+    keterangan = models.TextField(blank=True)
+    foto = models.ImageField(upload_to="perbaikan/", blank=True)
+    dibuat_pada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Perbaikan Golongan B"
+        verbose_name_plural = "Perbaikan Golongan B"
+        ordering = ["-dibuat_pada", "-id"]
+
+    def __str__(self):
+        return f"{self.item.pemeriksaan.vehicle.nopol} — {self.item} ({self.kondisi})"

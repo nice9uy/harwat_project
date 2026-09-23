@@ -5,10 +5,11 @@
 {% block content %}
 <form method="post" enctype="multipart/form-data"
       x-data="{
-          step: 1,
+          step: {% if nopol %}2{% else %}1{% endif %},
           fotoPreview: null,
           scanOpen: false,
           scanError: '',
+          simpanError: '',
           scanner: null,
           async startScan() {
               this.scanError = '';
@@ -32,7 +33,33 @@
                   return;
               }
               this.scanError = '';
+              this.muat(nopol);
+          },
+          muat(nopol) {
               htmx.ajax('GET', '{% url 'accounts:perbaikan_kendaraan' %}?nopol=' + encodeURIComponent(nopol), '#perbaikan-hasil');
+          },
+          simpan() {
+              for (const el of $refs.biodata.querySelectorAll('input, select, textarea')) {
+                  if (!el.checkValidity()) {
+                      this.step = 1;
+                      this.$nextTick(() => el.reportValidity());
+                      return;
+                  }
+              }
+              const hasil = document.getElementById('perbaikan-hasil');
+              if (!hasil.querySelector('input[name$=_aktif][value=\'1\']')) {
+                  this.simpanError = 'Klik Perbaikan pada minimal satu item lalu isi hasilnya.';
+                  return;
+              }
+              this.simpanError = '';
+              // Inputs may sit in a collapsed item; open it so the browser can point at them.
+              const invalid = [...hasil.querySelectorAll('input, select, textarea')].find((el) => !el.checkValidity());
+              if (invalid) {
+                  window.dispatchEvent(new CustomEvent('buka-item', { detail: Number(invalid.closest('[data-item]').dataset.item) }));
+                  this.$nextTick(() => invalid.reportValidity());
+                  return;
+              }
+              $root.requestSubmit();
           },
           next() {
               for (const el of $refs.biodata.querySelectorAll('input, select, textarea')) {
@@ -41,7 +68,8 @@
               this.step = 2;
           },
       }"
-      @htmx:before-swap.window="if ($event.detail.boosted) stopScan()">
+      @htmx:before-swap.window="if ($event.detail.boosted) stopScan()"
+      {% if nopol %}x-init="muat('{{ nopol|escapejs }}')"{% endif %}>
     <div class="sticky top-16 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 mb-4">
         <nav class="flex gap-6 -mb-px">
             <button type="button" @click="step = 1"
@@ -63,6 +91,12 @@
         </nav>
     </div>
     {% csrf_token %}
+    {% if perbaikan_errors or form.errors %}
+    <div class="max-w-md mx-auto mb-4 rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+        {% for error in perbaikan_errors %}<p>{{ error }}</p>{% endfor %}
+        {% if form.errors %}<p>Periksa kembali isian BIODATA.</p>{% endif %}
+    </div>
+    {% endif %}
     <div x-ref="biodata" x-show="step === 1" class="max-w-md mx-auto space-y-4">
     {% include "accounts/_biodata_fields.html" %}
     <button type="button" @click="next()" class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
