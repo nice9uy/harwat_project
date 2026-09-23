@@ -23,4 +23,24 @@ if [ ! -f static/dist/output.css ]; then
     ./scripts/build-css.sh
 fi
 
+# django-bolt's static serving looks for STATIC_ROOT (/app/staticfiles), which
+# only gets populated by `collectstatic` — and that only runs during prod's
+# image build (Containerfile), never in dev. Symlinking it to the same
+# source static/ dir STATICFILES_DIRS already serves from (not static/dist —
+# that would break /static/vendor/*, a sibling of dist/, not a child of it)
+# silences django-bolt's "cannot resolve directory" warning without
+# duplicating any files or needing collectstatic in dev at all.
+if [ ! -e staticfiles ]; then
+    ln -s static staticfiles
+fi
+
+# Tear down any existing containers for this stack first. dev and prod share
+# service names (postgres/valkey/garage/pgbouncer) from the base compose.yml,
+# so a leftover prod run left running/stopped would otherwise get reused
+# as-is by `up` — stale env vars, stale bind-mount paths (e.g. a since-deleted
+# worktree) — instead of being recreated against this run's config.
+# --remove-orphans also clears prod-only containers (app1/app2/app3/nginx/
+# static-sync) that aren't part of this dev overlay at all.
+podman-compose --env-file "$(pwd)/.env.dev" -f podman/compose.yml -f podman/compose.dev.yml down --remove-orphans
+
 podman-compose --env-file "$(pwd)/.env.dev" -f podman/compose.yml -f podman/compose.dev.yml up

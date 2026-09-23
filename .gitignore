@@ -12,8 +12,10 @@ wheels/
 # Local dev database
 db.sqlite3
 
-# Collected static files (collectstatic output)
-staticfiles/
+# Collected static files (collectstatic output in prod, a dev.sh symlink in
+# dev) — no trailing slash: a symlink isn't a directory, so `staticfiles/`
+# alone wouldn't match it
+staticfiles
 
 # Claude Code worktree state (never commit another session's checkout)
 .claude/worktrees/

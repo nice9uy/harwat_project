@@ -59,6 +59,13 @@ set +a
 umask 077
 envsubst '${GARAGE_RPC_SECRET}' < podman/garage.toml.template > podman/garage.prod.toml
 
+# Tear down any existing containers for this stack first — same reasoning as
+# dev.sh: dev and prod share service names (postgres/valkey/garage/pgbouncer)
+# from the base compose.yml, so a leftover dev run would otherwise get reused
+# as-is by `up` instead of recreated against this run's config.
+# --remove-orphans also clears the dev-only `app` container.
+podman-compose --env-file "$(pwd)/.env.prod" -f podman/compose.yml -f podman/compose.prod.yml down --remove-orphans
+
 podman-compose --env-file "$(pwd)/.env.prod" -f podman/compose.yml -f podman/compose.prod.yml up -d --build
 
 # Idempotent — safe to run on every invocation, not just first-run. Nothing
