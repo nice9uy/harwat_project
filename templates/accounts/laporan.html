@@ -130,25 +130,29 @@
 
         <template x-if="kendaraan">
           <div class="space-y-4">
+            <p class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                Data kendaraan dari QR Code, tidak bisa diubah.
+            </p>
             <div>
                 <label for="scan-nopol" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. Registrasi</label>
-                <input id="scan-nopol" type="text" readonly :value="kendaraan.nopol || '-'" class="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+                <input id="scan-nopol" type="text" readonly tabindex="-1" :value="kendaraan.nopol || '-'" class="w-full cursor-not-allowed rounded-md border border-dashed border-slate-300 bg-slate-200/70 px-3 py-2 text-sm text-slate-600 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
             </div>
             <div>
                 <label for="scan-merek" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Merk/Type</label>
-                <input id="scan-merek" type="text" readonly :value="kendaraan.merek || '-'" class="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+                <input id="scan-merek" type="text" readonly tabindex="-1" :value="kendaraan.merek || '-'" class="w-full cursor-not-allowed rounded-md border border-dashed border-slate-300 bg-slate-200/70 px-3 py-2 text-sm text-slate-600 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
             </div>
             <div>
                 <label for="scan-no_chasis" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. Chasis</label>
-                <input id="scan-no_chasis" type="text" readonly :value="kendaraan.no_chasis || '-'" class="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+                <input id="scan-no_chasis" type="text" readonly tabindex="-1" :value="kendaraan.no_chasis || '-'" class="w-full cursor-not-allowed rounded-md border border-dashed border-slate-300 bg-slate-200/70 px-3 py-2 text-sm text-slate-600 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
             </div>
             <div>
                 <label for="scan-no_mesin" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. Mesin</label>
-                <input id="scan-no_mesin" type="text" readonly :value="kendaraan.no_mesin || '-'" class="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+                <input id="scan-no_mesin" type="text" readonly tabindex="-1" :value="kendaraan.no_mesin || '-'" class="w-full cursor-not-allowed rounded-md border border-dashed border-slate-300 bg-slate-200/70 px-3 py-2 text-sm text-slate-600 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
             </div>
             <div>
                 <label for="scan-group_kendaraan" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Group Kendaraan</label>
-                <input id="scan-group_kendaraan" type="text" readonly :value="kendaraan.group_kendaraan || '-'" class="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+                <input id="scan-group_kendaraan" type="text" readonly tabindex="-1" :value="kendaraan.group_kendaraan || '-'" class="w-full cursor-not-allowed rounded-md border border-dashed border-slate-300 bg-slate-200/70 px-3 py-2 text-sm text-slate-600 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
             </div>
           </div>
         </template>

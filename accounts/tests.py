@@ -191,6 +191,7 @@ class LaporanViewTests(TestCase):
         self.assertContains(response, reverse("fleet:vehicle_lookup"))
         for label in ("No. Registrasi", "Merk/Type", "No. Chasis", "No. Mesin", "Group Kendaraan"):
             self.assertContains(response, f">{label}</label>")
+        self.assertContains(response, 'readonly tabindex="-1"', count=5)
 
     def test_jenis_pemeriksaan_has_inspection_accordion(self):
         from .pemeriksaan import ALAT
