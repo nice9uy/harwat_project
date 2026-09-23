@@ -12,6 +12,7 @@ urlpatterns = [
     path("logout/", views.logout_view, name="logout"),
     path("dashboard/", views.dashboard_view, name="dashboard"),
     path("dashboard/partial/", views.dashboard_partial, name="dashboard_partial"),
+    path("laporan/", views.laporan_view, name="laporan"),
     path("pengaturan/", views.pengaturan_view, name="pengaturan"),
     path("pengaturan/user/tambah/", views.user_create, name="user_create"),
 ]

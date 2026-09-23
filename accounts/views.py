@@ -88,6 +88,11 @@ def password_reset_placeholder(request):
 
 
 @login_required
+def laporan_view(request):
+    return render(request, "accounts/laporan.html")
+
+
+@login_required
 def pengaturan_view(request):
     users = User.objects.all().order_by("username")
     return render(request, "accounts/pengaturan.html", {"users": users})

@@ -143,6 +143,29 @@ class UserCreateViewTests(TestCase):
         self.assertFalse(User.objects.filter(username="teknisi4").exists())
 
 
+class LaporanViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
+
+    def test_redirects_when_not_authenticated(self):
+        response = self.client.get(reverse("accounts:laporan"))
+        self.assertRedirects(
+            response,
+            f"{reverse('accounts:login')}?next={reverse('accounts:laporan')}",
+        )
+
+    def test_renders_when_authenticated(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:laporan"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Laporan")
+
+    def test_sidebar_link_opens_in_new_tab(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:dashboard"))
+        self.assertContains(response, f'href="{reverse("accounts:laporan")}" target="_blank"')
+
+
 class DashboardViewTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
