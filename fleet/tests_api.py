@@ -118,3 +118,42 @@ class VehicleApiCrudTests(TransactionTestCase):
         with TestClient(api) as client:
             response = client.patch(f"/api/vehicles/{vehicle.id}", headers=self.headers, json={"odometer_km": 999})
         self.assertEqual(response.status_code, 404)
+
+
+class FleetSummaryApiTests(TransactionTestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.headers = _auth_headers(self.user)
+
+    def test_summary_without_token_returns_401(self):
+        with TestClient(api) as client:
+            response = client.get("/api/fleet/summary")
+        self.assertEqual(response.status_code, 401)
+
+    def test_summary_matches_get_fleet_summary(self):
+        Vehicle.objects.create(
+            nopol="B 9021 XY", jenis=Vehicle.Jenis.TRUK, merek="Hino Dutro",
+            tahun=2019, status=Vehicle.Status.SIAP_PAKAI, odometer_km=45000,
+            penanggung_jawab="Budi Santoso",
+        )
+        Vehicle.objects.create(
+            nopol="B 4412 KM", jenis=Vehicle.Jenis.JEEP, merek="Jeep Wrangler",
+            tahun=2020, status=Vehicle.Status.DALAM_PERBAIKAN, odometer_km=30000,
+            penanggung_jawab="Siti Amalia",
+        )
+        with TestClient(api) as client:
+            response = client.get("/api/fleet/summary", headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"total": 2, "ready": 1, "in_repair": 1, "due_soon": 0},
+        )
+
+    def test_summary_on_empty_fleet(self):
+        with TestClient(api) as client:
+            response = client.get("/api/fleet/summary", headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"total": 0, "ready": 0, "in_repair": 0, "due_soon": 0},
+        )

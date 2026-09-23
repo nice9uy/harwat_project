@@ -1,3 +1,4 @@
+from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.db import IntegrityError
 
@@ -8,6 +9,7 @@ from django_bolt.serializers import Serializer, field
 from django_bolt.views import CreateMixin, DestroyMixin, ListMixin, RetrieveMixin, UpdateMixin, ViewSet
 
 from .models import Vehicle
+from .services import get_fleet_summary
 
 api = BoltAPI()
 
@@ -47,3 +49,8 @@ class VehicleViewSet(ListMixin, RetrieveMixin, CreateMixin, UpdateMixin, Destroy
             await obj.asave()
         except IntegrityError:
             raise HTTPException(status_code=409, detail="A vehicle with this nopol already exists")
+
+
+@api.get("/api/fleet/summary", auth=[access_auth], guards=[IsAuthenticated()])
+async def fleet_summary(request):
+    return await sync_to_async(get_fleet_summary)()
