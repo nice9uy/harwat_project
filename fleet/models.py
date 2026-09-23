@@ -1,3 +1,5 @@
+import hashlib
+
 from django.db import models
 
 
@@ -39,3 +41,8 @@ class Vehicle(models.Model):
             f"No. Chasis: {self.no_chasis or '-'}",
             f"No. Mesin: {self.no_mesin or '-'}",
         ])
+
+    def qr_version(self):
+        # Changes whenever the QR content changes, so the image URL changes
+        # too and browsers never show a QR cached from before an edit.
+        return hashlib.sha256(self.qr_text().encode()).hexdigest()[:10]

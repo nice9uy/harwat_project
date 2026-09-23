@@ -70,6 +70,7 @@ def vehicle_delete(request, pk):
 def vehicle_qr(request, pk):
     vehicle = get_object_or_404(Vehicle, pk=pk)
     response = HttpResponse(qr_png_with_logo(vehicle.qr_text()), content_type="image/png")
+    response["Cache-Control"] = "private, no-cache"
     if request.GET.get("unduh"):
         response["Content-Disposition"] = f'attachment; filename="qr-{slugify(vehicle.nopol)}.png"'
     return response

@@ -352,6 +352,7 @@ class VehicleQrCodeTests(TestCase):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(url)
         self.assertEqual(response["Content-Type"], "image/png")
+        self.assertEqual(response["Cache-Control"], "private, no-cache")
         self.assertNotIn("Content-Disposition", response)
         response = self.client.get(url + "?unduh=1")
         self.assertEqual(response["Content-Disposition"], 'attachment; filename="qr-b-9021-xy.png"')
@@ -365,7 +366,16 @@ class VehicleQrCodeTests(TestCase):
         self.assertContains(response, "Foto Kendaraan</th>")
         self.assertContains(response, 'alt="QR Code B 9021 XY"')
         vehicle = Vehicle.objects.get()
-        self.assertContains(response, f'src="{reverse("fleet:vehicle_qr", args=[vehicle.pk])}"')
+        self.assertContains(
+            response, f'src="{reverse("fleet:vehicle_qr", args=[vehicle.pk])}?v={vehicle.qr_version()}"'
+        )
+
+    def test_qr_version_changes_when_no_mesin_changes(self):
+        vehicle = Vehicle(nopol="B 9021 XY", merek="Hino Dutro")
+        before = vehicle.qr_version()
+        vehicle.no_mesin = "W04DTR456"
+        self.assertNotEqual(before, vehicle.qr_version())
+        self.assertIn("No. Mesin: W04DTR456", vehicle.qr_text())
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
