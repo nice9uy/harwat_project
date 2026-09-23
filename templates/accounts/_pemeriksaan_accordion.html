@@ -39,6 +39,21 @@
                     {% endfor %}
                 </div>
             </fieldset>
+            <fieldset>
+                <legend class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Buku Jalan</legend>
+                <div class="grid grid-cols-2 gap-2">
+                    {% for value, label in buku_jalan %}
+                    <label class="flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 py-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-blue-600 has-checked:bg-blue-600 has-checked:text-white">
+                        <input type="radio" name="buku_jalan" value="{{ value }}" class="sr-only">{{ label }}
+                    </label>
+                    {% endfor %}
+                </div>
+            </fieldset>
+            <div>
+                <label for="kesatuan" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kesatuan</label>
+                <input type="text" id="kesatuan" name="kesatuan" placeholder="Yonif Mekanis 202/TM"
+                       class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+            </div>
         </div>
     </section>
 

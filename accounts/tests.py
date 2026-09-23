@@ -202,6 +202,9 @@ class LaporanViewTests(TestCase):
         self.assertContains(response, 'name="pembagian_kelas" value="6"')
         self.assertContains(response, 'name="eselon_reparasi" value="4"')
         self.assertContains(response, 'name="macam_pemeriksaan" value="tiba_tiba"')
+        self.assertContains(response, 'name="buku_jalan" value="ada"')
+        self.assertContains(response, 'name="buku_jalan" value="tidak"')
+        self.assertContains(response, 'id="kesatuan" name="kesatuan"')
         for no, nama in ((1, "Motor"), (20, "Gear Belakang"), (21, "Rantai"), (40, "Cat")):
             self.assertContains(response, f"{no}.</span> {nama}")
             self.assertContains(response, f'name="alat_{no}_jml"')

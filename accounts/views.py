@@ -120,6 +120,7 @@ def laporan_view(request):
         "pembagian_kelas": pemeriksaan.PEMBAGIAN_KELAS,
         "eselon_reparasi": pemeriksaan.ESELON_REPARASI,
         "macam_pemeriksaan": pemeriksaan.MACAM_PEMERIKSAAN,
+        "buku_jalan": pemeriksaan.BUKU_JALAN,
         "kondisi": pemeriksaan.KONDISI,
         "alat": pemeriksaan.ALAT_BERNOMOR,
     })

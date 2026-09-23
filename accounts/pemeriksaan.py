@@ -3,6 +3,7 @@
 PEMBAGIAN_KELAS = ["1", "2", "3", "4", "5", "6"]
 ESELON_REPARASI = ["1", "2", "3", "4"]
 MACAM_PEMERIKSAAN = [("tehnis", "Tehnis"), ("tiba_tiba", "Tiba-tiba")]
+BUKU_JALAN = [("ada", "Ada"), ("tidak", "Tidak")]
 KONDISI = [("B", "Baik"), ("RR", "Rusak Ringan"), ("RB", "Rusak Berat")]
 
 # Numbered as on the paper form. On the paper sheet "Carburator" and "Busi"
