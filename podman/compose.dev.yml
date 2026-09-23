@@ -4,7 +4,10 @@ services:
       context: ..
       dockerfile: Containerfile
       target: builder
-    command: ["python", "manage.py", "runbolt", "--dev", "--host", "0.0.0.0", "--port", "8000"]
+    # The app-dev-venv volume outlives image rebuilds, so a dependency added to
+    # uv.lock after the volume was first created would never reach it. Sync on
+    # every start (a no-op when nothing changed) before launching the server.
+    command: ["sh", "-c", "uv sync --frozen && exec python manage.py runbolt --dev --host 0.0.0.0 --port 8000"]
     volumes:
       - ..:/app
       - app-dev-venv:/app/.venv
