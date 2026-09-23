@@ -22,6 +22,7 @@ from fleet.services import get_fleet_summary
 from . import pemeriksaan
 from .forms import BiodataForm, LaporanForm, LoginForm, PemeriksaanGolonganBForm, UserCreateForm
 from .models import PemeriksaanGolonganBItem, PerbaikanGolonganB
+from .roles import keanggotaan_label
 
 
 def _get_success_url(request):
@@ -325,14 +326,16 @@ def perbaikan_kendaraan_view(request):
 
 @login_required
 def pengaturan_view(request):
-    users = User.objects.all().order_by("username")
+    users = User.objects.prefetch_related("groups").order_by("username")
+    for user in users:
+        user.keanggotaan = keanggotaan_label(user)
     return render(request, "accounts/pengaturan.html", {"users": users})
 
 
 @login_required
 def user_create(request):
     if request.method == "POST":
-        form = UserCreateForm(request.POST)
+        form = UserCreateForm(request.POST, allow_superuser=request.user.is_superuser)
         if form.is_valid():
             form.save()
             success_url = reverse("accounts:pengaturan")
@@ -342,7 +345,7 @@ def user_create(request):
                 return response
             return redirect(success_url)
     else:
-        form = UserCreateForm()
+        form = UserCreateForm(allow_superuser=request.user.is_superuser)
     is_htmx = request.headers.get("HX-Request") == "true"
     template = "accounts/_user_form_fields.html" if is_htmx else "accounts/user_form.html"
     return render(request, template, {"form": form})

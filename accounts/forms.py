@@ -1,10 +1,11 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 
 from fleet.models import Vehicle
 
 from . import pemeriksaan as checklist
+from . import roles
 from .models import Laporan, PemeriksaanGolonganB
 
 TEXT_INPUT_CLASSES = (
@@ -48,16 +49,36 @@ class LoginForm(AuthenticationForm):
 
 class UserCreateForm(UserCreationForm):
     email = forms.EmailField(required=False, label="Email")
+    keanggotaan = forms.ChoiceField(label="Keanggotaan", choices=roles.KEANGGOTAAN)
 
     class Meta(UserCreationForm.Meta):
         model = User
         fields = ("username", "email")
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, allow_superuser=False, **kwargs):
         super().__init__(*args, **kwargs)
+        # Only a superuser may create another superuser.
+        if not allow_superuser:
+            self.fields["keanggotaan"].choices = [
+                choice for choice in roles.KEANGGOTAAN if choice[0] != roles.SUPERUSER
+            ]
+        self.fields["keanggotaan"].choices = [("", "Pilih keanggotaan")] + list(self.fields["keanggotaan"].choices)
         for name in ("username", "email", "password1", "password2"):
             self.fields[name].widget.attrs["class"] = TEXT_INPUT_CLASSES
+        self.fields["keanggotaan"].widget.attrs["class"] = TEXT_INPUT_CLASSES
         self.fields["username"].widget.attrs["placeholder"] = "teknisi2"
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        kode = self.cleaned_data["keanggotaan"]
+        user.is_superuser = kode == roles.SUPERUSER
+        # Superuser and Admin can open Django admin.
+        user.is_staff = kode in (roles.SUPERUSER, roles.ADMIN)
+        if commit:
+            user.save()
+            if kode != roles.SUPERUSER:
+                user.groups.set([Group.objects.get(name=roles.GROUP_NAMES[kode])])
+        return user
 
 
 class BiodataForm(forms.ModelForm):

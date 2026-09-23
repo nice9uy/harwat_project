@@ -123,9 +123,12 @@ class UserCreateViewTests(TestCase):
             "email": "teknisi2@example.com",
             "password1": "kompleks-sekali-123",
             "password2": "kompleks-sekali-123",
+            "keanggotaan": "petugas_pemeriksaan",
         })
         self.assertRedirects(response, reverse("accounts:pengaturan"))
-        self.assertTrue(User.objects.filter(username="teknisi2").exists())
+        user = User.objects.get(username="teknisi2")
+        self.assertEqual(list(user.groups.values_list("name", flat=True)), ["Petugas Pemeriksaan"])
+        self.assertFalse(user.is_staff or user.is_superuser)
 
     def test_post_htmx_returns_hx_redirect(self):
         response = self.client.post(
@@ -135,12 +138,64 @@ class UserCreateViewTests(TestCase):
                 "email": "",
                 "password1": "kompleks-sekali-123",
                 "password2": "kompleks-sekali-123",
+                "keanggotaan": "pimpinan",
             },
             HTTP_HX_REQUEST="true",
         )
         self.assertEqual(response.status_code, 204)
         self.assertEqual(response["HX-Redirect"], reverse("accounts:pengaturan"))
         self.assertTrue(User.objects.filter(username="teknisi3").exists())
+
+    def _create(self, keanggotaan):
+        return self.client.post(reverse("accounts:user_create"), {
+            "username": "baru",
+            "password1": "kompleks-sekali-123",
+            "password2": "kompleks-sekali-123",
+            "keanggotaan": keanggotaan,
+        })
+
+    def test_keanggotaan_is_required(self):
+        response = self._create("")
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(username="baru").exists())
+
+    def test_admin_gets_group_and_staff(self):
+        self._create("admin")
+        user = User.objects.get(username="baru")
+        self.assertTrue(user.is_staff)
+        self.assertFalse(user.is_superuser)
+        self.assertTrue(user.groups.filter(name="Admin").exists())
+
+    def test_non_superuser_cannot_create_superuser(self):
+        response = self.client.get(reverse("accounts:user_create"))
+        self.assertNotContains(response, 'value="superuser"')
+        self._create("superuser")
+        self.assertFalse(User.objects.filter(username="baru").exists())
+
+    def test_superuser_can_create_superuser(self):
+        User.objects.create_superuser(username="root", password="rahasia-123")
+        self.client.login(username="root", password="rahasia-123")
+        self.assertContains(self.client.get(reverse("accounts:user_create")), 'value="superuser"')
+        self._create("superuser")
+        user = User.objects.get(username="baru")
+        self.assertTrue(user.is_superuser and user.is_staff)
+
+    def test_pengaturan_lists_keanggotaan(self):
+        self._create("petugas_perbaikan")
+        User.objects.create_superuser(username="root", password="rahasia-123")
+        response = self.client.get(reverse("accounts:pengaturan"))
+        self.assertContains(response, "<th class=\"py-2 px-4 font-medium\">Keanggotaan</th>", html=True)
+        self.assertContains(response, "Petugas Perbaikan")
+        self.assertContains(response, "Superuser")
+
+    def test_all_role_groups_exist(self):
+        from django.contrib.auth.models import Group
+
+        from accounts.roles import GROUP_NAMES
+        self.assertEqual(
+            set(Group.objects.values_list("name", flat=True)) & set(GROUP_NAMES.values()),
+            {"Admin", "Pimpinan", "Petugas Pemeriksaan", "Petugas Penambahan Data", "Petugas Perbaikan"},
+        )
 
     def test_post_mismatched_passwords_shows_error(self):
         response = self.client.post(reverse("accounts:user_create"), {
@@ -153,7 +208,6 @@ class UserCreateViewTests(TestCase):
         self.assertFalse(User.objects.filter(username="teknisi4").exists())
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 def _pemeriksaan_data(vehicle, **overrides):
     """POST fields of the PEMERIKSAAN tab for a fully filled-in inspection."""
     data = {
