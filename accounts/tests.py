@@ -183,6 +183,11 @@ class LaporanViewTests(TestCase):
         for field in ("nip", "nama", "pangkat", "jabatan", "satuan", "foto"):
             self.assertContains(response, f'id="id_{field}"')
 
+    def test_shows_biodata_tab(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:laporan"))
+        self.assertContains(response, "BIODATA")
+
     def test_post_valid_data_creates_laporan_and_redirects(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         foto = SimpleUploadedFile("foto.gif", TINY_GIF, content_type="image/gif")
