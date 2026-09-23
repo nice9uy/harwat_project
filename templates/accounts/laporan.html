@@ -78,14 +78,6 @@
     </div>
 
     <div x-show="step === 2" x-cloak class="max-w-md mx-auto space-y-4">
-        <div class="flex gap-3">
-            <button type="button" @click="step = 1" class="flex-1 rounded-md border border-slate-300 dark:border-slate-600 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">
-                Kembali
-            </button>
-            <button type="button" @click="modalOpen = true" class="flex-1 rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
-                Kirim
-            </button>
-        </div>
     </div>
 
     <div x-show="modalOpen"
