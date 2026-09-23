@@ -1,5 +1,6 @@
 from django import forms
 
+from .images import compress_photo
 from .models import Vehicle, VehiclePhoto
 
 MIN_FOTO = 4
@@ -70,5 +71,5 @@ class VehicleForm(forms.ModelForm):
                 old.image.delete(save=False)
             vehicle.fotos.all().delete()
             for f in files:
-                VehiclePhoto.objects.create(vehicle=vehicle, image=f)
+                VehiclePhoto.objects.create(vehicle=vehicle, image=compress_photo(f))
         return vehicle

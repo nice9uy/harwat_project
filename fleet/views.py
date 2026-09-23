@@ -74,3 +74,15 @@ def vehicle_qr(request, pk):
     if request.GET.get("unduh"):
         response["Content-Disposition"] = f'attachment; filename="qr-{slugify(vehicle.nopol)}.png"'
     return response
+
+
+@login_required
+def vehicle_photos(request, pk):
+    vehicle = get_object_or_404(Vehicle.objects.prefetch_related("fotos"), pk=pk)
+    return render(request, "fleet/_vehicle_photos_modal.html", {"vehicle": vehicle})
+
+
+@login_required
+def vehicle_qr_modal(request, pk):
+    vehicle = get_object_or_404(Vehicle, pk=pk)
+    return render(request, "fleet/_vehicle_qr_modal.html", {"vehicle": vehicle})

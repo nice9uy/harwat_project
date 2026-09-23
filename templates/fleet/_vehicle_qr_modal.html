@@ -1,0 +1,7 @@
+<h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-4">QR Code {{ vehicle.nopol }}</h2>
+<img src="{% url 'fleet:vehicle_qr' vehicle.pk %}?v={{ vehicle.qr_version }}" alt="QR Code {{ vehicle.nopol }}" class="mx-auto w-full max-w-xs rounded-md bg-white">
+<div class="flex items-center justify-end gap-3 pt-4">
+    <a href="{% url 'fleet:vehicle_qr' vehicle.pk %}?v={{ vehicle.qr_version }}&amp;unduh=1" download="qr-{{ vehicle.nopol|slugify }}.png"
+       class="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white hover:bg-navy-light">Unduh</a>
+    <button type="button" @click="modalOpen = false" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Tutup</button>
+</div>

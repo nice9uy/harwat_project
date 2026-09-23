@@ -1,0 +1,15 @@
+<h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-4">Foto Kendaraan {{ vehicle.nopol }}</h2>
+{% if vehicle.fotos.all %}
+<div class="grid grid-cols-2 gap-2">
+    {% for foto in vehicle.fotos.all %}
+    <a href="{{ foto.image.url }}" target="_blank" rel="noopener">
+        <img src="{{ foto.image.url }}" loading="lazy" alt="Foto {{ vehicle.nopol }} {{ forloop.counter }}" class="aspect-[4/3] w-full rounded-md object-cover border border-slate-200 dark:border-slate-700">
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-sm text-slate-500 dark:text-slate-400">Belum ada foto.</p>
+{% endif %}
+<div class="flex justify-end pt-4">
+    <button type="button" @click="modalOpen = false" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Tutup</button>
+</div>

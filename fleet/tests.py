@@ -376,14 +376,18 @@ class VehicleQrCodeTests(TestCase):
         response = self.client.get(reverse("fleet:vehicle_list"))
         self.assertContains(response, "QR Code</th>")
         self.assertContains(response, "Foto Kendaraan</th>")
-        self.assertContains(response, 'alt="QR Code B 9021 XY"')
-        # Without download, the page loading bar treats the link as a
-        # navigation and stays stuck because the page never unloads.
-        self.assertContains(response, 'download="qr-b-9021-xy.png"', count=2)
         vehicle = Vehicle.objects.get()
+        # The list only shows an icon button; the QR image lives in the modal.
+        self.assertContains(response, f'hx-get="{reverse("fleet:vehicle_qr_modal", args=[vehicle.pk])}"', count=2)
+        self.assertNotContains(response, 'alt="QR Code B 9021 XY"')
+
+        response = self.client.get(reverse("fleet:vehicle_qr_modal", args=[vehicle.pk]))
         self.assertContains(
             response, f'src="{reverse("fleet:vehicle_qr", args=[vehicle.pk])}?v={vehicle.qr_version()}"'
         )
+        # Without download, the page loading bar treats the link as a
+        # navigation and stays stuck because the page never unloads.
+        self.assertContains(response, 'download="qr-b-9021-xy.png"')
 
     def test_qr_version_changes_when_no_mesin_changes(self):
         vehicle = Vehicle(nopol="B 9021 XY", merek="Hino Dutro")
@@ -414,8 +418,32 @@ class VehicleFotoUploadTests(TestCase):
         self.assertEqual(vehicle.fotos.count(), 4)
         self.assertTrue(all(f.image.name.startswith("kendaraan/") for f in vehicle.fotos.all()))
         response = self.client.get(reverse("fleet:vehicle_list"))
+        self.assertContains(response, f'hx-get="{reverse("fleet:vehicle_photos", args=[vehicle.pk])}"', count=2)
+        self.assertContains(response, "Lihat (4)")
+        response = self.client.get(reverse("fleet:vehicle_photos", args=[vehicle.pk]))
+        self.assertContains(response, "Foto Kendaraan B 1234 AB")
         for foto in vehicle.fotos.all():
             self.assertContains(response, f'src="{foto.image.url}"')
+
+    def test_uploaded_fotos_are_compressed_to_jpeg(self):
+        buffer = io.BytesIO()
+        Image.effect_noise((4000, 3000), 80).convert("RGB").save(buffer, format="PNG")
+        big = buffer.getvalue()
+        uploads = [SimpleUploadedFile(f"besar-{i}.png", big, content_type="image/png") for i in range(4)]
+        self.assertRedirects(self._create(uploads), reverse("fleet:vehicle_list"))
+        foto = Vehicle.objects.get().fotos.first()
+        self.assertTrue(foto.image.name.endswith(".jpg"))
+        self.assertLess(foto.image.size, len(big))
+        with Image.open(foto.image) as img:
+            self.assertEqual(img.format, "JPEG")
+            self.assertEqual(max(img.size), 1600)
+
+    def test_photos_modal_requires_login(self):
+        self._create(_photos(4))
+        vehicle = Vehicle.objects.get()
+        self.client.logout()
+        response = self.client.get(reverse("fleet:vehicle_photos", args=[vehicle.pk]))
+        self.assertEqual(response.status_code, 302)
 
     def test_create_with_fewer_than_four_fotos_is_rejected(self):
         response = self._create(_photos(3))
