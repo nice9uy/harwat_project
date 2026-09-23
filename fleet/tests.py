@@ -491,3 +491,21 @@ class VehicleFotoUploadTests(TestCase):
     def test_form_posts_as_multipart_for_htmx(self):
         response = self.client.get(reverse("fleet:vehicle_create"), HTTP_HX_REQUEST="true")
         self.assertContains(response, 'hx-encoding="multipart/form-data"')
+
+
+class AdminRegistrationTests(TestCase):
+    def test_every_project_model_is_registered_in_admin(self):
+        from django.apps import apps
+        from django.contrib import admin
+
+        for app_label in ("accounts", "fleet"):
+            for model in apps.get_app_config(app_label).get_models():
+                self.assertTrue(admin.site.is_registered(model), f"{model.__name__} not in admin")
+
+    def test_admin_changelists_render(self):
+        User.objects.create_superuser(username="admin", password="rahasia-123")
+        self.client.login(username="admin", password="rahasia-123")
+        Vehicle.objects.create(nopol="B 9021 XY", merek="Hino Dutro", odometer_km=1)
+        for name in ("fleet_vehicle", "fleet_vehiclephoto", "accounts_laporan", "accounts_revokedtoken"):
+            response = self.client.get(reverse(f"admin:{name}_changelist"))
+            self.assertEqual(response.status_code, 200, name)
