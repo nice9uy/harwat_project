@@ -208,7 +208,7 @@ def history_kendaraan_view(request):
 
 @login_required
 def perbaikan_view(request):
-    return render(request, "accounts/perbaikan.html")
+    return render(request, "accounts/perbaikan.html", {"form": LaporanForm()})
 
 
 @login_required

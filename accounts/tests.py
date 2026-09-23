@@ -485,6 +485,15 @@ class HistoryPerbaikanMenuTests(TestCase):
         self.assertContains(self.client.get(reverse("accounts:history")), "<title>History — BMN Harwat</title>", html=True)
         self.assertContains(self.client.get(reverse("accounts:perbaikan")), "<title>Perbaikan — BMN Harwat</title>", html=True)
 
+    def test_perbaikan_has_biodata_and_perbaikan_tabs(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:perbaikan"))
+        self.assertContains(response, "BIODATA")
+        self.assertContains(response, "PERBAIKAN\n")
+        for field in ("nip", "nama", "pangkat", "jabatan", "satuan", "foto"):
+            self.assertContains(response, f'id="id_{field}"')
+        self.assertContains(response, "Lanjut")
+
     def test_sidebar_order_after_form_tambah(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         content = self.client.get(reverse("accounts:dashboard")).content.decode()
