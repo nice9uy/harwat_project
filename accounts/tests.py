@@ -171,10 +171,11 @@ class LaporanViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Laporan")
 
-    def test_sidebar_link_opens_in_new_tab(self):
+    def test_sidebar_link_navigates_in_same_tab(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("accounts:dashboard"))
-        self.assertContains(response, f'href="{reverse("accounts:laporan")}" target="_blank"')
+        self.assertContains(response, f'href="{reverse("accounts:laporan")}" class=')
+        self.assertNotContains(response, 'target="_blank"')
 
     def test_shows_all_fields(self):
         self.client.login(username="teknisi1", password="rahasia-123")
