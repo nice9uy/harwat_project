@@ -45,6 +45,16 @@
         {{ form.penanggung_jawab }}
         {% if form.penanggung_jawab.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.penanggung_jawab.errors.0 }}</p>{% endif %}
     </div>
+    <div>
+        <label for="{{ form.no_chasis.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. Chasis</label>
+        {{ form.no_chasis }}
+        {% if form.no_chasis.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.no_chasis.errors.0 }}</p>{% endif %}
+    </div>
+    <div>
+        <label for="{{ form.no_mesin.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. Mesin</label>
+        {{ form.no_mesin }}
+        {% if form.no_mesin.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.no_mesin.errors.0 }}</p>{% endif %}
+    </div>
     <div class="flex items-center gap-3 pt-2">
         <button type="submit" class="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white hover:bg-navy-light focus:outline-none focus:ring-2 focus:ring-gold/50">Simpan</button>
         <button type="button" @click="modalOpen = false" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Batal</button>

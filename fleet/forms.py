@@ -23,7 +23,7 @@ SELECT_FIELD_NAMES = {"jenis", "status"}
 class VehicleForm(forms.ModelForm):
     class Meta:
         model = Vehicle
-        fields = ["nopol", "jenis", "merek", "tahun", "status", "odometer_km", "penanggung_jawab"]
+        fields = ["nopol", "jenis", "merek", "tahun", "status", "odometer_km", "penanggung_jawab", "no_chasis", "no_mesin"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

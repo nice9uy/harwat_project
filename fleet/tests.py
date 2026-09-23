@@ -96,14 +96,18 @@ class VehicleListViewTests(TestCase):
         Vehicle.objects.create(
             nopol="B 9021 XY", jenis=Vehicle.Jenis.TRUK, merek="Hino Dutro",
             tahun=2019, status=Vehicle.Status.SIAP_PAKAI, odometer_km=45000,
-            penanggung_jawab="Budi Santoso",
+            penanggung_jawab="Budi Santoso", no_chasis="MHFXX123", no_mesin="W04DTR456",
         )
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("fleet:vehicle_list"))
         self.assertEqual(response.status_code, 200)
+        for header in ("No. Registrasi", "Merk/ Type", "Km / Mil", "No. Chasis", "No. Mesin"):
+            self.assertContains(response, header)
         self.assertContains(response, "B 9021 XY")
-        self.assertContains(response, "Budi Santoso")
-        self.assertContains(response, "Siap Pakai")
+        self.assertContains(response, "Hino Dutro")
+        self.assertContains(response, "45000")
+        self.assertContains(response, "MHFXX123")
+        self.assertContains(response, "W04DTR456")
 
     def test_empty_state(self):
         self.client.login(username="teknisi1", password="rahasia-123")

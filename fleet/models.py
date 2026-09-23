@@ -22,6 +22,8 @@ class Vehicle(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.SIAP_PAKAI)
     odometer_km = models.PositiveIntegerField(default=0, verbose_name="Odometer (KM)")
     penanggung_jawab = models.CharField(max_length=150, verbose_name="Penanggung Jawab")
+    no_chasis = models.CharField(max_length=50, blank=True, verbose_name="No. Chasis")
+    no_mesin = models.CharField(max_length=50, blank=True, verbose_name="No. Mesin")
 
     class Meta:
         ordering = ["nopol"]
