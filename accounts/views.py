@@ -132,6 +132,16 @@ def form_tambah_view(request):
 
 
 @login_required
+def history_view(request):
+    return render(request, "accounts/history.html")
+
+
+@login_required
+def perbaikan_view(request):
+    return render(request, "accounts/perbaikan.html")
+
+
+@login_required
 def pengaturan_view(request):
     users = User.objects.all().order_by("username")
     return render(request, "accounts/pengaturan.html", {"users": users})

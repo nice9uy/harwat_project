@@ -446,3 +446,27 @@ class FormTambahViewTests(TestCase):
             content.index(f'href="{reverse("accounts:pemeriksaan")}"'),
             content.index(f'href="{reverse("accounts:form_tambah")}"'),
         )
+
+
+class HistoryPerbaikanMenuTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
+
+    def test_pages_require_login(self):
+        for name in ("history", "perbaikan"):
+            url = reverse(f"accounts:{name}")
+            self.assertRedirects(self.client.get(url), f"{reverse('accounts:login')}?next={url}")
+
+    def test_pages_render(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        self.assertContains(self.client.get(reverse("accounts:history")), "<title>History — BMN Harwat</title>", html=True)
+        self.assertContains(self.client.get(reverse("accounts:perbaikan")), "<title>Perbaikan — BMN Harwat</title>", html=True)
+
+    def test_sidebar_order_after_form_tambah(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        content = self.client.get(reverse("accounts:dashboard")).content.decode()
+        positions = [
+            content.index(f'href="{reverse(f"accounts:{name}")}"')
+            for name in ("form_tambah", "history", "perbaikan", "pengaturan")
+        ]
+        self.assertEqual(positions, sorted(positions))
