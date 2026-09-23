@@ -664,6 +664,10 @@ class HistoryScanTests(TestCase):
         # Status: vehicle status and the parts not in good condition
         self.assertContains(response, "Siap Pakai")
         self.assertContains(response, "Perlu Perhatian (2)")
+        # Each part needing attention is an accordion with its damage details.
+        self.assertContains(response, '@click="buka = buka === 1 ? null : 1"')
+        self.assertContains(response, "Rusak Berat")
+        self.assertContains(response, "Tidak ada foto.")
         self.assertContains(response, "1. Alat 1")
         self.assertNotContains(response, "3. Alat 3")
         # Perbaikan
