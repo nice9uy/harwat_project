@@ -45,7 +45,6 @@ class VehicleApiCrudTests(TransactionTestCase):
                     "merek": "Toyota Avanza",
                     "tahun": 2021,
                     "status": "siap_pakai",
-                    "odometer_km": 1000,
                     "penanggung_jawab": "Siti Amalia",
                 },
             )
@@ -69,7 +68,6 @@ class VehicleApiCrudTests(TransactionTestCase):
                     "merek": "Toyota Avanza",
                     "tahun": 2021,
                     "status": "dalam_perbaikan",
-                    "odometer_km": 2000,
                     "penanggung_jawab": "Siti Amalia",
                 },
             )
@@ -89,7 +87,7 @@ class VehicleApiCrudTests(TransactionTestCase):
     def test_create_duplicate_nopol_returns_409(self):
         Vehicle.objects.create(
             nopol="B 1234 AB", jenis=Vehicle.Jenis.MOBIL, merek="Toyota Avanza",
-            tahun=2021, status=Vehicle.Status.SIAP_PAKAI, odometer_km=1000,
+            tahun=2021, status=Vehicle.Status.SIAP_PAKAI,
             penanggung_jawab="Siti Amalia",
         )
         with TestClient(api) as client:
@@ -102,7 +100,6 @@ class VehicleApiCrudTests(TransactionTestCase):
                     "merek": "Toyota Avanza 2",
                     "tahun": 2022,
                     "status": "siap_pakai",
-                    "odometer_km": 500,
                     "penanggung_jawab": "Budi Santoso",
                 },
             )
@@ -120,7 +117,6 @@ class VehicleApiCrudTests(TransactionTestCase):
                     "merek": "Toyota Avanza",
                     "tahun": 2021,
                     "status": "pisang",
-                    "odometer_km": 1000,
                     "penanggung_jawab": "Siti Amalia",
                 },
             )
@@ -138,7 +134,6 @@ class VehicleApiCrudTests(TransactionTestCase):
                     "merek": "Toyota Avanza",
                     "tahun": 2021,
                     "status": "siap_pakai",
-                    "odometer_km": 1000,
                     "penanggung_jawab": "Siti Amalia",
                 },
             )
@@ -156,7 +151,6 @@ class VehicleApiCrudTests(TransactionTestCase):
                     "merek": "Toyota Avanza",
                     "tahun": -5,
                     "status": "siap_pakai",
-                    "odometer_km": 1000,
                     "penanggung_jawab": "Siti Amalia",
                 },
             )
@@ -166,11 +160,11 @@ class VehicleApiCrudTests(TransactionTestCase):
     def test_partial_update_not_available(self):
         vehicle = Vehicle.objects.create(
             nopol="B 5555 CD", jenis=Vehicle.Jenis.MOBIL, merek="Test",
-            tahun=2020, status=Vehicle.Status.SIAP_PAKAI, odometer_km=0,
+            tahun=2020, status=Vehicle.Status.SIAP_PAKAI,
             penanggung_jawab="Test",
         )
         with TestClient(api) as client:
-            response = client.patch(f"/api/vehicles/{vehicle.id}", headers=self.headers, json={"odometer_km": 999})
+            response = client.patch(f"/api/vehicles/{vehicle.id}", headers=self.headers, json={"merek": "Lain"})
         self.assertEqual(response.status_code, 404)
 
 
@@ -187,12 +181,12 @@ class FleetSummaryApiTests(TransactionTestCase):
     def test_summary_matches_get_fleet_summary(self):
         Vehicle.objects.create(
             nopol="B 9021 XY", jenis=Vehicle.Jenis.TRUK, merek="Hino Dutro",
-            tahun=2019, status=Vehicle.Status.SIAP_PAKAI, odometer_km=45000,
+            tahun=2019, status=Vehicle.Status.SIAP_PAKAI,
             penanggung_jawab="Budi Santoso",
         )
         Vehicle.objects.create(
             nopol="B 4412 KM", jenis=Vehicle.Jenis.JEEP, merek="Jeep Wrangler",
-            tahun=2020, status=Vehicle.Status.DALAM_PERBAIKAN, odometer_km=30000,
+            tahun=2020, status=Vehicle.Status.DALAM_PERBAIKAN,
             penanggung_jawab="Siti Amalia",
         )
         with TestClient(api) as client:
@@ -220,7 +214,7 @@ class VehicleApiGolonganBFieldsTests(TransactionTestCase):
 
     def test_list_includes_vehicle_saved_with_only_table_fields(self):
         Vehicle.objects.create(
-            nopol="B 1234 AB", merek="Toyota Avanza", odometer_km=1000,
+            nopol="B 1234 AB", merek="Toyota Avanza",
             no_chasis="MHFXX123", no_mesin="W04DTR456",
         )
         with TestClient(api) as client:

@@ -20,7 +20,6 @@ access_auth = JWTAuthentication(secret=settings.SECRET_KEY)
 class VehicleWriteSerializer(Serializer):
     nopol: str
     merek: str
-    odometer_km: int
     jenis: str = ""
     tahun: int | None = None
     status: str = "siap_pakai"

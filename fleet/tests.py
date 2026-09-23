@@ -31,7 +31,6 @@ class VehicleModelTests(TestCase):
             merek="Hino Dutro",
             tahun=2019,
             status=Vehicle.Status.SIAP_PAKAI,
-            odometer_km=45000,
             penanggung_jawab="Budi Santoso",
         )
         self.assertEqual(str(vehicle), "B 9021 XY")
@@ -41,25 +40,25 @@ class VehicleModelTests(TestCase):
     def test_nopol_must_be_unique(self):
         Vehicle.objects.create(
             nopol="B 9021 XY", jenis=Vehicle.Jenis.TRUK, merek="Hino Dutro",
-            tahun=2019, status=Vehicle.Status.SIAP_PAKAI, odometer_km=45000,
+            tahun=2019, status=Vehicle.Status.SIAP_PAKAI,
             penanggung_jawab="Budi Santoso",
         )
         with self.assertRaises(Exception):
             Vehicle.objects.create(
                 nopol="B 9021 XY", jenis=Vehicle.Jenis.JEEP, merek="Jeep Wrangler",
-                tahun=2020, status=Vehicle.Status.SIAP_PAKAI, odometer_km=1000,
+                tahun=2020, status=Vehicle.Status.SIAP_PAKAI,
                 penanggung_jawab="Siti Amalia",
             )
 
     def test_default_ordering_is_by_nopol(self):
         Vehicle.objects.create(
             nopol="B 9021 XY", jenis=Vehicle.Jenis.TRUK, merek="Hino Dutro",
-            tahun=2019, status=Vehicle.Status.SIAP_PAKAI, odometer_km=45000,
+            tahun=2019, status=Vehicle.Status.SIAP_PAKAI,
             penanggung_jawab="Budi Santoso",
         )
         Vehicle.objects.create(
             nopol="B 1234 AB", jenis=Vehicle.Jenis.MOBIL, merek="Toyota Avanza",
-            tahun=2021, status=Vehicle.Status.SIAP_PAKAI, odometer_km=1000,
+            tahun=2021, status=Vehicle.Status.SIAP_PAKAI,
             penanggung_jawab="Siti Amalia",
         )
         nopols = list(Vehicle.objects.values_list("nopol", flat=True))
@@ -74,7 +73,6 @@ class VehicleFormTests(TestCase):
             "merek": "Hino Dutro",
             "tahun": 2019,
             "status": Vehicle.Status.SIAP_PAKAI,
-            "odometer_km": 45000,
             "penanggung_jawab": "Budi Santoso",
         }, files={"foto": _photos()})
         self.assertTrue(form.is_valid(), form.errors)
@@ -86,7 +84,6 @@ class VehicleFormTests(TestCase):
             "merek": "Hino Dutro",
             "tahun": 2019,
             "status": Vehicle.Status.SIAP_PAKAI,
-            "odometer_km": 45000,
             "penanggung_jawab": "Budi Santoso",
         })
         self.assertFalse(form.is_valid())
@@ -100,7 +97,7 @@ class VehicleFormTests(TestCase):
     def test_only_golongan_b_table_fields(self):
         self.assertEqual(
             list(VehicleForm().fields),
-            ["nopol", "merek", "odometer_km", "no_chasis", "no_mesin", "foto"],
+            ["nopol", "merek", "no_chasis", "no_mesin", "foto"],
         )
 
 
@@ -118,7 +115,7 @@ class VehicleListViewTests(TestCase):
     def test_lists_vehicles(self):
         Vehicle.objects.create(
             nopol="B 9021 XY", jenis=Vehicle.Jenis.TRUK, merek="Hino Dutro",
-            tahun=2019, status=Vehicle.Status.SIAP_PAKAI, odometer_km=45000,
+            tahun=2019, status=Vehicle.Status.SIAP_PAKAI,
             penanggung_jawab="Budi Santoso", no_chasis="MHFXX123", no_mesin="W04DTR456",
         )
         self.client.login(username="teknisi1", password="rahasia-123")
@@ -149,7 +146,7 @@ class VehicleListViewTests(TestCase):
         self.assertContains(response, 'href="/armada/"')
 
     def test_delete_confirm_modal_escapes_nopol(self):
-        vehicle = Vehicle.objects.create(nopol="B 1' <b>X</b>", merek="Test", odometer_km=0)
+        vehicle = Vehicle.objects.create(nopol="B 1' <b>X</b>", merek="Test")
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("fleet:vehicle_delete_confirm", args=[vehicle.pk]))
         self.assertContains(response, "B 1&#x27; &lt;b&gt;X&lt;/b&gt;")
@@ -174,7 +171,6 @@ class VehicleCreateViewTests(TestCase):
             "merek": "Toyota Avanza",
             "tahun": 2021,
             "status": Vehicle.Status.SIAP_PAKAI,
-            "odometer_km": 1000,
             "penanggung_jawab": "Siti Amalia",
             "foto": _photos(),
         })
@@ -189,7 +185,6 @@ class VehicleCreateViewTests(TestCase):
             "merek": "Toyota Avanza",
             "tahun": 2021,
             "status": Vehicle.Status.SIAP_PAKAI,
-            "odometer_km": 1000,
             "penanggung_jawab": "Siti Amalia",
         })
         self.assertEqual(response.status_code, 200)
@@ -211,7 +206,6 @@ class VehicleCreateViewTests(TestCase):
                 "merek": "Toyota Avanza",
                 "tahun": 2021,
                 "status": Vehicle.Status.SIAP_PAKAI,
-                "odometer_km": 1000,
                 "penanggung_jawab": "Siti Amalia",
                 "foto": _photos(),
             },
@@ -224,7 +218,7 @@ class VehicleCreateViewTests(TestCase):
     def test_post_duplicate_nopol_reshows_form_with_error(self):
         Vehicle.objects.create(
             nopol="B 1234 AB", jenis=Vehicle.Jenis.MOBIL, merek="Toyota Avanza",
-            tahun=2021, status=Vehicle.Status.SIAP_PAKAI, odometer_km=1000,
+            tahun=2021, status=Vehicle.Status.SIAP_PAKAI,
             penanggung_jawab="Siti Amalia",
         )
         response = self.client.post(reverse("fleet:vehicle_create"), {
@@ -233,7 +227,6 @@ class VehicleCreateViewTests(TestCase):
             "merek": "Toyota Avanza 2",
             "tahun": 2022,
             "status": Vehicle.Status.SIAP_PAKAI,
-            "odometer_km": 500,
             "penanggung_jawab": "Budi Santoso",
         })
         self.assertEqual(response.status_code, 200)
@@ -248,7 +241,7 @@ class VehicleUpdateViewTests(TestCase):
         self.client.login(username="teknisi1", password="rahasia-123")
         self.vehicle = Vehicle.objects.create(
             nopol="B 9021 XY", jenis=Vehicle.Jenis.TRUK, merek="Hino Dutro",
-            tahun=2019, status=Vehicle.Status.SIAP_PAKAI, odometer_km=45000,
+            tahun=2019, status=Vehicle.Status.SIAP_PAKAI,
             penanggung_jawab="Budi Santoso",
         )
         for upload in _photos():
@@ -277,7 +270,6 @@ class VehicleUpdateViewTests(TestCase):
                 "merek": "Hino Dutro",
                 "tahun": 2019,
                 "status": Vehicle.Status.DALAM_PERBAIKAN,
-                "odometer_km": 46000,
                 "penanggung_jawab": "Budi Santoso",
             },
             HTTP_HX_REQUEST="true",
@@ -294,14 +286,13 @@ class VehicleUpdateViewTests(TestCase):
                 "merek": "Hino Dutro",
                 "tahun": 2019,
                 "status": Vehicle.Status.DALAM_PERBAIKAN,
-                "odometer_km": 46000,
                 "penanggung_jawab": "Budi Santoso",
                 "no_chasis": "MHFXX123",
             },
         )
         self.assertRedirects(response, reverse("fleet:vehicle_list"))
         self.vehicle.refresh_from_db()
-        self.assertEqual(self.vehicle.odometer_km, 46000)
+        self.assertEqual(self.vehicle.merek, "Hino Dutro")
         self.assertEqual(self.vehicle.no_chasis, "MHFXX123")
 
     def test_get_nonexistent_vehicle_returns_404(self):
@@ -316,7 +307,7 @@ class VehicleDeleteViewTests(TestCase):
         self.client.login(username="teknisi1", password="rahasia-123")
         self.vehicle = Vehicle.objects.create(
             nopol="B 9021 XY", jenis=Vehicle.Jenis.TRUK, merek="Hino Dutro",
-            tahun=2019, status=Vehicle.Status.SIAP_PAKAI, odometer_km=45000,
+            tahun=2019, status=Vehicle.Status.SIAP_PAKAI,
             penanggung_jawab="Budi Santoso",
         )
 
@@ -369,7 +360,7 @@ class VehicleQrCodeTests(TestCase):
         self.assertNotIn(centre, [(0, 0, 0), (255, 255, 255)])
 
     def test_qr_view_requires_login_and_serves_png(self):
-        vehicle = Vehicle.objects.create(nopol="B 9021 XY", merek="Hino Dutro", odometer_km=1)
+        vehicle = Vehicle.objects.create(nopol="B 9021 XY", merek="Hino Dutro")
         url = reverse("fleet:vehicle_qr", args=[vehicle.pk])
         self.assertEqual(self.client.get(url).status_code, 302)
         User.objects.create_user(username="teknisi1", password="rahasia-123")
@@ -383,7 +374,7 @@ class VehicleQrCodeTests(TestCase):
 
     def test_list_shows_qr_code_and_foto_columns(self):
         User.objects.create_user(username="teknisi1", password="rahasia-123")
-        Vehicle.objects.create(nopol="B 9021 XY", merek="Hino Dutro", odometer_km=45000)
+        Vehicle.objects.create(nopol="B 9021 XY", merek="Hino Dutro")
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("fleet:vehicle_list"))
         self.assertContains(response, "QR Code</th>")
@@ -419,7 +410,6 @@ class VehicleFotoUploadTests(TestCase):
         return self.client.post(reverse("fleet:vehicle_create"), {
             "nopol": "B 1234 AB",
             "merek": "Toyota Avanza",
-            "odometer_km": 1000,
             "foto": photos,
         })
 
@@ -473,7 +463,7 @@ class VehicleFotoUploadTests(TestCase):
         vehicle = Vehicle.objects.get()
         old_ids = set(vehicle.fotos.values_list("id", flat=True))
         response = self.client.post(reverse("fleet:vehicle_update", args=[vehicle.pk]), {
-            "nopol": "B 1234 AB", "merek": "Toyota Avanza", "odometer_km": 1000, "foto": _photos(5),
+            "nopol": "B 1234 AB", "merek": "Toyota Avanza", "foto": _photos(5),
         })
         self.assertRedirects(response, reverse("fleet:vehicle_list"))
         self.assertEqual(vehicle.fotos.count(), 5)
@@ -483,7 +473,7 @@ class VehicleFotoUploadTests(TestCase):
         self._create(_photos(4))
         vehicle = Vehicle.objects.get()
         response = self.client.post(reverse("fleet:vehicle_update", args=[vehicle.pk]), {
-            "nopol": "B 1234 AB", "merek": "Toyota Avanza", "odometer_km": 1000, "foto": _photos(2),
+            "nopol": "B 1234 AB", "merek": "Toyota Avanza", "foto": _photos(2),
         })
         self.assertEqual(response.status_code, 200)
         self.assertEqual(vehicle.fotos.count(), 4)
@@ -505,7 +495,7 @@ class AdminRegistrationTests(TestCase):
     def test_admin_changelists_render(self):
         User.objects.create_superuser(username="admin", password="rahasia-123")
         self.client.login(username="admin", password="rahasia-123")
-        Vehicle.objects.create(nopol="B 9021 XY", merek="Hino Dutro", odometer_km=1)
+        Vehicle.objects.create(nopol="B 9021 XY", merek="Hino Dutro")
         for name in ("fleet_vehicle", "fleet_vehiclephoto", "accounts_laporan", "accounts_revokedtoken"):
             response = self.client.get(reverse(f"admin:{name}_changelist"))
             self.assertEqual(response.status_code, 200, name)

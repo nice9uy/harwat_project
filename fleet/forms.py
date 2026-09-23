@@ -47,7 +47,7 @@ class VehicleForm(forms.ModelForm):
 
     class Meta:
         model = Vehicle
-        fields = ["nopol", "merek", "odometer_km", "no_chasis", "no_mesin"]
+        fields = ["nopol", "merek", "no_chasis", "no_mesin"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

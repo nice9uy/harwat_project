@@ -10,7 +10,7 @@ class VehiclePhotoInline(admin.TabularInline):
 
 @admin.register(Vehicle)
 class VehicleAdmin(admin.ModelAdmin):
-    list_display = ["nopol", "merek", "odometer_km", "no_chasis", "no_mesin", "status"]
+    list_display = ["nopol", "merek", "no_chasis", "no_mesin", "status"]
     list_filter = ["status", "jenis"]
     search_fields = ["nopol", "merek", "no_chasis", "no_mesin"]
     inlines = [VehiclePhotoInline]

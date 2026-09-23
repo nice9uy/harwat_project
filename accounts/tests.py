@@ -305,12 +305,12 @@ class DashboardViewTests(TestCase):
     def test_dashboard_shows_real_fleet_summary_counts(self):
         Vehicle.objects.create(
             nopol="B 9021 XY", jenis=Vehicle.Jenis.TRUK, merek="Hino Dutro",
-            tahun=2019, status=Vehicle.Status.SIAP_PAKAI, odometer_km=45000,
+            tahun=2019, status=Vehicle.Status.SIAP_PAKAI,
             penanggung_jawab="Budi Santoso",
         )
         Vehicle.objects.create(
             nopol="B 4412 KM", jenis=Vehicle.Jenis.JEEP, merek="Jeep Wrangler",
-            tahun=2020, status=Vehicle.Status.DALAM_PERBAIKAN, odometer_km=30000,
+            tahun=2020, status=Vehicle.Status.DALAM_PERBAIKAN,
             penanggung_jawab="Siti Amalia",
         )
         self.client.login(username="teknisi1", password="rahasia-123")
@@ -350,7 +350,7 @@ class DashboardPartialViewTests(TestCase):
         self.client.login(username="teknisi1", password="rahasia-123")
         Vehicle.objects.create(
             nopol="B 9021 XY", jenis=Vehicle.Jenis.TRUK, merek="Hino Dutro",
-            tahun=2019, status=Vehicle.Status.SIAP_PAKAI, odometer_km=45000,
+            tahun=2019, status=Vehicle.Status.SIAP_PAKAI,
             penanggung_jawab="Budi Santoso",
         )
         response = self.client.get(reverse("accounts:dashboard_partial"))
