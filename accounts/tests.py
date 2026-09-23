@@ -201,6 +201,37 @@ class DashboardViewTests(TestCase):
         self.assertEqual(response.context["fleet_summary"]["in_repair"], 0)
         self.assertEqual(response.context["fleet_summary"]["due_soon"], 0)
 
+    def test_dashboard_polls_for_updates(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:dashboard"))
+        self.assertContains(response, 'hx-trigger="every 10s"')
+        self.assertContains(response, f'hx-get="{reverse("accounts:dashboard_partial")}"')
+
+
+class DashboardPartialViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
+
+    def test_redirects_when_not_authenticated(self):
+        response = self.client.get(reverse("accounts:dashboard_partial"))
+        self.assertRedirects(
+            response,
+            f"{reverse('accounts:login')}?next={reverse('accounts:dashboard_partial')}",
+        )
+
+    def test_returns_fragment_with_fresh_fleet_summary(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        Vehicle.objects.create(
+            nopol="B 9021 XY", jenis=Vehicle.Jenis.TRUK, merek="Hino Dutro",
+            tahun=2019, status=Vehicle.Status.SIAP_PAKAI, odometer_km=45000,
+            penanggung_jawab="Budi Santoso",
+        )
+        response = self.client.get(reverse("accounts:dashboard_partial"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["fleet_summary"]["total"], 1)
+        self.assertContains(response, "Ringkasan Armada")
+        self.assertNotContains(response, "<!DOCTYPE")
+
 
 class RevokedTokenModelTests(TestCase):
     def test_create_and_query_by_jti(self):

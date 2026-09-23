@@ -11,6 +11,7 @@ urlpatterns = [
     path("lupa-password/", views.password_reset_placeholder, name="password_reset_placeholder"),
     path("logout/", views.logout_view, name="logout"),
     path("dashboard/", views.dashboard_view, name="dashboard"),
+    path("dashboard/partial/", views.dashboard_partial, name="dashboard_partial"),
     path("pengaturan/", views.pengaturan_view, name="pengaturan"),
     path("pengaturan/user/tambah/", views.user_create, name="user_create"),
 ]

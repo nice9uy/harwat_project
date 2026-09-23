@@ -53,9 +53,8 @@ def logout_view(request):
     return redirect("accounts:login")
 
 
-@login_required
-def dashboard_view(request):
-    context = {
+def _dashboard_context():
+    return {
         "fleet_summary": get_fleet_summary(),
         "upcoming_maintenance": [
             {"vehicle": "Truk Angkut B 9021 XY", "service_type": "Ganti oli & filter", "date": "2026-09-28", "status": "Terjadwal"},
@@ -72,7 +71,16 @@ def dashboard_view(request):
             {"actor": "Rudi Hartono", "action": "melaporkan kendaraan baru Ambulans B 1187 AD", "when": "1 hari lalu"},
         ],
     }
-    return render(request, "accounts/dashboard.html", context)
+
+
+@login_required
+def dashboard_view(request):
+    return render(request, "accounts/dashboard.html", _dashboard_context())
+
+
+@login_required
+def dashboard_partial(request):
+    return render(request, "accounts/_dashboard_content.html", _dashboard_context())
 
 
 def password_reset_placeholder(request):
