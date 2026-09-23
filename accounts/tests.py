@@ -169,7 +169,7 @@ class LaporanViewTests(TestCase):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("accounts:laporan"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Laporan")
+        self.assertContains(response, "Form Pemeriksaan")
 
     def test_sidebar_link_navigates_in_same_tab(self):
         self.client.login(username="teknisi1", password="rahasia-123")
