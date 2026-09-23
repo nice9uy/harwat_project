@@ -211,3 +211,22 @@ class FleetSummaryApiTests(TransactionTestCase):
             response.json(),
             {"total": 0, "ready": 0, "in_repair": 0, "due_soon": 0},
         )
+
+
+class VehicleApiGolonganBFieldsTests(TransactionTestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.headers = _auth_headers(self.user)
+
+    def test_list_includes_vehicle_saved_with_only_table_fields(self):
+        Vehicle.objects.create(
+            nopol="B 1234 AB", merek="Toyota Avanza", odometer_km=1000,
+            no_chasis="MHFXX123", no_mesin="W04DTR456",
+        )
+        with TestClient(api) as client:
+            response = client.get("/api/vehicles", headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        vehicle = response.json()[0]
+        self.assertIsNone(vehicle["tahun"])
+        self.assertEqual(vehicle["no_chasis"], "MHFXX123")
+        self.assertEqual(vehicle["no_mesin"], "W04DTR456")

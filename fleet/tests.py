@@ -78,7 +78,13 @@ class VehicleFormTests(TestCase):
     def test_widgets_have_tailwind_classes(self):
         form = VehicleForm()
         self.assertIn("rounded-md", form.fields["nopol"].widget.attrs["class"])
-        self.assertIn("rounded-md", form.fields["jenis"].widget.attrs["class"])
+        self.assertIn("rounded-md", form.fields["no_chasis"].widget.attrs["class"])
+
+    def test_only_golongan_b_table_fields(self):
+        self.assertEqual(
+            list(VehicleForm().fields),
+            ["nopol", "merek", "odometer_km", "no_chasis", "no_mesin"],
+        )
 
 
 class VehicleListViewTests(TestCase):
@@ -276,12 +282,13 @@ class VehicleUpdateViewTests(TestCase):
                 "status": Vehicle.Status.DALAM_PERBAIKAN,
                 "odometer_km": 46000,
                 "penanggung_jawab": "Budi Santoso",
+                "no_chasis": "MHFXX123",
             },
         )
         self.assertRedirects(response, reverse("fleet:vehicle_list"))
         self.vehicle.refresh_from_db()
-        self.assertEqual(self.vehicle.status, Vehicle.Status.DALAM_PERBAIKAN)
         self.assertEqual(self.vehicle.odometer_km, 46000)
+        self.assertEqual(self.vehicle.no_chasis, "MHFXX123")
 
     def test_get_nonexistent_vehicle_returns_404(self):
         response = self.client.get(reverse("fleet:vehicle_update", args=[9999]))

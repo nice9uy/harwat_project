@@ -11,39 +11,19 @@
     </div>
     {% endif %}
     <div>
-        <label for="{{ form.nopol.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nomor Polisi</label>
+        <label for="{{ form.nopol.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. Registrasi</label>
         {{ form.nopol }}
         {% if form.nopol.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.nopol.errors.0 }}</p>{% endif %}
     </div>
     <div>
-        <label for="{{ form.jenis.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Jenis</label>
-        {{ form.jenis }}
-        {% if form.jenis.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.jenis.errors.0 }}</p>{% endif %}
-    </div>
-    <div>
-        <label for="{{ form.merek.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Merek/Model</label>
+        <label for="{{ form.merek.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Merk/ Type</label>
         {{ form.merek }}
         {% if form.merek.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.merek.errors.0 }}</p>{% endif %}
     </div>
     <div>
-        <label for="{{ form.tahun.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tahun</label>
-        {{ form.tahun }}
-        {% if form.tahun.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.tahun.errors.0 }}</p>{% endif %}
-    </div>
-    <div>
-        <label for="{{ form.status.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Status</label>
-        {{ form.status }}
-        {% if form.status.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.status.errors.0 }}</p>{% endif %}
-    </div>
-    <div>
-        <label for="{{ form.odometer_km.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Odometer (KM)</label>
+        <label for="{{ form.odometer_km.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Km / Mil</label>
         {{ form.odometer_km }}
         {% if form.odometer_km.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.odometer_km.errors.0 }}</p>{% endif %}
-    </div>
-    <div>
-        <label for="{{ form.penanggung_jawab.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Penanggung Jawab</label>
-        {{ form.penanggung_jawab }}
-        {% if form.penanggung_jawab.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.penanggung_jawab.errors.0 }}</p>{% endif %}
     </div>
     <div>
         <label for="{{ form.no_chasis.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. Chasis</label>
