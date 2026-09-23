@@ -1,5 +1,6 @@
 from django import forms
-from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.models import User
 
 TEXT_INPUT_CLASSES = (
     "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm "
@@ -30,3 +31,17 @@ class LoginForm(AuthenticationForm):
             "placeholder": "Password",
         })
         self.fields["remember_me"].widget.attrs.update({"class": CHECKBOX_CLASSES})
+
+
+class UserCreateForm(UserCreationForm):
+    email = forms.EmailField(required=False, label="Email")
+
+    class Meta(UserCreationForm.Meta):
+        model = User
+        fields = ("username", "email")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name in ("username", "email", "password1", "password2"):
+            self.fields[name].widget.attrs["class"] = TEXT_INPUT_CLASSES
+        self.fields["username"].widget.attrs["placeholder"] = "teknisi2"

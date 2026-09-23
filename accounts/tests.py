@@ -76,10 +76,71 @@ class PengaturanViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'href="/pengaturan/"')
 
-    def test_shows_username_tab(self):
+    def test_shows_user_tab(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:pengaturan"))
+        self.assertContains(response, ">\n                User\n            </span>")
+
+    def test_shows_user_table_with_existing_users(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("accounts:pengaturan"))
         self.assertContains(response, "teknisi1")
+        self.assertContains(response, "Username")
+        self.assertContains(response, "Tambah User")
+
+
+class UserCreateViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.client.login(username="teknisi1", password="rahasia-123")
+
+    def test_redirects_when_not_authenticated(self):
+        self.client.logout()
+        response = self.client.get(reverse("accounts:user_create"))
+        self.assertRedirects(
+            response,
+            f"{reverse('accounts:login')}?next={reverse('accounts:user_create')}",
+        )
+
+    def test_get_returns_form(self):
+        response = self.client.get(reverse("accounts:user_create"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Tambah User")
+
+    def test_post_valid_data_creates_user(self):
+        response = self.client.post(reverse("accounts:user_create"), {
+            "username": "teknisi2",
+            "email": "teknisi2@example.com",
+            "password1": "kompleks-sekali-123",
+            "password2": "kompleks-sekali-123",
+        })
+        self.assertRedirects(response, reverse("accounts:pengaturan"))
+        self.assertTrue(User.objects.filter(username="teknisi2").exists())
+
+    def test_post_htmx_returns_hx_redirect(self):
+        response = self.client.post(
+            reverse("accounts:user_create"),
+            {
+                "username": "teknisi3",
+                "email": "",
+                "password1": "kompleks-sekali-123",
+                "password2": "kompleks-sekali-123",
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response["HX-Redirect"], reverse("accounts:pengaturan"))
+        self.assertTrue(User.objects.filter(username="teknisi3").exists())
+
+    def test_post_mismatched_passwords_shows_error(self):
+        response = self.client.post(reverse("accounts:user_create"), {
+            "username": "teknisi4",
+            "email": "",
+            "password1": "kompleks-sekali-123",
+            "password2": "beda-sekali-456",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(username="teknisi4").exists())
 
 
 class DashboardViewTests(TestCase):

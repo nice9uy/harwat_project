@@ -2,14 +2,65 @@
 {% block title %}Pengaturan — BMN Harwat{% endblock %}
 {% block page_title %}Pengaturan{% endblock %}
 {% block content %}
-<div class="border-b border-slate-200 dark:border-slate-700 mb-4">
-    <nav class="flex gap-6 -mb-px">
-        <span class="inline-flex items-center gap-2 border-b-2 border-gold px-1 py-2 text-sm font-medium text-navy dark:text-gold">
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a7.5 7.5 0 0 1 15 0" />
-            </svg>
-            {{ request.user.get_username }}
-        </span>
-    </nav>
+<div x-data="{ modalOpen: false }">
+    <div class="border-b border-slate-200 dark:border-slate-700 mb-4">
+        <nav class="flex gap-6 -mb-px">
+            <span class="inline-flex items-center gap-2 border-b-2 border-gold px-1 py-2 text-sm font-medium text-navy dark:text-gold">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a7.5 7.5 0 0 1 15 0" />
+                </svg>
+                User
+            </span>
+        </nav>
+    </div>
+
+    <div class="space-y-4">
+        <div class="flex items-center justify-between">
+            <p class="text-sm text-slate-500 dark:text-slate-400">Daftar user yang dapat mengakses aplikasi.</p>
+            <button type="button"
+                    @click="modalOpen = true"
+                    hx-get="{% url 'accounts:user_create' %}"
+                    hx-target="#user-modal-body"
+                    hx-swap="innerHTML"
+                    class="rounded-md bg-navy px-3 py-2 text-sm font-medium text-white hover:bg-navy-light">
+                + Tambah User
+            </button>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                    <tr>
+                        <th class="py-2 px-4 font-medium">Username</th>
+                        <th class="py-2 px-4 font-medium">Email</th>
+                        <th class="py-2 px-4 font-medium">Tanggal Dibuat</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                    {% for user in users %}
+                    <tr>
+                        <td class="py-2 px-4 font-medium text-navy dark:text-slate-100">{{ user.username }}</td>
+                        <td class="py-2 px-4">{{ user.email|default:"—" }}</td>
+                        <td class="py-2 px-4">{{ user.date_joined|date:"d M Y" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" class="py-6 px-4 text-center text-slate-400 dark:text-slate-500">Belum ada data user.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div x-show="modalOpen"
+         x-cloak
+         @click.self="modalOpen = false"
+         @keydown.escape.window="modalOpen = false"
+         class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/50 px-4 py-8 sm:py-4">
+        <div class="w-full max-w-lg bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl my-auto">
+            <div id="user-modal-body"></div>
+        </div>
+    </div>
 </div>
 {% endblock %}

@@ -1,14 +1,16 @@
 from django.conf import settings
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 from django.http import HttpResponse
 from django.shortcuts import redirect, render, resolve_url
+from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from fleet.services import get_fleet_summary
 
-from .forms import LoginForm
+from .forms import LoginForm, UserCreateForm
 
 
 def _get_success_url(request):
@@ -79,4 +81,24 @@ def password_reset_placeholder(request):
 
 @login_required
 def pengaturan_view(request):
-    return render(request, "accounts/pengaturan.html")
+    users = User.objects.all().order_by("username")
+    return render(request, "accounts/pengaturan.html", {"users": users})
+
+
+@login_required
+def user_create(request):
+    if request.method == "POST":
+        form = UserCreateForm(request.POST)
+        if form.is_valid():
+            form.save()
+            success_url = reverse("accounts:pengaturan")
+            if request.headers.get("HX-Request") == "true":
+                response = HttpResponse(status=204)
+                response["HX-Redirect"] = success_url
+                return response
+            return redirect(success_url)
+    else:
+        form = UserCreateForm()
+    is_htmx = request.headers.get("HX-Request") == "true"
+    template = "accounts/_user_form_fields.html" if is_htmx else "accounts/user_form.html"
+    return render(request, template, {"form": form})
