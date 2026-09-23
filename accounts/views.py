@@ -180,10 +180,14 @@ def history_view(request):
 @login_required
 def history_kendaraan_view(request):
     """Inspection history of the vehicle whose QR code was scanned."""
-    vehicle = Vehicle.objects.filter(nopol=request.GET.get("nopol", "").strip()).first()
-    riwayat = []
+    vehicle = (
+        Vehicle.objects.prefetch_related("fotos")
+        .filter(nopol=request.GET.get("nopol", "").strip())
+        .first()
+    )
+    riwayat, terakhir, perlu_perhatian = [], None, []
     if vehicle is not None:
-        riwayat = (
+        riwayat = list(
             vehicle.pemeriksaan_golongan_b.select_related("pemeriksa")
             .annotate(
                 jumlah_b=Count("items", filter=Q(items__kondisi="B")),
@@ -191,7 +195,15 @@ def history_kendaraan_view(request):
                 jumlah_rb=Count("items", filter=Q(items__kondisi="RB")),
             )
         )
-    return render(request, "accounts/_history_kendaraan.html", {"vehicle": vehicle, "riwayat": riwayat})
+        if riwayat:
+            terakhir = riwayat[0]
+            perlu_perhatian = terakhir.items.exclude(kondisi="B")
+    return render(request, "accounts/_history_kendaraan.html", {
+        "vehicle": vehicle,
+        "riwayat": riwayat,
+        "terakhir": terakhir,
+        "perlu_perhatian": perlu_perhatian,
+    })
 
 
 @login_required

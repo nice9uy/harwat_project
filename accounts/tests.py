@@ -637,11 +637,31 @@ class HistoryScanTests(TestCase):
     def test_scanned_vehicle_shows_its_inspections(self):
         self._inspection(rusak_berat=3)
         response = self.client.get(reverse("accounts:history_kendaraan"), {"nopol": "B 9021 XY"})
-        self.assertContains(response, "Riwayat Pemeriksaan (1)")
         self.assertContains(response, "Budi Santoso (Kapten)")
         self.assertContains(response, "B 37")
         self.assertContains(response, "RB 3")
         self.assertContains(response, "Kelas 2 · Eselon 3 · Tehnis")
+
+    def test_history_page_has_four_tabs(self):
+        response = self.client.get(reverse("accounts:history"))
+        for label in ("PROFILE", "STATUS KENDARAAN", "RIWAYAT PEMERIKSAAN", "RIWAYAT PERBAIKAN"):
+            self.assertContains(response, label)
+
+    def test_scanned_vehicle_fills_every_tab(self):
+        self._inspection(rusak_berat=2)
+        response = self.client.get(reverse("accounts:history_kendaraan"), {"nopol": "B 9021 XY"})
+        for panel in ("profile", "status", "pemeriksaan", "perbaikan"):
+            self.assertContains(response, f"x-show=\"tab === '{panel}'\"")
+        # Profile
+        self.assertContains(response, reverse("fleet:vehicle_qr", args=[self.vehicle.pk]))
+        self.assertContains(response, "Golongan B")
+        # Status: vehicle status and the parts not in good condition
+        self.assertContains(response, "Siap Pakai")
+        self.assertContains(response, "Perlu Perhatian (2)")
+        self.assertContains(response, "1. Alat 1")
+        self.assertNotContains(response, "3. Alat 3")
+        # Perbaikan
+        self.assertContains(response, "Belum ada riwayat perbaikan untuk kendaraan ini.")
 
     def test_vehicle_without_inspections(self):
         response = self.client.get(reverse("accounts:history_kendaraan"), {"nopol": "B 9021 XY"})

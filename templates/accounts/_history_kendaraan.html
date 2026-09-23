@@ -1,11 +1,70 @@
 {% if vehicle %}
-<div class="rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-3 text-sm">
-    <p class="font-semibold text-navy dark:text-slate-100">{{ vehicle.nopol }} <span class="font-normal text-slate-500 dark:text-slate-400">· {{ vehicle.merek }} · {{ vehicle.get_group_kendaraan_display }}</span></p>
-    <p class="text-slate-500 dark:text-slate-400">No. Chasis {{ vehicle.no_chasis|default:"-" }} · No. Mesin {{ vehicle.no_mesin|default:"-" }}</p>
+{# Tab panels for the History page; `tab` lives in the page's x-data. #}
+<div x-show="tab === 'profile'" class="space-y-4">
+    <div class="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-4">
+        <div class="flex items-start justify-between gap-4">
+            <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                <dt class="text-slate-500 dark:text-slate-400">No. Registrasi</dt><dd class="font-semibold text-navy dark:text-slate-100">{{ vehicle.nopol }}</dd>
+                <dt class="text-slate-500 dark:text-slate-400">Merk/Type</dt><dd>{{ vehicle.merek }}</dd>
+                <dt class="text-slate-500 dark:text-slate-400">No. Chasis</dt><dd>{{ vehicle.no_chasis|default:"-" }}</dd>
+                <dt class="text-slate-500 dark:text-slate-400">No. Mesin</dt><dd>{{ vehicle.no_mesin|default:"-" }}</dd>
+                <dt class="text-slate-500 dark:text-slate-400">Group Kendaraan</dt><dd>{{ vehicle.get_group_kendaraan_display }}</dd>
+            </dl>
+            <img src="{% url 'fleet:vehicle_qr' vehicle.pk %}?v={{ vehicle.qr_version }}" alt="QR Code {{ vehicle.nopol }}" class="h-24 w-24 shrink-0 rounded bg-white">
+        </div>
+    </div>
+    {% if vehicle.fotos.all %}
+    <div>
+        <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Foto Kendaraan</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {% for foto in vehicle.fotos.all %}
+            <a href="{{ foto.image.url }}" target="_blank" rel="noopener">
+                <img src="{{ foto.image.url }}" loading="lazy" alt="Foto {{ vehicle.nopol }} {{ forloop.counter }}" class="aspect-[4/3] w-full rounded-md object-cover border border-slate-200 dark:border-slate-700">
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 
-<h2 class="mt-4 mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Riwayat Pemeriksaan ({{ riwayat|length }})</h2>
-<div class="space-y-3">
+<div x-show="tab === 'status'" x-cloak class="space-y-4">
+    <div class="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-4 text-sm">
+        <div class="flex items-center justify-between gap-3">
+            <span class="text-slate-500 dark:text-slate-400">Status</span>
+            {% include "fleet/_vehicle_status_badge.html" %}
+        </div>
+        <div class="mt-2 flex items-center justify-between gap-3">
+            <span class="text-slate-500 dark:text-slate-400">Pemeriksaan terakhir</span>
+            <span>{% if terakhir %}{{ terakhir.dibuat_pada|date:"d M Y, H:i" }}{% else %}-{% endif %}</span>
+        </div>
+        {% if terakhir %}
+        <div class="mt-2 flex items-center justify-between gap-3">
+            <span class="text-slate-500 dark:text-slate-400">Kondisi</span>
+            {% include "accounts/_kondisi_counts.html" with hasil=terakhir %}
+        </div>
+        {% endif %}
+    </div>
+    {% if terakhir %}
+    <div>
+        <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Perlu Perhatian ({{ perlu_perhatian|length }})</h2>
+        <div class="divide-y divide-slate-100 dark:divide-slate-700 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+            {% for item in perlu_perhatian %}
+            <div class="flex items-start justify-between gap-3 px-4 py-2 text-sm">
+                <div class="min-w-0">
+                    <p class="font-medium text-navy dark:text-slate-100">{{ item.nomor }}. {{ item.nama_alat }}</p>
+                    {% if item.keterangan %}<p class="text-slate-500 dark:text-slate-400">{{ item.keterangan }}</p>{% endif %}
+                </div>
+                <span class="shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold text-white {% if item.kondisi == 'RR' %}bg-amber-500{% else %}bg-red-600{% endif %}" title="{{ item.get_kondisi_display }}">{{ item.kondisi }}</span>
+            </div>
+            {% empty %}
+            <p class="px-4 py-4 text-center text-sm text-slate-500 dark:text-slate-400">Semua item dalam kondisi baik.</p>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div x-show="tab === 'pemeriksaan'" x-cloak class="space-y-3">
     {% for hasil in riwayat %}
     <div class="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 text-sm">
         <div class="flex items-start justify-between gap-3">
@@ -13,11 +72,7 @@
                 <p class="font-medium text-navy dark:text-slate-100">{{ hasil.dibuat_pada|date:"d M Y, H:i" }}</p>
                 <p class="text-slate-500 dark:text-slate-400">Pemeriksa: {{ hasil.pemeriksa.nama }} ({{ hasil.pemeriksa.pangkat }})</p>
             </div>
-            <div class="flex shrink-0 gap-1 text-xs font-semibold text-white">
-                <span class="rounded bg-green-600 px-1.5 py-0.5" title="Baik">B {{ hasil.jumlah_b }}</span>
-                <span class="rounded bg-amber-500 px-1.5 py-0.5" title="Rusak Ringan">RR {{ hasil.jumlah_rr }}</span>
-                <span class="rounded bg-red-600 px-1.5 py-0.5" title="Rusak Berat">RB {{ hasil.jumlah_rb }}</span>
-            </div>
+            {% include "accounts/_kondisi_counts.html" %}
         </div>
         <p class="mt-1 text-slate-600 dark:text-slate-300">
             Kelas {{ hasil.pembagian_kelas }} · Eselon {{ hasil.eselon_reparasi }} · {{ hasil.get_macam_pemeriksaan_display }} · Buku jalan {{ hasil.get_buku_jalan_display|lower }}{% if hasil.kesatuan %} · {{ hasil.kesatuan }}{% endif %}
@@ -26,6 +81,10 @@
     {% empty %}
     <p class="rounded-md border border-dashed border-slate-300 dark:border-slate-600 px-3 py-6 text-center text-sm text-slate-500 dark:text-slate-400">Belum ada riwayat pemeriksaan untuk kendaraan ini.</p>
     {% endfor %}
+</div>
+
+<div x-show="tab === 'perbaikan'" x-cloak>
+    <p class="rounded-md border border-dashed border-slate-300 dark:border-slate-600 px-3 py-6 text-center text-sm text-slate-500 dark:text-slate-400">Belum ada riwayat perbaikan untuk kendaraan ini.</p>
 </div>
 {% else %}
 <p class="rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">Kendaraan tidak ditemukan.</p>
