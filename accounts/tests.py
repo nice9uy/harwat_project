@@ -224,7 +224,8 @@ class LaporanViewTests(TestCase):
     def test_shows_biodata_tab(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("accounts:pemeriksaan"))
-        self.assertContains(response, "BIODATA")
+        self.assertContains(response, "BIODATA PEMERIKSA")
+        self.assertNotContains(response, "JENIS PEMERIKSAAN")
 
     def _current_captcha(self):
         self.client.get(reverse("accounts:pemeriksaan"))
