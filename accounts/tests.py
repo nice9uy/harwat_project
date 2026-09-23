@@ -386,6 +386,8 @@ class FormTambahViewTests(TestCase):
         response = self.client.get(reverse("accounts:form_tambah"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Form Tambah")
+        self.assertContains(response, "BIODATA")
+        self.assertContains(response, "TAMBAH KENDARAAN")
 
     def test_sidebar_link_below_form_laporan(self):
         self.client.login(username="teknisi1", password="rahasia-123")
