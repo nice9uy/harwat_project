@@ -398,6 +398,11 @@ class FormTambahViewTests(TestCase):
         for field in ("nip", "nama", "pangkat", "jabatan", "satuan", "foto"):
             self.assertContains(response, f'id="id_{field}"')
 
+    def test_sidebar_brand_has_kemhan_logo(self):
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:dashboard"))
+        self.assertContains(response, 'src="/static/img/kemhan_logo.png" alt="Logo Kementerian Pertahanan"')
+
     def test_sidebar_link_below_form_laporan(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         content = self.client.get(reverse("accounts:dashboard")).content.decode()
