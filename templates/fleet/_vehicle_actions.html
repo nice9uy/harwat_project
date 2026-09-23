@@ -1,0 +1,12 @@
+<button type="button"
+        @click="modalOpen = true"
+        hx-get="{% url 'fleet:vehicle_update' vehicle.pk %}"
+        hx-target="#vehicle-modal-body"
+        hx-swap="innerHTML"
+        class="text-navy dark:text-slate-300 hover:text-gold">
+    Edit
+</button>
+<form method="post" action="{% url 'fleet:vehicle_delete' vehicle.pk %}" onsubmit="return confirm('Hapus kendaraan {{ vehicle.nopol|escapejs }}?');">
+    {% csrf_token %}
+    <button type="submit" class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">Hapus</button>
+</form>

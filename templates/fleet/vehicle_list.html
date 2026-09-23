@@ -15,7 +15,8 @@
         </button>
     </div>
 
-    <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
+    {# Table: md and up #}
+    <div class="hidden md:block bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
         <table class="w-full text-sm text-left">
             <thead class="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                 <tr>
@@ -36,31 +37,12 @@
                     <td class="py-2 px-4">{{ vehicle.get_jenis_display }}</td>
                     <td class="py-2 px-4">{{ vehicle.merek }}</td>
                     <td class="py-2 px-4">{{ vehicle.tahun }}</td>
-                    <td class="py-2 px-4">
-                        {% if vehicle.status == "siap_pakai" %}
-                        <span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/50 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-300">{{ vehicle.get_status_display }}</span>
-                        {% elif vehicle.status == "dalam_perbaikan" %}
-                        <span class="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">{{ vehicle.get_status_display }}</span>
-                        {% else %}
-                        <span class="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/50 px-2 py-0.5 text-xs font-medium text-red-700 dark:text-red-300">{{ vehicle.get_status_display }}</span>
-                        {% endif %}
-                    </td>
+                    <td class="py-2 px-4">{% include "fleet/_vehicle_status_badge.html" %}</td>
                     <td class="py-2 px-4">{{ vehicle.odometer_km }} km</td>
                     <td class="py-2 px-4">{{ vehicle.penanggung_jawab }}</td>
                     <td class="py-2 px-4">
                         <div class="flex items-center gap-3">
-                            <button type="button"
-                                    @click="modalOpen = true"
-                                    hx-get="{% url 'fleet:vehicle_update' vehicle.pk %}"
-                                    hx-target="#vehicle-modal-body"
-                                    hx-swap="innerHTML"
-                                    class="text-navy dark:text-slate-300 hover:text-gold">
-                                Edit
-                            </button>
-                            <form method="post" action="{% url 'fleet:vehicle_delete' vehicle.pk %}" onsubmit="return confirm('Hapus kendaraan {{ vehicle.nopol|escapejs }}?');">
-                                {% csrf_token %}
-                                <button type="submit" class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">Hapus</button>
-                            </form>
+                            {% include "fleet/_vehicle_actions.html" %}
                         </div>
                     </td>
                 </tr>
@@ -73,12 +55,40 @@
         </table>
     </div>
 
+    {# Cards: below md #}
+    <div class="md:hidden space-y-3">
+        {% for vehicle in vehicles %}
+        <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="font-medium text-navy dark:text-slate-100">{{ vehicle.nopol }}</p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">{{ vehicle.get_jenis_display }} &middot; {{ vehicle.merek }} &middot; {{ vehicle.tahun }}</p>
+                </div>
+                {% include "fleet/_vehicle_status_badge.html" %}
+            </div>
+            <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+                <dt class="text-slate-400 dark:text-slate-500">Odometer</dt>
+                <dd class="text-right">{{ vehicle.odometer_km }} km</dd>
+                <dt class="text-slate-400 dark:text-slate-500">Penanggung Jawab</dt>
+                <dd class="text-right truncate">{{ vehicle.penanggung_jawab }}</dd>
+            </dl>
+            <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center gap-4 text-sm">
+                {% include "fleet/_vehicle_actions.html" %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 py-6 px-4 text-center text-slate-400 dark:text-slate-500">
+            Belum ada data kendaraan.
+        </div>
+        {% endfor %}
+    </div>
+
     <div x-show="modalOpen"
          x-cloak
          @click.self="modalOpen = false"
          @keydown.escape.window="modalOpen = false"
-         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-        <div class="w-full max-w-lg bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl">
+         class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/50 px-4 py-8 sm:py-4">
+        <div class="w-full max-w-lg bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl my-auto">
             <div id="vehicle-modal-body"></div>
         </div>
     </div>
