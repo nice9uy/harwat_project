@@ -1,5 +1,10 @@
+import io
+import tempfile
+
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
+from PIL import Image
 from django.urls import reverse
 
 from .forms import VehicleForm
@@ -83,7 +88,7 @@ class VehicleFormTests(TestCase):
     def test_only_golongan_b_table_fields(self):
         self.assertEqual(
             list(VehicleForm().fields),
-            ["nopol", "merek", "odometer_km", "no_chasis", "no_mesin"],
+            ["nopol", "merek", "odometer_km", "no_chasis", "no_mesin", "foto"],
         )
 
 
@@ -314,3 +319,49 @@ class VehicleDeleteViewTests(TestCase):
         response = self.client.get(reverse("fleet:vehicle_delete", args=[self.vehicle.pk]))
         self.assertEqual(response.status_code, 405)
         self.assertEqual(Vehicle.objects.count(), 1)
+
+
+def _png_upload(name="mobil.png"):
+    buffer = io.BytesIO()
+    Image.new("RGB", (4, 4), "red").save(buffer, format="PNG")
+    return SimpleUploadedFile(name, buffer.getvalue(), content_type="image/png")
+
+
+class VehicleQrCodeTests(TestCase):
+    def test_qr_code_is_svg_data_uri(self):
+        vehicle = Vehicle(nopol="B 9021 XY", merek="Hino Dutro", no_chasis="MHFXX123", no_mesin="W04DTR456")
+        self.assertTrue(vehicle.qr_code_data_uri().startswith("data:image/svg+xml"))
+
+    def test_list_shows_qr_code_and_foto_columns(self):
+        User.objects.create_user(username="teknisi1", password="rahasia-123")
+        Vehicle.objects.create(nopol="B 9021 XY", merek="Hino Dutro", odometer_km=45000)
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("fleet:vehicle_list"))
+        self.assertContains(response, "QR Code</th>")
+        self.assertContains(response, "Foto Kendaraan</th>")
+        self.assertContains(response, 'alt="QR Code B 9021 XY"')
+        self.assertContains(response, 'src="data:image/svg+xml')
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class VehicleFotoUploadTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.client.login(username="teknisi1", password="rahasia-123")
+
+    def test_create_with_foto_saves_image_and_lists_it(self):
+        response = self.client.post(reverse("fleet:vehicle_create"), {
+            "nopol": "B 1234 AB",
+            "merek": "Toyota Avanza",
+            "odometer_km": 1000,
+            "foto": _png_upload(),
+        })
+        self.assertRedirects(response, reverse("fleet:vehicle_list"))
+        vehicle = Vehicle.objects.get()
+        self.assertTrue(vehicle.foto.name.startswith("kendaraan/"))
+        response = self.client.get(reverse("fleet:vehicle_list"))
+        self.assertContains(response, f'src="{vehicle.foto.url}"')
+
+    def test_form_posts_as_multipart_for_htmx(self):
+        response = self.client.get(reverse("fleet:vehicle_create"), HTTP_HX_REQUEST="true")
+        self.assertContains(response, 'hx-encoding="multipart/form-data"')

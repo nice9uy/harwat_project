@@ -1,3 +1,4 @@
+import segno
 from django.db import models
 
 
@@ -24,9 +25,19 @@ class Vehicle(models.Model):
     penanggung_jawab = models.CharField(max_length=150, blank=True, verbose_name="Penanggung Jawab")
     no_chasis = models.CharField(max_length=50, blank=True, verbose_name="No. Chasis")
     no_mesin = models.CharField(max_length=50, blank=True, verbose_name="No. Mesin")
+    foto = models.ImageField(upload_to="kendaraan/", blank=True, verbose_name="Foto Kendaraan")
 
     class Meta:
         ordering = ["nopol"]
 
     def __str__(self):
         return self.nopol
+
+    def qr_code_data_uri(self):
+        text = "\n".join([
+            f"No. Registrasi: {self.nopol}",
+            f"Merk/Type: {self.merek}",
+            f"No. Chasis: {self.no_chasis or '-'}",
+            f"No. Mesin: {self.no_mesin or '-'}",
+        ])
+        return segno.make(text, micro=False).svg_data_uri(scale=4, border=2)
