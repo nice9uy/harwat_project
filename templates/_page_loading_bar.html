@@ -1,6 +1,6 @@
 <div id="page-loading-bar"
-     class="fixed inset-x-0 top-0 z-[100] h-0.5 bg-gold shadow-[0_0_8px_var(--color-gold)]"
-     style="transform: scaleX(0); transform-origin: 0 0; opacity: 0;"></div>
+     class="fixed left-0 top-0 z-[100] h-0.5 bg-gold shadow-[0_0_8px_var(--color-gold)]"
+     style="width: 0%; opacity: 0;"></div>
 <script>
 (function () {
     var bar = document.getElementById('page-loading-bar');
@@ -10,9 +10,9 @@
     var MIN_VISIBLE_MS = 300;
 
     function setWidth(pct, durationMs) {
-        bar.style.transition = 'transform ' + durationMs + 'ms ease-out, opacity 150ms ease-out';
+        bar.style.transition = 'width ' + durationMs + 'ms ease-out, opacity 150ms ease-out';
         bar.style.opacity = '1';
-        bar.style.transform = 'scaleX(' + (pct / 100) + ')';
+        bar.style.width = pct + '%';
     }
 
     function start() {
@@ -21,7 +21,7 @@
         startedAt = Date.now();
         bar.style.transition = 'none';
         bar.style.opacity = '1';
-        bar.style.transform = 'scaleX(0)';
+        bar.style.width = '0%';
         requestAnimationFrame(function () {
             progress = 25;
             setWidth(progress, 250);
@@ -48,7 +48,7 @@
         clearInterval(timer);
         bar.style.transition = 'none';
         bar.style.opacity = '0';
-        bar.style.transform = 'scaleX(0)';
+        bar.style.width = '0%';
     }
 
     // Boosted (htmx) nav — swapped via AJAX, page never actually unloads,
