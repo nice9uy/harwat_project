@@ -9,13 +9,13 @@ from dataclasses import dataclass
 from fleet.models import Vehicle
 
 from . import pemeriksaan as checklist
-from .forms import PemeriksaanMotorForm, PemeriksaanGolonganBForm
+from .forms import PemeriksaanBermotorForm, PemeriksaanGolonganBForm
 from .models import (
-    PemeriksaanMotor,
-    PemeriksaanMotorItem,
+    PemeriksaanBermotor,
+    PemeriksaanBermotorItem,
     PemeriksaanGolonganB,
     PemeriksaanGolonganBItem,
-    PerbaikanMotor,
+    PerbaikanBermotor,
     PerbaikanGolonganB,
 )
 
@@ -42,13 +42,13 @@ GOLONGAN = {
         kondisi=checklist.KONDISI,
         pakai_jumlah=True,
     ),
-    Vehicle.GroupKendaraan.MOTOR: Golongan(
-        form=PemeriksaanMotorForm,
-        pemeriksaan_model=PemeriksaanMotor,
-        item_model=PemeriksaanMotorItem,
-        perbaikan_model=PerbaikanMotor,
-        relasi="pemeriksaan_motor",
-        kondisi=checklist.KONDISI_MOTOR,
+    Vehicle.GroupKendaraan.KENDARAAN_BERMOTOR: Golongan(
+        form=PemeriksaanBermotorForm,
+        pemeriksaan_model=PemeriksaanBermotor,
+        item_model=PemeriksaanBermotorItem,
+        perbaikan_model=PerbaikanBermotor,
+        relasi="pemeriksaan_bermotor",
+        kondisi=checklist.KONDISI_BERMOTOR,
         pakai_jumlah=False,
     ),
 }

@@ -151,10 +151,10 @@ def laporan_view(request):
         "buku_jalan": pemeriksaan.BUKU_JALAN,
         "kondisi_golongan_b": pemeriksaan.KONDISI,
         "alat_golongan_b": pemeriksaan.ALAT_BERNOMOR,
-        # Motor
+        # Kendaraan Bermotor
         "buku_harian": pemeriksaan.BUKU_HARIAN,
-        "kondisi_motor": pemeriksaan.KONDISI_MOTOR,
-        "alat_motor": pemeriksaan.KOMPONEN_MOTOR_BERNOMOR,
+        "kondisi_bermotor": pemeriksaan.KONDISI_BERMOTOR,
+        "alat_bermotor": pemeriksaan.KOMPONEN_BERMOTOR_BERNOMOR,
     })
 
 

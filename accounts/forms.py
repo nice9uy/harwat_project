@@ -6,7 +6,7 @@ from fleet.models import Vehicle
 
 from . import pemeriksaan as checklist
 from . import roles
-from .models import Laporan, PemeriksaanMotor, PemeriksaanGolonganB
+from .models import Laporan, PemeriksaanBermotor, PemeriksaanGolonganB
 
 TEXT_INPUT_CLASSES = (
     "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm "
@@ -193,14 +193,14 @@ class PemeriksaanGolonganBForm(_ChecklistForm):
         fields = ["vehicle", "pembagian_kelas", "eselon_reparasi", "macam_pemeriksaan", "buku_jalan", "kesatuan"]
 
 
-class PemeriksaanMotorForm(_ChecklistForm):
-    golongan = Vehicle.GroupKendaraan.MOTOR
-    alat = checklist.KOMPONEN_MOTOR_BERNOMOR
-    kondisi = checklist.KONDISI_MOTOR
+class PemeriksaanBermotorForm(_ChecklistForm):
+    golongan = Vehicle.GroupKendaraan.KENDARAAN_BERMOTOR
+    alat = checklist.KOMPONEN_BERMOTOR_BERNOMOR
+    kondisi = checklist.KONDISI_BERMOTOR
     pakai_jumlah = False
 
     class Meta:
-        model = PemeriksaanMotor
+        model = PemeriksaanBermotor
         fields = [
             "vehicle", "bbm", "buku_harian", "macam_pemeriksaan", "tempat_pemeriksaan",
             "ukuran_ban", "ban_depan_kiri", "ban_depan_kanan", "ban_belakang_kiri", "ban_belakang_kanan", "ban_cadangan",

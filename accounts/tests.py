@@ -9,10 +9,10 @@ from django.utils import timezone
 
 from accounts.models import (
     Laporan,
-    PemeriksaanMotor,
+    PemeriksaanBermotor,
     PemeriksaanGolonganB,
     PemeriksaanGolonganBItem,
-    PerbaikanMotor,
+    PerbaikanBermotor,
     PerbaikanGolonganB,
     RevokedToken,
 )
@@ -670,7 +670,7 @@ class PemeriksaanCaptchaCheckTests(TestCase):
         self.assertContains(response, '@click="kirim()"')
         self.assertRegex(response.content.decode(), r'<button type="button" @click="kirim\(\)"[^>]*>Konfirmasi &amp; Kirim</button>')
         self.assertContains(response, "<template x-if=\"kendaraan && kendaraan.group_kode === 'B'\">")
-        self.assertContains(response, "<template x-if=\"kendaraan && kendaraan.group_kode === 'motor'\">")
+        self.assertContains(response, "<template x-if=\"kendaraan && kendaraan.group_kode === 'bermotor'\">")
         self.assertContains(response, "belum tersedia.")
 
 
@@ -1010,8 +1010,8 @@ class SidebarLogoutTests(TestCase):
 
 
 
-def _motor_data(vehicle, **overrides):
-    """POST fields of the PEMERIKSAAN tab for a filled-in Motor inspection."""
+def _bermotor_data(vehicle, **overrides):
+    """POST fields of the PEMERIKSAAN tab for a filled-in Kendaraan Bermotor inspection."""
     data = {
         "vehicle": vehicle.pk,
         "bbm": "Solar",
@@ -1032,11 +1032,11 @@ def _motor_data(vehicle, **overrides):
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-class PemeriksaanMotorTests(TestCase):
+class PemeriksaanBermotorTests(TestCase):
     def setUp(self):
         User.objects.create_user(username="teknisi1", password="rahasia-123")
         self.client.login(username="teknisi1", password="rahasia-123")
-        self.vehicle = Vehicle.objects.create(nopol="B 7777 KB", merek="Toyota Hilux", group_kendaraan="motor")
+        self.vehicle = Vehicle.objects.create(nopol="B 7777 KB", merek="Toyota Hilux", group_kendaraan="bermotor")
 
     def _biodata(self, nama="Budi Santoso"):
         return {
@@ -1049,12 +1049,12 @@ class PemeriksaanMotorTests(TestCase):
         return self.client.post(reverse("accounts:pemeriksaan"), {
             **self._biodata(),
             "captcha": self.client.session["laporan_captcha"],
-            **_motor_data(self.vehicle, **overrides),
+            **_bermotor_data(self.vehicle, **overrides),
         })
 
-    def test_page_has_motor_checklist(self):
-        from accounts.pemeriksaan import KOMPONEN_MOTOR
-        self.assertEqual(len(KOMPONEN_MOTOR), 63)
+    def test_page_has_bermotor_checklist(self):
+        from accounts.pemeriksaan import KOMPONEN_BERMOTOR
+        self.assertEqual(len(KOMPONEN_BERMOTOR), 63)
         response = self.client.get(reverse("accounts:pemeriksaan"))
         for text in ("BBM, Buku Harian, Macam &amp; Tempat Pemeriksaan, Ban", 'name="bbm"', 'name="tempat_pemeriksaan"',
                      'name="ukuran_ban"', 'name="ban_depan_kiri" min="0" max="100"', 'name="ban_cadangan"',
@@ -1062,10 +1062,10 @@ class PemeriksaanMotorTests(TestCase):
                      'name="alat_63_kondisi" value="TA"', "Harus Diperbaiki", "Harus Diganti", "Tidak Ada"):
             self.assertContains(response, text)
 
-    def test_saves_motor_inspection(self):
+    def test_saves_bermotor_inspection(self):
         response = self._post_pemeriksaan(alat_1_kondisi="HP", alat_60_kondisi="TA", alat_1_keterangan="Tune up")
         self.assertRedirects(response, reverse("accounts:pemeriksaan"))
-        hasil = PemeriksaanMotor.objects.get()
+        hasil = PemeriksaanBermotor.objects.get()
         self.assertEqual((hasil.vehicle, hasil.bbm, hasil.buku_harian, hasil.macam_pemeriksaan, hasil.tempat_pemeriksaan),
                          (self.vehicle, "Solar", "ada", "tiba_tiba", "Bengkel 202"))
         self.assertEqual(hasil.items.count(), 63)
@@ -1076,15 +1076,15 @@ class PemeriksaanMotorTests(TestCase):
             ("265/65 R17", 80, 75, None, 60, 100),
         )
 
-    def test_motor_checklist_has_no_jumlah(self):
+    def test_bermotor_checklist_has_no_jumlah(self):
         response = self.client.get(reverse("accounts:pemeriksaan"))
         content = response.content.decode()
-        motor = content[content.index("<template x-if=\"kendaraan && kendaraan.group_kode === 'motor'\">"):]
-        golongan_b = content[:content.index("<template x-if=\"kendaraan && kendaraan.group_kode === 'motor'\">")]
-        self.assertNotIn('name="alat_1_jml"', motor)
+        bermotor = content[content.index("<template x-if=\"kendaraan && kendaraan.group_kode === 'bermotor'\">"):]
+        golongan_b = content[:content.index("<template x-if=\"kendaraan && kendaraan.group_kode === 'bermotor'\">")]
+        self.assertNotIn('name="alat_1_jml"', bermotor)
         self.assertIn('name="alat_1_jml"', golongan_b)
         self._post_pemeriksaan(alat_1_kondisi="HP", alat_1_jml="5")
-        mesin = PemeriksaanMotor.objects.get().items.get(nomor=1)
+        mesin = PemeriksaanBermotor.objects.get().items.get(nomor=1)
         self.assertFalse(hasattr(mesin, "jumlah"))
         daftar = self.client.get(reverse("accounts:perbaikan_kendaraan"), {"nopol": "B 7777 KB"})
         self.assertNotContains(daftar, f'name="perbaikan_{mesin.pk}_jml"')
@@ -1092,15 +1092,15 @@ class PemeriksaanMotorTests(TestCase):
 
     def test_tyre_percent_above_100_is_rejected(self):
         self._post_pemeriksaan(ban_cadangan="120")
-        self.assertEqual(PemeriksaanMotor.objects.count(), 0)
+        self.assertEqual(PemeriksaanBermotor.objects.count(), 0)
         self.assertEqual(PemeriksaanGolonganB.objects.count(), 0)
 
-    def test_golongan_b_kondisi_code_rejected_for_motor(self):
+    def test_golongan_b_kondisi_code_rejected_for_bermotor(self):
         response = self._post_pemeriksaan(alat_5_kondisi="RR")
         self.assertContains(response, "Kondisi 5. Noken As, Rocker Arm belum dipilih.")
-        self.assertEqual(PemeriksaanMotor.objects.count(), 0)
+        self.assertEqual(PemeriksaanBermotor.objects.count(), 0)
 
-    def test_history_and_perbaikan_for_motor(self):
+    def test_history_and_perbaikan_for_bermotor(self):
         self._post_pemeriksaan(alat_1_kondisi="HP", alat_2_kondisi="HG", alat_60_kondisi="TA")
         history = self.client.get(reverse("accounts:history_kendaraan"), {"nopol": "B 7777 KB"})
         for text in ("HP 1", "HG 1", "TA 1", "B 60", "Tiba-tiba · Buku harian ada · BBM Solar · Bengkel 202 · Ban 265/65 R17 Depan Kiri 80%, Depan Kanan 75%, Belakang Kanan 60%, Cadangan 100%",
@@ -1109,7 +1109,7 @@ class PemeriksaanMotorTests(TestCase):
 
         daftar = self.client.get(reverse("accounts:perbaikan_kendaraan"), {"nopol": "B 7777 KB"})
         self.assertContains(daftar, "Item yang Harus Diperbaiki (3)")
-        mesin = PemeriksaanMotor.objects.get().items.get(nomor=1)
+        mesin = PemeriksaanBermotor.objects.get().items.get(nomor=1)
         self.assertContains(daftar, f'name="perbaikan_{mesin.pk}_kondisi" value="HG"')
 
         response = self.client.post(reverse("accounts:perbaikan"), {
@@ -1119,13 +1119,13 @@ class PemeriksaanMotorTests(TestCase):
             f"perbaikan_{mesin.pk}_kondisi": "B",
         })
         self.assertRedirects(response, reverse("accounts:perbaikan") + "?nopol=B+7777+KB")
-        self.assertEqual(PerbaikanMotor.objects.get().item, mesin)
+        self.assertEqual(PerbaikanBermotor.objects.get().item, mesin)
         daftar = self.client.get(reverse("accounts:perbaikan_kendaraan"), {"nopol": "B 7777 KB"})
         self.assertContains(daftar, "Item yang Harus Diperbaiki (2)")
         history = self.client.get(reverse("accounts:history_kendaraan"), {"nopol": "B 7777 KB"})
         self.assertContains(history, "Teknisi: Andi Teknisi")
 
-    def test_vehicle_with_motor_inspection_cannot_be_deleted(self):
+    def test_vehicle_with_bermotor_inspection_cannot_be_deleted(self):
         self._post_pemeriksaan()
         self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.pk]))
         self.assertTrue(Vehicle.objects.filter(pk=self.vehicle.pk).exists())
