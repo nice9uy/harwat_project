@@ -19,7 +19,7 @@ from fleet.images import compress_photo
 from fleet.models import Vehicle
 from fleet.services import get_fleet_summary
 
-from . import pemeriksaan
+from . import pemeriksaan, roles
 from .forms import BiodataForm, LaporanForm, LoginForm, PemeriksaanGolonganBForm, UserCreateForm
 from .models import PemeriksaanGolonganBItem, PerbaikanGolonganB
 from .roles import keanggotaan_label
@@ -33,6 +33,8 @@ def _get_success_url(request):
         require_https=request.is_secure(),
     ):
         return next_url
+    if roles.MENU_PER_KEANGGOTAAN.get(roles.keanggotaan_kode(request.user)):
+        return resolve_url(roles.home_view_name(request.user))
     return resolve_url(settings.LOGIN_REDIRECT_URL)
 
 

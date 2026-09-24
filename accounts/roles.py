@@ -31,3 +31,70 @@ def keanggotaan_label(user):
         if group.name in names:
             return group.name
     return "-"
+
+
+def keanggotaan_kode(user):
+    if user.is_superuser:
+        return SUPERUSER
+    by_name = {label: kode for kode, label in GROUP_NAMES.items()}
+    for group in user.groups.all():
+        if group.name in by_name:
+            return by_name[group.name]
+    return None
+
+
+# Sidebar menu -> URL names that belong to it (pages plus the endpoints
+# those pages call). A view listed nowhere (login, logout, admin, ...) is
+# not restricted by menu.
+MENU_VIEWS = {
+    "dashboard": {"accounts:dashboard", "accounts:dashboard_partial"},
+    "armada": {
+        "fleet:vehicle_list", "fleet:vehicle_create", "fleet:vehicle_update",
+        "fleet:vehicle_delete", "fleet:vehicle_delete_confirm", "fleet:vehicle_photos",
+        "fleet:vehicle_qr_modal",
+    },
+    "jadwal": set(),
+    "servis": set(),
+    "pemeriksaan": {"accounts:pemeriksaan", "accounts:pemeriksaan_captcha", "fleet:vehicle_lookup"},
+    "form_tambah": {"accounts:form_tambah"},
+    "history": {"accounts:history", "accounts:history_kendaraan", "fleet:vehicle_qr"},
+    "perbaikan": {"accounts:perbaikan", "accounts:perbaikan_kendaraan"},
+    "pengaturan": {"accounts:pengaturan", "accounts:user_create", "accounts:user_delete"},
+}
+ALL_MENUS = frozenset(MENU_VIEWS)
+
+# Roles limited to some menus; every other role (and a user without one)
+# sees everything.
+MENU_PER_KEANGGOTAAN = {
+    "tim_pemeriksaan": ["pemeriksaan", "history"],
+    "tim_penambahan_data": ["form_tambah", "history"],
+    "tim_perbaikan": ["perbaikan", "history"],
+}
+
+# Where each menu's page lives, used to send a user to their first menu.
+MENU_HOME = {
+    "dashboard": "accounts:dashboard",
+    "pemeriksaan": "accounts:pemeriksaan",
+    "form_tambah": "accounts:form_tambah",
+    "history": "accounts:history",
+    "perbaikan": "accounts:perbaikan",
+}
+
+
+def allowed_menus(user):
+    if not user.is_authenticated:
+        return frozenset()
+    menus = MENU_PER_KEANGGOTAAN.get(keanggotaan_kode(user))
+    return frozenset(menus) if menus else ALL_MENUS
+
+
+def home_view_name(user):
+    menus = MENU_PER_KEANGGOTAAN.get(keanggotaan_kode(user))
+    return MENU_HOME[menus[0]] if menus else MENU_HOME["dashboard"]
+
+
+def menu_of_view(view_name):
+    for menu, names in MENU_VIEWS.items():
+        if view_name in names:
+            return menu
+    return None

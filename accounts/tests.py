@@ -912,3 +912,74 @@ class UserDeleteTests(TestCase):
         self.client.logout()
         self.client.post(reverse("accounts:user_delete", args=[self.target.pk]))
         self.assertTrue(User.objects.filter(pk=self.target.pk).exists())
+
+
+
+class MenuAccessTests(TestCase):
+    def _login_as(self, keanggotaan):
+        from django.contrib.auth.models import Group
+
+        from accounts.roles import GROUP_NAMES
+        user = User.objects.create_user(username=keanggotaan, password="rahasia-123")
+        user.groups.add(Group.objects.get(name=GROUP_NAMES[keanggotaan]))
+        self.client.login(username=keanggotaan, password="rahasia-123")
+        return user
+
+    def _sidebar_menus(self, response):
+        content = response.content.decode()
+        names = {
+            "dashboard": "accounts:dashboard", "armada": "fleet:vehicle_list",
+            "pemeriksaan": "accounts:pemeriksaan", "form_tambah": "accounts:form_tambah",
+            "history": "accounts:history", "perbaikan": "accounts:perbaikan",
+            "pengaturan": "accounts:pengaturan",
+        }
+        return {menu for menu, name in names.items() if f'<a href="{reverse(name)}" class=' in content}
+
+    def _check(self, keanggotaan, allowed, home):
+        self._login_as(keanggotaan)
+        response = self.client.get(reverse(home))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._sidebar_menus(response), allowed)
+        self.assertNotContains(response, "Jadwal")
+        # Other menus redirect back home, even when typed as a URL.
+        for name in ("accounts:dashboard", "fleet:vehicle_list", "accounts:pengaturan",
+                     "accounts:pemeriksaan", "accounts:form_tambah", "accounts:perbaikan"):
+            if name != home:
+                response = self.client.get(reverse(name))
+                if name.split(":")[1] in ("pemeriksaan", "form_tambah", "perbaikan") and name.split(":")[1] in allowed:
+                    self.assertEqual(response.status_code, 200, name)
+                else:
+                    self.assertRedirects(response, reverse(home), msg_prefix=name)
+        self.assertEqual(self.client.get(reverse("accounts:history")).status_code, 200)
+
+    def test_tim_pemeriksaan(self):
+        self._check("tim_pemeriksaan", {"pemeriksaan", "history"}, "accounts:pemeriksaan")
+
+    def test_tim_penambahan_data(self):
+        self._check("tim_penambahan_data", {"form_tambah", "history"}, "accounts:form_tambah")
+
+    def test_tim_perbaikan(self):
+        self._check("tim_perbaikan", {"perbaikan", "history"}, "accounts:perbaikan")
+
+    def test_tim_login_lands_on_first_menu(self):
+        User.objects.create_user(username="p", password="rahasia-123").groups.add(
+            __import__("django.contrib.auth.models", fromlist=["Group"]).Group.objects.get(name="Tim Perbaikan")
+        )
+        response = self.client.post(reverse("accounts:login"), {"username": "p", "password": "rahasia-123"})
+        self.assertRedirects(response, reverse("accounts:perbaikan"))
+
+    def test_scan_endpoints_follow_menu(self):
+        self._login_as("tim_perbaikan")
+        self.assertEqual(self.client.get(reverse("accounts:history_kendaraan"), {"nopol": "x"}).status_code, 200)
+        self.assertEqual(self.client.get(reverse("accounts:perbaikan_kendaraan"), {"nopol": "x"}).status_code, 200)
+        self.assertEqual(self.client.get(reverse("fleet:vehicle_lookup"), {"nopol": "x"}).status_code, 302)
+
+    def test_admin_and_pimpinan_see_everything(self):
+        for keanggotaan in ("admin", "pimpinan"):
+            self.client.logout()
+            self._login_as(keanggotaan)
+            response = self.client.get(reverse("accounts:dashboard"))
+            self.assertEqual(
+                self._sidebar_menus(response),
+                {"dashboard", "armada", "pemeriksaan", "form_tambah", "history", "perbaikan", "pengaturan"},
+            )
