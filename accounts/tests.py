@@ -1181,3 +1181,15 @@ class FormTambahKendaraanModalTests(TestCase):
         url = reverse("fleet:vehicle_create") + "?group=B&next=https://evil.example/"
         response = self.client.post(url, {"nopol": "B 6 X", "merek": "Isuzu", "foto": self._photos()})
         self.assertRedirects(response, reverse("fleet:vehicle_list"), fetch_redirect_response=False)
+
+
+
+class CssCacheBustingTests(TestCase):
+    def test_stylesheet_url_carries_build_version(self):
+        import os
+
+        from django.contrib.staticfiles import finders
+        User.objects.create_user(username="u", password="rahasia-123")
+        self.client.login(username="u", password="rahasia-123")
+        version = int(os.path.getmtime(finders.find("dist/output.css")))
+        self.assertContains(self.client.get(reverse("accounts:dashboard")), f"dist/output.css?v={version}")

@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}BMN Harwat{% endblock %}</title>
     {% include "_theme_init.html" %}
-    <link rel="stylesheet" href="{% static 'dist/output.css' %}">
+    <link rel="stylesheet" href="{% static 'dist/output.css' %}?v={{ css_version }}">
     <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
     <script src="{% static 'js/qr-scan.js' %}" defer></script>
     <script src="{% static 'vendor/alpinejs.min.js' %}" defer></script>
