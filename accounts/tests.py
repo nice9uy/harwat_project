@@ -136,10 +136,9 @@ class UserCreateViewTests(TestCase):
         self.assertContains(response, "Tambah User")
 
     def test_post_valid_data_creates_user(self):
-        response = self.client.post(reverse("accounts:user_create"), {
+        response = self.client.post(reverse("accounts:user_create") + f"?ketua={self.ketua.pk}", {
             "username": "teknisi2",
             "keanggotaan": "tim_pemeriksaan",
-            "ketua_tim": self.ketua.pk,
         })
         self.assertRedirects(response, reverse("accounts:pengaturan"))
         user = User.objects.get(username="teknisi2")
@@ -160,10 +159,10 @@ class UserCreateViewTests(TestCase):
         self.assertTrue(User.objects.filter(username="teknisi3").exists())
 
     def _create(self, keanggotaan, ketua=None):
-        data = {"username": "baru", "keanggotaan": keanggotaan}
+        url = reverse("accounts:user_create")
         if keanggotaan.startswith("tim_"):
-            data["ketua_tim"] = (ketua or self.ketua).pk
-        return self.client.post(reverse("accounts:user_create"), data)
+            url += f"?ketua={(ketua or self.ketua).pk}"
+        return self.client.post(url, {"username": "baru", "keanggotaan": keanggotaan})
 
     def test_keanggotaan_is_required(self):
         response = self._create("")
@@ -1213,16 +1212,16 @@ class KetuaTimHierarchyTests(TestCase):
         self.client.login(username="operator", password="rahasia-123")
 
     def _post(self, username, keanggotaan, ketua=None):
-        data = {"username": username, "keanggotaan": keanggotaan}
+        url = reverse("accounts:user_create")
         if ketua is not None:
-            data["ketua_tim"] = ketua.pk
-        return self.client.post(reverse("accounts:user_create"), data)
+            url += f"?ketua={ketua.pk}"
+        return self.client.post(url, {"username": username, "keanggotaan": keanggotaan})
 
     def test_tim_roles_hidden_until_a_ketua_exists(self):
         response = self.client.get(reverse("accounts:user_create"))
         self.assertNotContains(response, 'value="tim_pemeriksaan"')
         self.assertContains(response, 'value="ketua_tim"')
-        self.assertContains(response, "bisa ditambahkan setelah ada Ketua Tim")
+        self.assertContains(response, "lewat tombol")
         self._post("t1", "tim_pemeriksaan")
         self.assertFalse(User.objects.filter(username="t1").exists())
 
@@ -1231,10 +1230,10 @@ class KetuaTimHierarchyTests(TestCase):
         self._post("ketua", "ketua_tim")
         ketua_node = Anggota.objects.get(user__username="ketua")
         self.assertTrue(ketua_node.is_root())
+        # The general Tambah User never offers Tim roles, even with a ketua.
         response = self.client.get(reverse("accounts:user_create"))
         for kode in ("tim_pemeriksaan", "tim_penambahan_data", "tim_perbaikan"):
-            self.assertContains(response, f'value="{kode}"')
-        self.assertContains(response, f'<option value="{ketua_node.pk}">ketua</option>', html=True)
+            self.assertNotContains(response, f'value="{kode}"')
 
         self._post("periksa", "tim_pemeriksaan", ketua_node)
         self._post("perbaiki", "tim_perbaikan", ketua_node)
@@ -1247,10 +1246,10 @@ class KetuaTimHierarchyTests(TestCase):
         page = self.client.get(reverse("accounts:pengaturan"))
         self.assertContains(page, '<th class="py-2 px-4 font-medium">Ketua Tim</th>', html=True)
 
-    def test_tim_member_requires_ketua_choice(self):
+    def test_tim_member_cannot_be_added_without_ketua_row(self):
         _buat_ketua()
         response = self._post("t1", "tim_perbaikan")
-        self.assertContains(response, "Pilih Ketua Tim untuk anggota tim ini.")
+        self.assertEqual(response.status_code, 200)
         self.assertFalse(User.objects.filter(username="t1").exists())
 
     def test_ketua_with_members_cannot_be_deleted_but_members_can(self):

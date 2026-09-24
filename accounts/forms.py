@@ -124,9 +124,14 @@ class UserCreateForm(forms.ModelForm):
         _siapkan_keanggotaan(self, allow_superuser)
         self.fields["username"].widget.attrs["class"] = TEXT_INPUT_CLASSES
         self.fields["username"].widget.attrs["placeholder"] = "teknisi2"
-        # "+ Anggota" on a Ketua Tim row: only Tim roles, under that ketua.
+        # Tim members are only added through "+ Anggota" on a Ketua Tim row:
+        # there only Tim roles, fixed under that ketua; elsewhere no Tim roles.
         self.ketua = ketua
-        if ketua is not None:
+        if ketua is None:
+            self.fields["keanggotaan"].choices = [
+                c for c in self.fields["keanggotaan"].choices if c[0] not in roles.TIM
+            ]
+        else:
             self.fields["keanggotaan"].choices = [("", "Pilih keanggotaan")] + [
                 c for c in roles.KEANGGOTAAN if c[0] in roles.TIM
             ]
