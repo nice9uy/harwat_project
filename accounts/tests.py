@@ -303,7 +303,9 @@ class LaporanViewTests(TestCase):
     def test_shows_biodata_tab(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("accounts:pemeriksaan"))
-        self.assertContains(response, "BIODATA PEMERIKSA")
+        self.assertContains(response, '<nav aria-label="Breadcrumb"')
+        self.assertContains(response, "Biodata Pemeriksa")
+        self.assertContains(response, "Pemeriksaan")
         self.assertNotContains(response, "JENIS PEMERIKSAAN")
 
     def _current_captcha(self):
@@ -508,8 +510,8 @@ class FormTambahViewTests(TestCase):
         response = self.client.get(reverse("accounts:form_tambah"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Form Tambah")
-        self.assertContains(response, "BIODATA")
-        self.assertContains(response, "TAMBAH KENDARAAN")
+        self.assertContains(response, '<nav aria-label="Breadcrumb"')
+        self.assertContains(response, "Tambah Kendaraan")
         self.assertContains(response, 'type="radio" name="golongan" value="B"')
         self.assertContains(response, 'Golongan "B"')
         for field in ("nip", "nama", "pangkat", "jabatan", "satuan", "foto"):
@@ -546,8 +548,8 @@ class HistoryPerbaikanMenuTests(TestCase):
     def test_perbaikan_has_biodata_and_perbaikan_tabs(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("accounts:perbaikan"))
-        self.assertContains(response, "BIODATA")
-        self.assertContains(response, "PERBAIKAN\n")
+        self.assertContains(response, '<nav aria-label="Breadcrumb"')
+        self.assertContains(response, "Biodata")
         for field in ("nip", "nama", "pangkat", "jabatan", "satuan", "foto"):
             self.assertContains(response, f'id="id_{field}"')
         self.assertContains(response, "Lanjut")
@@ -1129,3 +1131,17 @@ class PemeriksaanBermotorTests(TestCase):
         self._post_pemeriksaan()
         self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.pk]))
         self.assertTrue(Vehicle.objects.filter(pk=self.vehicle.pk).exists())
+
+
+
+class BreadcrumbTests(TestCase):
+    def test_starts_at_biodata_without_home(self):
+        User.objects.create_user(username="u", password="rahasia-123")
+        self.client.login(username="u", password="rahasia-123")
+        for name, first in (("accounts:pemeriksaan", "Biodata Pemeriksa"), ("accounts:form_tambah", "Biodata"),
+                            ("accounts:perbaikan", "Biodata")):
+            content = self.client.get(reverse(name)).content.decode()
+            crumb = content[content.index('<nav aria-label="Breadcrumb"'):content.index("</nav>", content.index('<nav aria-label="Breadcrumb"'))]
+            self.assertNotIn("Home", crumb)
+            self.assertEqual(crumb.count("<li"), 3)
+            self.assertIn(first, crumb)

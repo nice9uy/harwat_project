@@ -1,0 +1,25 @@
+{% comment %}
+Breadcrumb for the two-step forms: {{ langkah1 }} > {{ langkah2 }}.
+The parent x-data provides `step` and `next()` (which validates step 1).
+{% endcomment %}
+<div class="sticky top-16 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 mb-4">
+    <nav aria-label="Breadcrumb" class="py-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <ol class="flex items-center gap-2 whitespace-nowrap text-sm font-medium">
+            <li>
+                <button type="button" @click="step = 1" :aria-current="step === 1 ? 'step' : false"
+                        :class="step === 1 ? 'text-navy dark:text-gold' : 'text-slate-500 hover:text-navy dark:text-slate-400 dark:hover:text-gold'">
+                    {{ langkah1 }}
+                </button>
+            </li>
+            <li aria-hidden="true" class="text-slate-400 dark:text-slate-500">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+            </li>
+            <li>
+                <button type="button" @click="next()" :aria-current="step === 2 ? 'step' : false"
+                        :class="step === 2 ? 'text-navy dark:text-gold' : 'text-slate-500 hover:text-navy dark:text-slate-400 dark:hover:text-gold'">
+                    {{ langkah2 }}
+                </button>
+            </li>
+        </ol>
+    </nav>
+</div>
