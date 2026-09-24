@@ -32,10 +32,23 @@
         {% if form.no_mesin.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.no_mesin.errors.0 }}</p>{% endif %}
     </div>
     <div>
-        <label for="{{ form.foto.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Foto Kendaraan</label>
+        <p class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Foto Kendaraan <span class="font-normal text-slate-500 dark:text-slate-400">(minimal 4)</span></p>
         {% if vehicle.fotos.all %}<div class="mb-2">{% include "fleet/_vehicle_photos.html" %}</div>{% endif %}
-        {{ form.foto }}
-        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Pilih minimal 4 foto sekaligus.{% if is_edit %} Kosongkan untuk mempertahankan foto sekarang; unggahan baru mengganti semua foto.{% endif %}</p>
+        {# Every input is named "foto"; the form collects them all and needs at least 4. #}
+        <div class="grid grid-cols-2 gap-3">
+            {% for nomor in "1234" %}
+            <div x-data="{ pratinjau: null }">
+                <label for="foto_{{ nomor }}" class="block text-xs text-slate-500 dark:text-slate-400 mb-1">Foto {{ nomor }}</label>
+                <input type="file" id="foto_{{ nomor }}" name="foto" accept="image/*" capture="environment" {% if not is_edit %}required{% endif %}
+                       @change="pratinjau = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : null"
+                       class="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 shadow-sm file:mr-2 file:rounded file:border-0 file:bg-green-600 file:px-2 file:py-1 file:text-xs file:font-medium file:text-white hover:file:bg-green-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+                <img x-show="pratinjau" x-cloak :src="pratinjau" alt="Pratinjau foto {{ nomor }}" class="mt-1 aspect-[4/3] w-full rounded-md border border-slate-300 dark:border-slate-600 object-cover">
+            </div>
+            {% endfor %}
+        </div>
+        <label for="foto_tambahan" class="block text-xs text-slate-500 dark:text-slate-400 mt-3 mb-1">Foto tambahan (opsional, boleh lebih dari satu)</label>
+        <input type="file" id="foto_tambahan" name="foto" accept="image/*" multiple class="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 shadow-sm file:mr-2 file:rounded file:border-0 file:bg-green-600 file:px-2 file:py-1 file:text-xs file:font-medium file:text-white hover:file:bg-green-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+        {% if is_edit %}<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kosongkan untuk mempertahankan foto sekarang; mengisi Foto 1–4 mengganti semua foto.</p>{% endif %}
         {% if form.foto.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.foto.errors.0 }}</p>{% endif %}
     </div>
     <div class="flex items-center gap-3 pt-2">

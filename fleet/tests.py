@@ -607,3 +607,23 @@ class KendaraanBermotorTabTests(TestCase):
         form = PemeriksaanGolonganBForm(data={"vehicle": motor.pk})
         form.is_valid()
         self.assertIn("vehicle", form.errors)
+
+
+
+class VehicleFotoSlotsTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.client.login(username="teknisi1", password="rahasia-123")
+
+    def test_create_form_has_four_required_photo_slots(self):
+        response = self.client.get(reverse("fleet:vehicle_create"), HTTP_HX_REQUEST="true")
+        content = response.content.decode()
+        for nomor in range(1, 5):
+            self.assertRegex(content, rf'id="foto_{nomor}" name="foto"[^>]*required')
+        self.assertContains(response, 'id="foto_tambahan" name="foto" accept="image/*" multiple')
+        self.assertContains(response, "(minimal 4)")
+
+    def test_edit_form_slots_are_optional(self):
+        vehicle = Vehicle.objects.create(nopol="B 1 A", merek="X")
+        response = self.client.get(reverse("fleet:vehicle_update", args=[vehicle.pk]), HTTP_HX_REQUEST="true")
+        self.assertNotRegex(response.content.decode(), r'id="foto_1" name="foto"[^>]*required')
