@@ -661,3 +661,31 @@ class VehicleSearchTests(TestCase):
         response = self.client.get(reverse("fleet:vehicle_search"), {"q": "zzz", "hasil": "1"})
         self.assertContains(response, 'Tidak ada kendaraan yang cocok dengan')
         self.assertContains(response, 'zzz')
+
+
+
+@override_settings(MEDIA_ROOT=MEDIA_ROOT)
+class KendaraanDieselTabTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.client.login(username="teknisi1", password="rahasia-123")
+        Vehicle.objects.create(nopol="B 1111 AA", merek="Hino")
+        Vehicle.objects.create(nopol="B 3333 DD", merek="Isuzu Elf", group_kendaraan="diesel", no_mesin="4JB1")
+
+    def test_diesel_tab_with_same_table(self):
+        response = self.client.get(reverse("fleet:vehicle_list"))
+        self.assertContains(response, "KENDARAAN DIESEL")
+        self.assertContains(response, f'href="{reverse("fleet:vehicle_list")}?group=diesel"')
+        response = self.client.get(reverse("fleet:vehicle_list"), {"group": "diesel"})
+        for header in ("No. Registrasi", "Merk/ Type", "No. Chasis", "No. Mesin", "QR Code", "Foto Kendaraan", "Aksi"):
+            self.assertContains(response, header)
+        self.assertContains(response, "B 3333 DD")
+        self.assertNotContains(response, "B 1111 AA")
+        self.assertContains(response, f'hx-get="{reverse("fleet:vehicle_create")}?group=diesel"')
+
+    def test_add_diesel_vehicle(self):
+        response = self.client.post(reverse("fleet:vehicle_create") + "?group=diesel", {
+            "nopol": "B 4444 DD", "merek": "Mitsubishi Canter", "foto": _photos(),
+        })
+        self.assertRedirects(response, reverse("fleet:vehicle_list") + "?group=diesel")
+        self.assertEqual(Vehicle.objects.get(nopol="B 4444 DD").group_kendaraan, "diesel")
