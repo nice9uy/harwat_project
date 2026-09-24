@@ -24,4 +24,5 @@ urlpatterns = [
     path("pengaturan/", views.pengaturan_view, name="pengaturan"),
     path("pengaturan/user/tambah/", views.user_create, name="user_create"),
     path("pengaturan/user/<int:pk>/hapus/", views.user_delete, name="user_delete"),
+    path("pengaturan/user/<int:pk>/ubah/", views.user_edit, name="user_edit"),
 ]

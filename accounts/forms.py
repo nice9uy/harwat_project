@@ -47,6 +47,66 @@ class LoginForm(AuthenticationForm):
         self.fields["remember_me"].widget.attrs.update({"class": CHECKBOX_CLASSES})
 
 
+def _siapkan_keanggotaan(form, allow_superuser, kecuali=None):
+    """Set up the keanggotaan / ketua_tim fields shared by the user forms.
+
+    ``kecuali`` is an Anggota node that may not be picked as Ketua Tim
+    (the user being edited).
+    """
+    ketua = Anggota.get_root_nodes().select_related("user").order_by("user__username")
+    if kecuali is not None:
+        ketua = ketua.exclude(pk=kecuali.pk)
+    form.fields["ketua_tim"].queryset = ketua
+    form.fields["ketua_tim"].label_from_instance = lambda node: node.user.username
+    form.ada_ketua = ketua.exists()
+    choices = roles.KEANGGOTAAN
+    # Only a superuser may make someone a superuser.
+    if not allow_superuser:
+        choices = [c for c in choices if c[0] != roles.SUPERUSER]
+    # Tim members go under a Ketua Tim, so they need one to exist first.
+    if not form.ada_ketua:
+        choices = [c for c in choices if c[0] not in roles.TIM]
+    form.fields["keanggotaan"].choices = [("", "Pilih keanggotaan")] + list(choices)
+    form.fields["keanggotaan"].widget.attrs.update({"class": TEXT_INPUT_CLASSES, "x-model": "keanggotaan"})
+    form.fields["ketua_tim"].widget.attrs["class"] = TEXT_INPUT_CLASSES
+
+
+def _cek_ketua(form, cleaned):
+    if cleaned.get("keanggotaan") in roles.TIM and not cleaned.get("ketua_tim"):
+        form.add_error("ketua_tim", "Pilih Ketua Tim untuk anggota tim ini.")
+
+
+def terapkan_keanggotaan(user, kode, ketua=None):
+    """Give a saved user the role ``kode``: flags, group and place in the Anggota tree."""
+    user.is_superuser = kode == roles.SUPERUSER
+    # Superuser and Admin can open Django admin.
+    user.is_staff = kode in (roles.SUPERUSER, roles.ADMIN)
+    user.save(update_fields=["is_superuser", "is_staff"])
+    if kode == roles.SUPERUSER:
+        user.groups.clear()
+    else:
+        user.groups.set([Group.objects.get(name=roles.GROUP_NAMES[kode])])
+
+    node = Anggota.objects.filter(user=user).first()
+    if kode == roles.KETUA_TIM:
+        if node is not None and not node.is_root():
+            node.delete()  # a member has no children, so nothing is lost
+            node = None
+        if node is None:
+            Anggota.add_root(user=user)
+    elif kode in roles.TIM:
+        ketua = Anggota.objects.get(pk=ketua.pk)  # treebeard wants fresh nodes
+        if node is None:
+            ketua.add_child(user=user)
+        elif node.is_root():
+            node.delete()  # was a Ketua Tim without members (checked by the form)
+            Anggota.objects.get(pk=ketua.pk).add_child(user=user)
+        elif node.get_parent().pk != ketua.pk:
+            node.move(ketua, pos="last-child")
+    elif node is not None:
+        node.delete()
+
+
 class UserCreateForm(forms.ModelForm):
     """New users get roles.DEFAULT_PASSWORD; no password is typed in the form."""
 
@@ -61,45 +121,57 @@ class UserCreateForm(forms.ModelForm):
 
     def __init__(self, *args, allow_superuser=False, **kwargs):
         super().__init__(*args, **kwargs)
-        ketua = Anggota.get_root_nodes().select_related("user").order_by("user__username")
-        self.fields["ketua_tim"].queryset = ketua
-        self.fields["ketua_tim"].label_from_instance = lambda node: node.user.username
-        self.ada_ketua = ketua.exists()
-        choices = roles.KEANGGOTAAN
-        # Only a superuser may create another superuser.
-        if not allow_superuser:
-            choices = [c for c in choices if c[0] != roles.SUPERUSER]
-        # Tim members go under a Ketua Tim, so they need one to exist first.
-        if not self.ada_ketua:
-            choices = [c for c in choices if c[0] not in roles.TIM]
-        self.fields["keanggotaan"].choices = [("", "Pilih keanggotaan")] + list(choices)
+        _siapkan_keanggotaan(self, allow_superuser)
         self.fields["username"].widget.attrs["class"] = TEXT_INPUT_CLASSES
         self.fields["username"].widget.attrs["placeholder"] = "teknisi2"
-        self.fields["keanggotaan"].widget.attrs.update({"class": TEXT_INPUT_CLASSES, "x-model": "keanggotaan"})
-        self.fields["ketua_tim"].widget.attrs["class"] = TEXT_INPUT_CLASSES
 
     def clean(self):
         cleaned = super().clean()
-        if cleaned.get("keanggotaan") in roles.TIM and not cleaned.get("ketua_tim"):
-            self.add_error("ketua_tim", "Pilih Ketua Tim untuk anggota tim ini.")
+        _cek_ketua(self, cleaned)
         return cleaned
 
     def save(self, commit=True):
         user = super().save(commit=False)
         user.set_password(roles.DEFAULT_PASSWORD)
-        kode = self.cleaned_data["keanggotaan"]
-        user.is_superuser = kode == roles.SUPERUSER
-        # Superuser and Admin can open Django admin.
-        user.is_staff = kode in (roles.SUPERUSER, roles.ADMIN)
         if commit:
             user.save()
-            if kode != roles.SUPERUSER:
-                user.groups.set([Group.objects.get(name=roles.GROUP_NAMES[kode])])
-            if kode == roles.KETUA_TIM:
-                Anggota.add_root(user=user)
-            elif kode in roles.TIM:
-                self.cleaned_data["ketua_tim"].add_child(user=user)
+            terapkan_keanggotaan(user, self.cleaned_data["keanggotaan"], self.cleaned_data["ketua_tim"])
         return user
+
+
+class UserEditForm(forms.Form):
+    """Change an existing user's keanggotaan and, for Tim members, their Ketua Tim."""
+
+    keanggotaan = forms.ChoiceField(label="Keanggotaan", choices=roles.KEANGGOTAAN)
+    ketua_tim = forms.ModelChoiceField(
+        label="Ketua Tim", queryset=Anggota.objects.none(), required=False, empty_label="Pilih ketua tim",
+    )
+
+    def __init__(self, *args, user, allow_superuser=False, **kwargs):
+        self.user = user
+        self.node = Anggota.objects.filter(user=user).first()
+        parent = self.node.get_parent() if self.node is not None and not self.node.is_root() else None
+        kwargs.setdefault("initial", {
+            "keanggotaan": roles.keanggotaan_kode(user) or "",
+            "ketua_tim": parent.pk if parent else None,
+        })
+        super().__init__(*args, **kwargs)
+        _siapkan_keanggotaan(self, allow_superuser, kecuali=self.node)
+
+    def clean(self):
+        cleaned = super().clean()
+        _cek_ketua(self, cleaned)
+        kode = cleaned.get("keanggotaan")
+        if self.node is not None and self.node.get_children_count() and kode != roles.KETUA_TIM:
+            self.add_error(
+                "keanggotaan",
+                "Ketua Tim ini masih punya anggota. Pindahkan anggotanya ke ketua lain dulu.",
+            )
+        return cleaned
+
+    def save(self):
+        terapkan_keanggotaan(self.user, self.cleaned_data["keanggotaan"], self.cleaned_data["ketua_tim"])
+        return self.user
 
 
 class BiodataForm(forms.ModelForm):

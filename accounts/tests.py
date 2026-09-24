@@ -1277,3 +1277,71 @@ class KetuaTimHierarchyTests(TestCase):
         for name in ("accounts:pemeriksaan", "accounts:form_tambah", "accounts:perbaikan", "accounts:history"):
             self.assertContains(response, f'<a href="{reverse(name)}" class=')
         self.assertNotContains(response, f'<a href="{reverse("accounts:pengaturan")}" class=')
+
+
+class UserEditTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        self.Group = Group
+        User.objects.create_user(username="operator", password="rahasia-123")
+        self.client.login(username="operator", password="rahasia-123")
+        self.ketua_a = _buat_ketua("ketua_a")
+        self.ketua_b = _buat_ketua("ketua_b")
+        # A Tim member created before the hierarchy existed: no Ketua Tim yet.
+        self.pemeriksa = User.objects.create_user(username="pemeriksa", password="x")
+        self.pemeriksa.groups.add(Group.objects.get(name="Tim Pemeriksaan"))
+
+    def _ubah(self, user, keanggotaan, ketua=None):
+        data = {"keanggotaan": keanggotaan}
+        if ketua is not None:
+            data["ketua_tim"] = ketua.pk
+        return self.client.post(reverse("accounts:user_edit", args=[user.pk]), data)
+
+    def _node(self, username):
+        from accounts.models import Anggota
+        return Anggota.objects.filter(user__username=username).first()
+
+    def test_table_has_edit_action(self):
+        response = self.client.get(reverse("accounts:pengaturan"))
+        self.assertContains(response, f'hx-get="{reverse("accounts:user_edit", args=[self.pemeriksa.pk])}"')
+
+    def test_existing_member_gets_a_ketua(self):
+        form = self.client.get(reverse("accounts:user_edit", args=[self.pemeriksa.pk]))
+        self.assertContains(form, '<option value="tim_pemeriksaan" selected>', html=False)
+        response = self._ubah(self.pemeriksa, "tim_pemeriksaan", self.ketua_a)
+        self.assertRedirects(response, reverse("accounts:pengaturan"))
+        self.assertEqual(self._node("pemeriksa").get_parent().user.username, "ketua_a")
+
+    def test_member_moves_to_another_ketua(self):
+        self._ubah(self.pemeriksa, "tim_pemeriksaan", self.ketua_a)
+        self._ubah(self.pemeriksa, "tim_perbaikan", self.ketua_b)
+        node = self._node("pemeriksa")
+        self.assertEqual(node.get_parent().user.username, "ketua_b")
+        self.assertEqual(self._node("ketua_a").numchild, 0)
+        self.assertEqual(self._node("ketua_b").numchild, 1)
+        self.assertEqual(list(self.pemeriksa.groups.values_list("name", flat=True)), ["Tim Perbaikan"])
+
+    def test_ketua_with_members_must_keep_role(self):
+        self._ubah(self.pemeriksa, "tim_pemeriksaan", self.ketua_a)
+        response = self._ubah(self.ketua_a.user, "pimpinan")
+        self.assertContains(response, "masih punya anggota")
+        self.assertTrue(self._node("ketua_a").is_root())
+
+    def test_empty_ketua_can_become_member_and_member_can_leave_tree(self):
+        self._ubah(self.ketua_b.user, "tim_penambahan_data", self.ketua_a)
+        node = self._node("ketua_b")
+        self.assertFalse(node.is_root())
+        self.assertEqual(node.get_parent().user.username, "ketua_a")
+        self._ubah(self.ketua_b.user, "pimpinan")
+        self.assertIsNone(self._node("ketua_b"))
+        self.assertEqual(self._node("ketua_a").numchild, 0)
+
+    def test_cannot_edit_self_or_superuser(self):
+        me = User.objects.get(username="operator")
+        self._ubah(me, "ketua_tim")
+        self.assertIsNone(self._node("operator"))
+        root = User.objects.create_superuser(username="root", password="x")
+        self._ubah(root, "pimpinan")
+        root.refresh_from_db()
+        self.assertTrue(root.is_superuser)
+        self.assertNotContains(self.client.get(reverse("accounts:user_edit", args=[self.pemeriksa.pk])), 'value="superuser"')

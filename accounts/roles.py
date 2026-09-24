@@ -66,7 +66,7 @@ MENU_VIEWS = {
     "form_tambah": {"accounts:form_tambah", "fleet:vehicle_create"},
     "history": {"accounts:history", "accounts:history_kendaraan", "fleet:vehicle_qr"},
     "perbaikan": {"accounts:perbaikan", "accounts:perbaikan_kendaraan"},
-    "pengaturan": {"accounts:pengaturan", "accounts:user_create", "accounts:user_delete"},
+    "pengaturan": {"accounts:pengaturan", "accounts:user_create", "accounts:user_delete", "accounts:user_edit"},
 }
 ALL_MENUS = frozenset(MENU_VIEWS)
 

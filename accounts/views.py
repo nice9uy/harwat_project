@@ -20,7 +20,7 @@ from fleet.models import Vehicle
 from fleet.services import get_fleet_summary
 
 from . import golongan, pemeriksaan, roles
-from .forms import BiodataForm, LaporanForm, LoginForm, UserCreateForm
+from .forms import BiodataForm, LaporanForm, LoginForm, UserCreateForm, UserEditForm
 from .roles import keanggotaan_label
 
 
@@ -398,3 +398,33 @@ def user_delete(request, pk):
         messages.success(request, f"User {akun.username} berhasil dihapus.")
         return redirect("accounts:pengaturan")
     return render(request, "accounts/_user_delete_confirm.html", {"akun": akun, "keanggotaan": keanggotaan_label(akun)})
+
+
+def _boleh_ubah(request, akun):
+    """Nobody changes their own role here, and only a superuser touches a superuser."""
+    return akun.pk != request.user.pk and (request.user.is_superuser or not akun.is_superuser)
+
+
+@login_required
+def user_edit(request, pk):
+    """Change a user's keanggotaan / Ketua Tim from the Pengaturan modal."""
+    akun = get_object_or_404(User, pk=pk)
+    if not _boleh_ubah(request, akun):
+        messages.error(request, f"Keanggotaan {akun.username} tidak bisa diubah.")
+        return redirect("accounts:pengaturan")
+    kwargs = {"user": akun, "allow_superuser": request.user.is_superuser}
+    if request.method == "POST":
+        form = UserEditForm(request.POST, **kwargs)
+        if form.is_valid():
+            with transaction.atomic():
+                form.save()
+            messages.success(request, f"Keanggotaan {akun.username} berhasil diubah.")
+            success_url = reverse("accounts:pengaturan")
+            if request.headers.get("HX-Request") == "true":
+                response = HttpResponse(status=204)
+                response["HX-Redirect"] = success_url
+                return response
+            return redirect(success_url)
+    else:
+        form = UserEditForm(**kwargs)
+    return render(request, "accounts/_user_edit_form.html", {"form": form, "akun": akun})

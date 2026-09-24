@@ -50,8 +50,19 @@
                         <td class="py-2 px-4">{{ akun.ketua_tim|default:"—" }}</td>
                         <td class="py-2 px-4">{{ akun.date_joined|date:"d M Y" }}</td>
                         <td class="py-2 px-4">
+                            <div class="flex items-center gap-3">
+                            {% if akun.pk != request.user.pk and not akun.is_superuser or akun.pk != request.user.pk and request.user.is_superuser %}
+                            <button type="button"
+                                    @click="modalOpen = true"
+                                    hx-get="{% url 'accounts:user_edit' akun.pk %}"
+                                    hx-target="#user-modal-body"
+                                    hx-swap="innerHTML"
+                                    class="text-navy dark:text-slate-300 hover:text-gold">
+                                Edit
+                            </button>
+                            {% endif %}
                             {% if akun.is_superuser or akun.pk == request.user.pk %}
-                            <span class="text-slate-400 dark:text-slate-500" title="{% if akun.is_superuser %}Superuser tidak bisa dihapus{% else %}Tidak bisa menghapus akun sendiri{% endif %}">—</span>
+                            <span class="text-slate-400 dark:text-slate-500" title="{% if akun.pk == request.user.pk %}Akun sendiri{% else %}Superuser tidak bisa dihapus{% endif %}">—</span>
                             {% else %}
                             <button type="button"
                                     @click="modalOpen = true"
@@ -62,6 +73,7 @@
                                 Hapus
                             </button>
                             {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% empty %}
