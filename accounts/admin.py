@@ -124,7 +124,8 @@ class PemeriksaanDieselItemInline(admin.TabularInline):
 
 @admin.register(PemeriksaanDiesel)
 class PemeriksaanDieselAdmin(admin.ModelAdmin):
-    list_display = ["vehicle", "pemeriksa", "dibuat_pada"]
+    list_display = ["vehicle", "pemeriksa", "km_mil", "jam_mesin", "buku_pemeliharaan", "kondisi_ranmor", "dibuat_pada"]
+    list_filter = ["macam_pemeriksaan", "kondisi_ranmor", "buku_pemeliharaan"]
     list_select_related = ["vehicle", "pemeriksa"]
     search_fields = ["vehicle__nopol", "pemeriksa__nama", "pemeriksa__nip"]
     date_hierarchy = "dibuat_pada"

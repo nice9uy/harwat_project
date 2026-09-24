@@ -329,7 +329,10 @@ class PemeriksaanDieselForm(_ChecklistForm):
 
     class Meta:
         model = PemeriksaanDiesel
-        fields = ["vehicle"]
+        fields = [
+            "vehicle", "km_mil", "km_berfungsi", "jam_mesin", "jam_mesin_berfungsi",
+            "buku_pemeliharaan", "kondisi_ranmor", "macam_pemeriksaan",
+        ]
 
     def clean_item_extra(self, prefix, label, errors):
         """Sat, Jumlah Riil and Jumlah Nyata columns of the diesel form."""

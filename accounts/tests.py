@@ -1469,7 +1469,16 @@ class PengaturanCollapseTests(TestCase):
 
 
 def _diesel_data(vehicle, **overrides):
-    data = {"vehicle": vehicle.pk}
+    data = {
+        "vehicle": vehicle.pk,
+        "km_mil": "120500",
+        "km_berfungsi": "ya",
+        "jam_mesin": "",
+        "jam_mesin_berfungsi": "tidak",
+        "buku_pemeliharaan": "ada",
+        "kondisi_ranmor": "jalan",
+        "macam_pemeriksaan": "tehnis",
+    }
     for nomor in range(1, 142):
         data[f"alat_{nomor}_kondisi"] = "B"
     data.update(overrides)
@@ -1500,7 +1509,11 @@ class PemeriksaanDieselTests(TestCase):
         from accounts.pemeriksaan import KOMPONEN_DIESEL_BERNOMOR
         self.assertEqual(len(KOMPONEN_DIESEL_BERNOMOR), 141)
         response = self.client.get(reverse("accounts:pemeriksaan_checklist", args=["diesel"]))
-        for text in ("I. Power Plant", "A. Engine System", "V. Frame, Suspension, Body, Cab and Hood",
+        for text in ("Pemeriksaan, Km / Mil, Jam Mesin, Buku Pemeliharaan &amp; Kondisi Ranmor", 'name="km_mil"',
+                     'name="macam_pemeriksaan" value="tehnis"', 'name="macam_pemeriksaan" value="tiba_tiba"', 'name="jam_mesin"',
+                     'name="km_berfungsi" value="ya"', 'name="jam_mesin_berfungsi" value="tidak"',
+                     'name="buku_pemeliharaan" value="ada"', 'name="kondisi_ranmor" value="jalan"',
+                     "I. Power Plant", "A. Engine System", "V. Frame, Suspension, Body, Cab and Hood",
                      "1.</span> Block Mesin", "18.</span> Jok Depan Ki/Ka",
                      'name="alat_1_sat"', 'name="alat_1_riil"', 'name="alat_1_nyata"',
                      'name="alat_141_kondisi" value="ADA"', 'name="alat_141_kondisi" value="TA"',
@@ -1520,6 +1533,17 @@ class PemeriksaanDieselTests(TestCase):
         self.assertEqual((block.nama_alat, block.kondisi, block.satuan, block.jumlah_riil, block.jumlah_nyata),
                          ("Block Mesin", "RB", "bh", 1, 0))
         self.assertEqual(hasil.items.get(nomor=141).nama_alat, "Jok Depan Ki/Ka")
+        self.assertEqual(
+            (hasil.km_mil, hasil.km_berfungsi, hasil.jam_mesin, hasil.jam_mesin_berfungsi,
+             hasil.buku_pemeliharaan, hasil.kondisi_ranmor, hasil.macam_pemeriksaan),
+            (120500, "ya", None, "tidak", "ada", "jalan", "tehnis"),
+        )
+
+    def test_header_choices_are_required(self):
+        response = self._post(kondisi_ranmor="")
+        self.assertEqual(response.status_code, 200)
+        from accounts.models import PemeriksaanDiesel
+        self.assertEqual(PemeriksaanDiesel.objects.count(), 0)
 
     def test_perbaikan_and_history_for_diesel(self):
         self._post(alat_1_kondisi="RB", alat_2_kondisi="ADA", alat_3_kondisi="TA", alat_4_kondisi="RR")
@@ -1528,7 +1552,8 @@ class PemeriksaanDieselTests(TestCase):
         self.assertContains(daftar, "Item yang Harus Diperbaiki (3)")
         self.assertContains(daftar, "Jml Riil / Nyata")
         history = self.client.get(reverse("accounts:history_kendaraan"), {"nopol": "B 3333 DD"})
-        for text in ("B 137", "ADA 1", "TA 1", "RB 1", "RR 1", "Perlu Perhatian (3)"):
+        for text in ("B 137", "ADA 1", "TA 1", "RB 1", "RR 1", "Perlu Perhatian (3)",
+                     "Tehnis · 120500 km (berfungsi) · Jam mesin - (tidak berfungsi) · Buku pemeliharaan ada · Ranmor jalan"):
             self.assertContains(history, text)
         from accounts.models import PemeriksaanDiesel
         block = PemeriksaanDiesel.objects.get().items.get(nomor=1)

@@ -271,6 +271,15 @@ class PemeriksaanDiesel(models.Model):
         "fleet.Vehicle", on_delete=models.PROTECT, related_name="pemeriksaan_diesel",
         verbose_name="Kendaraan",
     )
+    km_mil = models.PositiveIntegerField(null=True, blank=True, verbose_name="Km / Mil")
+    km_berfungsi = models.CharField(max_length=5, choices=checklist.YA_TIDAK, verbose_name="Km / Mil Berfungsi")
+    jam_mesin = models.PositiveIntegerField(null=True, blank=True, verbose_name="Jam Mesin")
+    jam_mesin_berfungsi = models.CharField(max_length=5, choices=checklist.YA_TIDAK, verbose_name="Jam Mesin Berfungsi")
+    buku_pemeliharaan = models.CharField(max_length=10, choices=checklist.BUKU_JALAN, verbose_name="Buku Pemeliharaan")
+    kondisi_ranmor = models.CharField(max_length=10, choices=checklist.KONDISI_RANMOR, verbose_name="Kondisi Ranmor")
+    macam_pemeriksaan = models.CharField(
+        max_length=20, choices=checklist.MACAM_PEMERIKSAAN, verbose_name="Macam Pemeriksaan",
+    )
     dibuat_pada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -282,7 +291,15 @@ class PemeriksaanDiesel(models.Model):
         return f"{self.vehicle.nopol} — {self.dibuat_pada:%d-%m-%Y}"
 
     def ringkasan(self):
-        return "Pemeriksaan Kendaraan Diesel"
+        km = f"{self.km_mil} km" if self.km_mil is not None else "Km -"
+        jam = f"{self.jam_mesin} jam" if self.jam_mesin is not None else "Jam mesin -"
+        return " · ".join([
+            self.get_macam_pemeriksaan_display(),
+            f"{km} ({'berfungsi' if self.km_berfungsi == 'ya' else 'tidak berfungsi'})",
+            f"{jam} ({'berfungsi' if self.jam_mesin_berfungsi == 'ya' else 'tidak berfungsi'})",
+            f"Buku pemeliharaan {self.get_buku_pemeliharaan_display().lower()}",
+            f"Ranmor {self.get_kondisi_ranmor_display().lower()}",
+        ])
 
 
 class PemeriksaanDieselItem(models.Model):

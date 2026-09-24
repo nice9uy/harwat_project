@@ -176,6 +176,8 @@ def pemeriksaan_checklist_view(request, kode):
         "alat_bermotor": pemeriksaan.KOMPONEN_BERMOTOR_BERNOMOR,
         # Kendaraan Diesel
         "diesel_bab": pemeriksaan.DIESEL_BAB,
+        "ya_tidak": pemeriksaan.YA_TIDAK,
+        "kondisi_ranmor": pemeriksaan.KONDISI_RANMOR,
     })
 
 

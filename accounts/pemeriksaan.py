@@ -85,6 +85,9 @@ KONDISI_DIESEL = [
     ("TA", "Tidak Ada"),
 ]
 
+YA_TIDAK = [("ya", "Ya"), ("tidak", "Tidak")]
+KONDISI_RANMOR = [("jalan", "Jalan"), ("tidak", "Tidak")]
+
 BAGIAN_DIESEL = [
     ("I", "Power Plant", [
         ("A", "Engine System", [
