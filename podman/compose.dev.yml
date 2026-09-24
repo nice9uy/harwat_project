@@ -16,6 +16,9 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      # Extra hosts, e.g. the laptop's Wi-Fi IP so phones on the same network
+      # can open http://<ip>:8000 (localhost stays allowed in dev).
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-}
     ports:
       - "8000:8000"
     depends_on:
