@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import urlencode
 from django.views.decorators.http import require_POST
 
 from django.utils.text import slugify
@@ -29,6 +30,12 @@ def _group(request):
     return group if group in Vehicle.GroupKendaraan.values else Vehicle.GroupKendaraan.GOLONGAN_B
 
 
+def _list_url(group):
+    """Armada list on the given group's tab (the default tab needs no query)."""
+    url = reverse("fleet:vehicle_list")
+    return url if group == Vehicle.GroupKendaraan.GOLONGAN_B else f"{url}?{urlencode({'group': group})}"
+
+
 @login_required
 def vehicle_list(request):
     group = _group(request)
@@ -36,7 +43,7 @@ def vehicle_list(request):
     return render(request, "fleet/vehicle_list.html", {
         "vehicles": vehicles,
         "group": group,
-        "group_label": Vehicle.GroupKendaraan(group).label,
+        "groups": Vehicle.GroupKendaraan.choices,
     })
 
 
@@ -46,10 +53,10 @@ def vehicle_create(request):
         form = VehicleForm(request.POST, request.FILES)
         form.instance.group_kendaraan = _group(request)
         if form.is_valid():
-            form.save()
+            vehicle = form.save()
             if _is_htmx(request):
-                return _htmx_redirect(reverse("fleet:vehicle_list"))
-            return redirect("fleet:vehicle_list")
+                return _htmx_redirect(_list_url(vehicle.group_kendaraan))
+            return redirect(_list_url(vehicle.group_kendaraan))
     else:
         form = VehicleForm()
     template = "fleet/_vehicle_form_fields.html" if _is_htmx(request) else "fleet/vehicle_form.html"
@@ -64,8 +71,8 @@ def vehicle_update(request, pk):
         if form.is_valid():
             form.save()
             if _is_htmx(request):
-                return _htmx_redirect(reverse("fleet:vehicle_list"))
-            return redirect("fleet:vehicle_list")
+                return _htmx_redirect(_list_url(vehicle.group_kendaraan))
+            return redirect(_list_url(vehicle.group_kendaraan))
     else:
         form = VehicleForm(instance=vehicle)
     template = "fleet/_vehicle_form_fields.html" if _is_htmx(request) else "fleet/vehicle_form.html"
@@ -84,12 +91,12 @@ def vehicle_delete(request, pk):
     vehicle = get_object_or_404(Vehicle, pk=pk)
     if vehicle.pemeriksaan_golongan_b.exists():
         messages.error(request, f"Kendaraan {vehicle.nopol} tidak bisa dihapus karena sudah punya data pemeriksaan.")
-        return redirect("fleet:vehicle_list")
+        return redirect(_list_url(vehicle.group_kendaraan))
     # Rows cascade, but the image files would otherwise stay on disk.
     for foto in vehicle.fotos.all():
         foto.image.delete(save=False)
     vehicle.delete()
-    return redirect("fleet:vehicle_list")
+    return redirect(_list_url(vehicle.group_kendaraan))
 
 
 @login_required

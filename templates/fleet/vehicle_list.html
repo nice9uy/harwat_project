@@ -3,15 +3,18 @@
 {% block page_title %}Armada{% endblock %}
 {% block content %}
 <div class="sticky top-16 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 mb-4">
-    <nav class="flex gap-6 -mb-px">
-        <span class="inline-flex items-center gap-2 border-b-2 border-gold px-1 py-2 text-sm font-medium text-navy dark:text-gold">
+    <nav class="flex gap-6 -mb-px overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {% for kode, label in groups %}
+        <a href="{% url 'fleet:vehicle_list' %}?group={{ kode }}"
+           class="inline-flex items-center gap-2 border-b-2 px-1 py-2 text-sm font-medium {% if kode == group %}border-gold text-navy dark:text-gold{% else %}border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200{% endif %}">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M2.5 16V6.5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1V16M2.5 16h11M2.5 16v-2.5M13.5 16v-4.5h3.5l3 3V16h-3" />
                 <circle cx="6" cy="18" r="1.5" />
                 <circle cx="16.5" cy="18" r="1.5" />
             </svg>
-            {{ group_label|upper }}
-        </span>
+            {{ label|upper }}
+        </a>
+        {% endfor %}
     </nav>
 </div>
 <div class="space-y-4" x-data="{ modalOpen: false }">
