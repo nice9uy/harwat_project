@@ -121,6 +121,15 @@
                 </a>
                 {% endif %}
             </nav>
+            <form method="post" action="{% url 'accounts:logout' %}" class="shrink-0 border-t border-white/10 px-3 py-3">
+                {% csrf_token %}
+                <button type="submit" class="w-full flex items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-200 hover:bg-white/5 hover:text-gold">
+                    <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                    </svg>
+                    Keluar
+                </button>
+            </form>
         </aside>
 
         <div class="flex-1 flex flex-col min-w-0">
@@ -136,10 +145,6 @@
                 <div class="flex items-center gap-2 sm:gap-3 text-sm shrink-0">
                     {% include "_theme_toggle.html" %}
                     <span class="hidden sm:inline">{{ request.user.get_username }}</span>
-                    <form method="post" action="{% url 'accounts:logout' %}" class="inline">
-                        {% csrf_token %}
-                        <button type="submit" class="text-slate-500 hover:text-navy dark:text-slate-400 dark:hover:text-gold">Keluar</button>
-                    </form>
                 </div>
             </header>
             <main class="flex-1 p-4 sm:p-6">

@@ -983,3 +983,14 @@ class MenuAccessTests(TestCase):
                 self._sidebar_menus(response),
                 {"dashboard", "armada", "pemeriksaan", "form_tambah", "history", "perbaikan", "pengaturan"},
             )
+
+
+class SidebarLogoutTests(TestCase):
+    def test_keluar_is_at_the_bottom_of_the_sidebar(self):
+        User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.client.login(username="teknisi1", password="rahasia-123")
+        content = self.client.get(reverse("accounts:dashboard")).content.decode()
+        logout_form = content.index(f'action="{reverse("accounts:logout")}"')
+        self.assertLess(content.index("</nav>"), logout_form)
+        self.assertLess(logout_form, content.index("</aside>"))
+        self.assertEqual(content.count(f'action="{reverse("accounts:logout")}"'), 1)
