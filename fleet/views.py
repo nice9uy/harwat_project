@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils.http import urlencode
+from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 from django.views.decorators.http import require_POST
 
 from django.utils.text import slugify
@@ -47,20 +47,34 @@ def vehicle_list(request):
     })
 
 
+def _next_url(request):
+    """Safe same-site ?next= to return to after saving (e.g. Form Tambah)."""
+    url = request.GET.get("next", "")
+    if url and url_has_allowed_host_and_scheme(url, allowed_hosts={request.get_host()}):
+        return url
+    return None
+
+
 @login_required
 def vehicle_create(request):
+    next_url = _next_url(request)
     if request.method == "POST":
         form = VehicleForm(request.POST, request.FILES)
         form.instance.group_kendaraan = _group(request)
         if form.is_valid():
             vehicle = form.save()
+            if next_url:
+                messages.success(request, f"Kendaraan {vehicle.nopol} berhasil ditambahkan.")
+            target = next_url or _list_url(vehicle.group_kendaraan)
             if _is_htmx(request):
-                return _htmx_redirect(_list_url(vehicle.group_kendaraan))
-            return redirect(_list_url(vehicle.group_kendaraan))
+                return _htmx_redirect(target)
+            return redirect(target)
     else:
         form = VehicleForm()
     template = "fleet/_vehicle_form_fields.html" if _is_htmx(request) else "fleet/vehicle_form.html"
-    return render(request, template, {"form": form, "is_edit": False, "group": _group(request)})
+    return render(request, template, {
+        "form": form, "is_edit": False, "group": _group(request), "next_url": next_url or "",
+    })
 
 
 @login_required

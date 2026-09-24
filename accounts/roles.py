@@ -56,7 +56,8 @@ MENU_VIEWS = {
     "jadwal": set(),
     "servis": set(),
     "pemeriksaan": {"accounts:pemeriksaan", "accounts:pemeriksaan_captcha", "fleet:vehicle_lookup"},
-    "form_tambah": {"accounts:form_tambah"},
+    # Form Tambah adds the vehicle through the Armada create modal.
+    "form_tambah": {"accounts:form_tambah", "fleet:vehicle_create"},
     "history": {"accounts:history", "accounts:history_kendaraan", "fleet:vehicle_qr"},
     "perbaikan": {"accounts:perbaikan", "accounts:perbaikan_kendaraan"},
     "pengaturan": {"accounts:pengaturan", "accounts:user_create", "accounts:user_delete"},
@@ -93,8 +94,6 @@ def home_view_name(user):
     return MENU_HOME[menus[0]] if menus else MENU_HOME["dashboard"]
 
 
-def menu_of_view(view_name):
-    for menu, names in MENU_VIEWS.items():
-        if view_name in names:
-            return menu
-    return None
+def menus_of_view(view_name):
+    """Menus a view belongs to (a view may serve more than one menu)."""
+    return {menu for menu, names in MENU_VIEWS.items() if view_name in names}

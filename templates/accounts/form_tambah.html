@@ -6,6 +6,11 @@
       x-data="{
           step: 1,
           fotoPreview: null,
+          tambahKendaraan() {
+              if (!$refs.golongan.reportValidity()) return;
+              const group = $root.querySelector('input[name=golongan]:checked').value;
+              window.dispatchEvent(new CustomEvent('buka-tambah-kendaraan', { detail: group }));
+          },
           next() {
               for (const el of $refs.biodata.querySelectorAll('input, select, textarea')) {
                   if (!el.reportValidity()) return;
@@ -26,9 +31,23 @@
             <input type="radio" name="golongan" value="B" required x-ref="golongan" class="h-4 w-4 border-slate-300 text-navy accent-gold focus:ring-gold dark:border-slate-600 dark:bg-slate-900">
             Golongan "B"
         </label>
-        <button type="button" @click="$refs.golongan.reportValidity()" class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
+        <button type="button" @click="tambahKendaraan()" class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
             Lanjut
         </button>
     </div>
 </form>
+
+{# Outside the page form: the vehicle form in it is a <form> of its own. #}
+<div x-data="{ modalOpen: false }"
+     @buka-tambah-kendaraan.window="modalOpen = true; htmx.ajax('GET', '{% url 'fleet:vehicle_create' %}?group=' + encodeURIComponent($event.detail) + '&next={{ request.path|urlencode }}', '#vehicle-modal-body')">
+    <div x-show="modalOpen"
+         x-cloak
+         @click.self="modalOpen = false"
+         @keydown.escape.window="modalOpen = false"
+         class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/50 px-4 py-8 sm:py-4">
+        <div class="w-full max-w-lg bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl my-auto">
+            <div id="vehicle-modal-body"></div>
+        </div>
+    </div>
+</div>
 {% endblock %}

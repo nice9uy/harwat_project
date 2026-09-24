@@ -1145,3 +1145,39 @@ class BreadcrumbTests(TestCase):
             self.assertNotIn("Home", crumb)
             self.assertEqual(crumb.count("<li"), 3)
             self.assertIn(first, crumb)
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class FormTambahKendaraanModalTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        user = User.objects.create_user(username="data", password="rahasia-123")
+        user.groups.add(Group.objects.get(name="Tim Penambahan Data"))
+        self.client.login(username="data", password="rahasia-123")
+
+    def _photos(self):
+        return [SimpleUploadedFile(f"m{i}.gif", TINY_GIF, content_type="image/gif") for i in range(4)]
+
+    def test_lanjut_opens_vehicle_modal(self):
+        response = self.client.get(reverse("accounts:form_tambah"))
+        self.assertContains(response, '@click="tambahKendaraan()"')
+        self.assertContains(response, "@buka-tambah-kendaraan.window=")
+        self.assertContains(response, 'id="vehicle-modal-body"')
+
+    def test_tim_penambahan_data_can_add_vehicle_and_returns_to_form_tambah(self):
+        url = reverse("fleet:vehicle_create") + "?group=B&next=" + reverse("accounts:form_tambah")
+        form = self.client.get(url, HTTP_HX_REQUEST="true")
+        self.assertContains(form, "next=/form-tambah/")
+        response = self.client.post(url, {"nopol": "B 5 X", "merek": "Isuzu", "foto": self._photos()},
+                                    HTTP_HX_REQUEST="true")
+        self.assertEqual(response["HX-Redirect"], reverse("accounts:form_tambah"))
+        self.assertEqual(Vehicle.objects.get(nopol="B 5 X").group_kendaraan, "B")
+        page = self.client.get(reverse("accounts:form_tambah"))
+        self.assertContains(page, "Kendaraan B 5 X berhasil ditambahkan.")
+        # Still no access to the Armada list itself.
+        self.assertRedirects(self.client.get(reverse("fleet:vehicle_list")), reverse("accounts:form_tambah"))
+
+    def test_unsafe_next_is_ignored(self):
+        url = reverse("fleet:vehicle_create") + "?group=B&next=https://evil.example/"
+        response = self.client.post(url, {"nopol": "B 6 X", "merek": "Isuzu", "foto": self._photos()})
+        self.assertRedirects(response, reverse("fleet:vehicle_list"), fetch_redirect_response=False)
