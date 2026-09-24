@@ -350,3 +350,20 @@ class PerbaikanDiesel(models.Model):
 
     def __str__(self):
         return f"{self.item.pemeriksaan.vehicle.nopol} — {self.item} ({self.kondisi})"
+
+
+
+class Satuan(models.Model):
+    """Military/organisational unit (satuan), managed under Pengaturan."""
+
+    nama = models.CharField(max_length=150, unique=True, verbose_name="Nama Satuan")
+    keterangan = models.TextField(blank=True)
+    dibuat_pada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Satuan"
+        verbose_name_plural = "Satuan"
+        ordering = ["nama"]
+
+    def __str__(self):
+        return self.nama

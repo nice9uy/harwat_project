@@ -27,4 +27,7 @@ urlpatterns = [
     path("pengaturan/user/<int:pk>/hapus/", views.user_delete, name="user_delete"),
     path("pengaturan/user/<int:pk>/ubah/", views.user_edit, name="user_edit"),
     path("ganti-password/", views.ganti_password_view, name="ganti_password"),
+    path("pengaturan/satuan/tambah/", views.satuan_form_view, name="satuan_create"),
+    path("pengaturan/satuan/<int:pk>/ubah/", views.satuan_form_view, name="satuan_update"),
+    path("pengaturan/satuan/<int:pk>/hapus/", views.satuan_delete, name="satuan_delete"),
 ]

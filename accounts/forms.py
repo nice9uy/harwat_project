@@ -6,7 +6,7 @@ from fleet.models import Vehicle
 
 from . import pemeriksaan as checklist
 from . import roles
-from .models import Anggota, Laporan, PemeriksaanBermotor, PemeriksaanDiesel, PemeriksaanGolonganB
+from .models import Anggota, Laporan, PemeriksaanBermotor, PemeriksaanDiesel, PemeriksaanGolonganB, Satuan
 
 TEXT_INPUT_CLASSES = (
     "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm "
@@ -343,3 +343,16 @@ class PemeriksaanDieselForm(_ChecklistForm):
                 errors.append(f"Jumlah {kolom} {label} harus angka 0 atau lebih.")
             extra[field] = int(raw) if raw.isdigit() else None
         return extra
+
+
+class SatuanForm(forms.ModelForm):
+    class Meta:
+        model = Satuan
+        fields = ["nama", "keterangan"]
+        widgets = {"keterangan": forms.Textarea(attrs={"rows": 3})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs["class"] = TEXT_INPUT_CLASSES
+        self.fields["nama"].widget.attrs["placeholder"] = "Yonif Mekanis 202/TM"

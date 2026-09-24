@@ -21,8 +21,8 @@ from fleet.models import Vehicle
 from fleet.services import get_fleet_summary
 
 from . import golongan, pemeriksaan, roles
-from .forms import TEXT_INPUT_CLASSES, BiodataForm, LaporanForm, LoginForm, UserCreateForm, UserEditForm
-from .models import Anggota
+from .forms import TEXT_INPUT_CLASSES, BiodataForm, SatuanForm, LaporanForm, LoginForm, UserCreateForm, UserEditForm
+from .models import Anggota, Satuan
 from .roles import keanggotaan_label
 
 
@@ -396,7 +396,11 @@ def pengaturan_view(request):
     users += tree
     for akun in users:
         akun.keanggotaan = keanggotaan_label(akun)
-    return render(request, "accounts/pengaturan.html", {"users": users})
+    return render(request, "accounts/pengaturan.html", {
+        "users": users,
+        "satuan_list": Satuan.objects.all(),
+        "tab": "satuan" if request.GET.get("tab") == "satuan" else "user",
+    })
 
 
 @login_required
@@ -492,3 +496,38 @@ def ganti_password_view(request):
     for field in form.fields.values():
         field.widget.attrs["class"] = TEXT_INPUT_CLASSES
     return render(request, "accounts/ganti_password.html", {"form": form})
+
+
+def _ke_tab_satuan(request):
+    url = f"{reverse('accounts:pengaturan')}?tab=satuan"
+    if request.headers.get("HX-Request") == "true":
+        response = HttpResponse(status=204)
+        response["HX-Redirect"] = url
+        return response
+    return redirect(url)
+
+
+@login_required
+def satuan_form_view(request, pk=None):
+    """Tambah (pk=None) or Edit a Satuan in the Pengaturan modal."""
+    satuan = get_object_or_404(Satuan, pk=pk) if pk else None
+    if request.method == "POST":
+        form = SatuanForm(request.POST, instance=satuan)
+        if form.is_valid():
+            simpan = form.save()
+            messages.success(request, f"Satuan {simpan.nama} berhasil disimpan.")
+            return _ke_tab_satuan(request)
+    else:
+        form = SatuanForm(instance=satuan)
+    return render(request, "accounts/_satuan_form.html", {"form": form, "satuan": satuan})
+
+
+@login_required
+def satuan_delete(request, pk):
+    """GET: confirmation for the modal. POST: delete the Satuan."""
+    satuan = get_object_or_404(Satuan, pk=pk)
+    if request.method == "POST":
+        satuan.delete()
+        messages.success(request, f"Satuan {satuan.nama} berhasil dihapus.")
+        return _ke_tab_satuan(request)
+    return render(request, "accounts/_satuan_delete_confirm.html", {"satuan": satuan})

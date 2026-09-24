@@ -16,6 +16,7 @@ from .models import (
     PerbaikanDiesel,
     PerbaikanGolonganB,
     RevokedToken,
+    Satuan,
 )
 
 
@@ -151,3 +152,9 @@ class PerbaikanDieselAdmin(admin.ModelAdmin):
     @admin.display(description="Kendaraan", ordering="item__pemeriksaan__vehicle__nopol")
     def kendaraan(self, obj):
         return obj.item.pemeriksaan.vehicle
+
+
+@admin.register(Satuan)
+class SatuanAdmin(admin.ModelAdmin):
+    list_display = ["nama", "keterangan", "dibuat_pada"]
+    search_fields = ["nama", "keterangan"]

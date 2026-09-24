@@ -97,7 +97,8 @@ class PengaturanViewTests(TestCase):
     def test_shows_user_tab(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("accounts:pengaturan"))
-        self.assertContains(response, ">\n                User\n            </span>")
+        self.assertContains(response, "@click=\"tab = 'user'\"")
+        self.assertContains(response, ">\n                User\n            </button>")
 
     def test_shows_user_table_with_existing_users(self):
         self.client.login(username="teknisi1", password="rahasia-123")
@@ -1568,3 +1569,49 @@ class PemeriksaanDieselTests(TestCase):
         self._post()
         self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.pk]))
         self.assertTrue(Vehicle.objects.filter(pk=self.vehicle.pk).exists())
+
+
+
+class SatuanTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username="operator", password="rahasia-123")
+        self.client.login(username="operator", password="rahasia-123")
+
+    def test_pengaturan_has_satuan_tab_and_table(self):
+        from accounts.models import Satuan
+        Satuan.objects.create(nama="Yonif Mekanis 202/TM", keterangan="Bekasi")
+        response = self.client.get(reverse("accounts:pengaturan"))
+        self.assertContains(response, "@click=\"tab = 'satuan'\"")
+        for text in ("Nama Satuan", "Keterangan", "Yonif Mekanis 202/TM", "Bekasi", "+ Tambah Satuan"):
+            self.assertContains(response, text)
+        self.assertContains(response, "tab: 'user'")
+        self.assertContains(self.client.get(reverse("accounts:pengaturan"), {"tab": "satuan"}), "tab: 'satuan'")
+
+    def test_create_edit_delete(self):
+        from accounts.models import Satuan
+        response = self.client.post(reverse("accounts:satuan_create"), {"nama": "Kodim 0507", "keterangan": ""},
+                                    HTTP_HX_REQUEST="true")
+        self.assertEqual(response["HX-Redirect"], reverse("accounts:pengaturan") + "?tab=satuan")
+        satuan = Satuan.objects.get()
+        self.client.post(reverse("accounts:satuan_update", args=[satuan.pk]), {"nama": "Kodim 0507/Bekasi"})
+        satuan.refresh_from_db()
+        self.assertEqual(satuan.nama, "Kodim 0507/Bekasi")
+        self.assertContains(self.client.get(reverse("accounts:satuan_delete", args=[satuan.pk])), "Yakin ingin menghapus satuan")
+        self.client.post(reverse("accounts:satuan_delete", args=[satuan.pk]))
+        self.assertFalse(Satuan.objects.exists())
+
+    def test_nama_is_required_and_unique(self):
+        from accounts.models import Satuan
+        Satuan.objects.create(nama="Kodim 0507")
+        self.assertEqual(self.client.post(reverse("accounts:satuan_create"), {"nama": "Kodim 0507"}).status_code, 200)
+        self.assertEqual(self.client.post(reverse("accounts:satuan_create"), {"nama": ""}).status_code, 200)
+        self.assertEqual(Satuan.objects.count(), 1)
+
+    def test_tim_users_cannot_manage_satuan(self):
+        from django.contrib.auth.models import Group
+        user = User.objects.create_user(username="t", password="rahasia-123")
+        user.groups.add(Group.objects.get(name="Tim Perbaikan"))
+        self.client.login(username="t", password="rahasia-123")
+        self.client.post(reverse("accounts:satuan_create"), {"nama": "X"})
+        from accounts.models import Satuan
+        self.assertFalse(Satuan.objects.exists())
