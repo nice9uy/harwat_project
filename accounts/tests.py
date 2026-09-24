@@ -107,10 +107,20 @@ class PengaturanViewTests(TestCase):
         self.assertContains(response, "Tambah User")
 
 
+def _buat_ketua(username="ketua1"):
+    from django.contrib.auth.models import Group
+
+    from accounts.models import Anggota
+    ketua = User.objects.create_user(username=username, password="x")
+    ketua.groups.add(Group.objects.get(name="Ketua Tim"))
+    return Anggota.add_root(user=ketua)
+
+
 class UserCreateViewTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
         self.client.login(username="teknisi1", password="rahasia-123")
+        self.ketua = _buat_ketua()
 
     def test_redirects_when_not_authenticated(self):
         self.client.logout()
@@ -129,6 +139,7 @@ class UserCreateViewTests(TestCase):
         response = self.client.post(reverse("accounts:user_create"), {
             "username": "teknisi2",
             "keanggotaan": "tim_pemeriksaan",
+            "ketua_tim": self.ketua.pk,
         })
         self.assertRedirects(response, reverse("accounts:pengaturan"))
         user = User.objects.get(username="teknisi2")
@@ -148,11 +159,11 @@ class UserCreateViewTests(TestCase):
         self.assertEqual(response["HX-Redirect"], reverse("accounts:pengaturan"))
         self.assertTrue(User.objects.filter(username="teknisi3").exists())
 
-    def _create(self, keanggotaan):
-        return self.client.post(reverse("accounts:user_create"), {
-            "username": "baru",
-            "keanggotaan": keanggotaan,
-        })
+    def _create(self, keanggotaan, ketua=None):
+        data = {"username": "baru", "keanggotaan": keanggotaan}
+        if keanggotaan.startswith("tim_"):
+            data["ketua_tim"] = (ketua or self.ketua).pk
+        return self.client.post(reverse("accounts:user_create"), data)
 
     def test_keanggotaan_is_required(self):
         response = self._create("")
@@ -194,7 +205,7 @@ class UserCreateViewTests(TestCase):
         from accounts.roles import GROUP_NAMES
         self.assertEqual(
             set(Group.objects.values_list("name", flat=True)) & set(GROUP_NAMES.values()),
-            {"Admin", "Pimpinan", "Tim Pemeriksaan", "Tim Penambahan Data", "Tim Perbaikan"},
+            {"Admin", "Pimpinan", "Ketua Tim", "Tim Pemeriksaan", "Tim Penambahan Data", "Tim Perbaikan"},
         )
 
     def test_new_user_gets_default_password_and_no_email_field(self):
@@ -1193,3 +1204,76 @@ class CssCacheBustingTests(TestCase):
         self.client.login(username="u", password="rahasia-123")
         version = int(os.path.getmtime(finders.find("dist/output.css")))
         self.assertContains(self.client.get(reverse("accounts:dashboard")), f"dist/output.css?v={version}")
+
+
+
+class KetuaTimHierarchyTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username="operator", password="rahasia-123")
+        self.client.login(username="operator", password="rahasia-123")
+
+    def _post(self, username, keanggotaan, ketua=None):
+        data = {"username": username, "keanggotaan": keanggotaan}
+        if ketua is not None:
+            data["ketua_tim"] = ketua.pk
+        return self.client.post(reverse("accounts:user_create"), data)
+
+    def test_tim_roles_hidden_until_a_ketua_exists(self):
+        response = self.client.get(reverse("accounts:user_create"))
+        self.assertNotContains(response, 'value="tim_pemeriksaan"')
+        self.assertContains(response, 'value="ketua_tim"')
+        self.assertContains(response, "bisa ditambahkan setelah ada Ketua Tim")
+        self._post("t1", "tim_pemeriksaan")
+        self.assertFalse(User.objects.filter(username="t1").exists())
+
+    def test_ketua_becomes_root_and_members_its_children(self):
+        from accounts.models import Anggota
+        self._post("ketua", "ketua_tim")
+        ketua_node = Anggota.objects.get(user__username="ketua")
+        self.assertTrue(ketua_node.is_root())
+        response = self.client.get(reverse("accounts:user_create"))
+        for kode in ("tim_pemeriksaan", "tim_penambahan_data", "tim_perbaikan"):
+            self.assertContains(response, f'value="{kode}"')
+        self.assertContains(response, f'<option value="{ketua_node.pk}">ketua</option>', html=True)
+
+        self._post("periksa", "tim_pemeriksaan", ketua_node)
+        self._post("perbaiki", "tim_perbaikan", ketua_node)
+        ketua_node.refresh_from_db()
+        self.assertEqual(
+            sorted(n.user.username for n in ketua_node.get_children()), ["perbaiki", "periksa"]
+        )
+        self.assertEqual(Anggota.objects.get(user__username="periksa").get_parent(), ketua_node)
+
+        page = self.client.get(reverse("accounts:pengaturan"))
+        self.assertContains(page, '<th class="py-2 px-4 font-medium">Ketua Tim</th>', html=True)
+
+    def test_tim_member_requires_ketua_choice(self):
+        _buat_ketua()
+        response = self._post("t1", "tim_perbaikan")
+        self.assertContains(response, "Pilih Ketua Tim untuk anggota tim ini.")
+        self.assertFalse(User.objects.filter(username="t1").exists())
+
+    def test_ketua_with_members_cannot_be_deleted_but_members_can(self):
+        from accounts.models import Anggota
+        ketua_node = _buat_ketua()
+        self._post("t1", "tim_perbaikan", ketua_node)
+        member = User.objects.get(username="t1")
+        self.client.post(reverse("accounts:user_delete", args=[ketua_node.user.pk]))
+        self.assertTrue(User.objects.filter(pk=ketua_node.user.pk).exists())
+
+        self.client.post(reverse("accounts:user_delete", args=[member.pk]))
+        self.assertFalse(User.objects.filter(pk=member.pk).exists())
+        ketua_node = Anggota.objects.get(pk=ketua_node.pk)
+        self.assertEqual(ketua_node.numchild, 0)
+        self.client.post(reverse("accounts:user_delete", args=[ketua_node.user.pk]))
+        self.assertFalse(Anggota.objects.exists())
+
+    def test_ketua_tim_sees_all_team_menus(self):
+        from django.contrib.auth.models import Group
+        user = User.objects.create_user(username="k", password="rahasia-123")
+        user.groups.add(Group.objects.get(name="Ketua Tim"))
+        self.client.login(username="k", password="rahasia-123")
+        response = self.client.get(reverse("accounts:pemeriksaan"))
+        for name in ("accounts:pemeriksaan", "accounts:form_tambah", "accounts:perbaikan", "accounts:history"):
+            self.assertContains(response, f'<a href="{reverse(name)}" class=')
+        self.assertNotContains(response, f'<a href="{reverse("accounts:pengaturan")}" class=')

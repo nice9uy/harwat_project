@@ -346,9 +346,12 @@ def perbaikan_kendaraan_view(request):
 
 @login_required
 def pengaturan_view(request):
-    users = User.objects.prefetch_related("groups").order_by("username")
+    users = User.objects.prefetch_related("groups").select_related("anggota").order_by("username")
     for user in users:
         user.keanggotaan = keanggotaan_label(user)
+        node = getattr(user, "anggota", None)
+        parent = node.get_parent() if node is not None and not node.is_root() else None
+        user.ketua_tim = parent.user.username if parent else ""
     return render(request, "accounts/pengaturan.html", {"users": users})
 
 
@@ -357,7 +360,8 @@ def user_create(request):
     if request.method == "POST":
         form = UserCreateForm(request.POST, allow_superuser=request.user.is_superuser)
         if form.is_valid():
-            form.save()
+            with transaction.atomic():
+                form.save()
             success_url = reverse("accounts:pengaturan")
             if request.headers.get("HX-Request") == "true":
                 response = HttpResponse(status=204)
@@ -381,8 +385,16 @@ def user_delete(request, pk):
     if akun.is_superuser or akun.pk == request.user.pk:
         messages.error(request, f"User {akun.username} tidak bisa dihapus.")
         return redirect("accounts:pengaturan")
+    node = getattr(akun, "anggota", None)
+    if node is not None and node.get_children_count():
+        messages.error(request, f"Ketua Tim {akun.username} masih punya anggota. Hapus atau pindahkan anggotanya dulu.")
+        return redirect("accounts:pengaturan")
     if request.method == "POST":
-        akun.delete()
+        with transaction.atomic():
+            # Delete the tree node through treebeard so the parent's child count stays right.
+            if node is not None:
+                node.delete()
+            akun.delete()
         messages.success(request, f"User {akun.username} berhasil dihapus.")
         return redirect("accounts:pengaturan")
     return render(request, "accounts/_user_delete_confirm.html", {"akun": akun, "keanggotaan": keanggotaan_label(akun)})

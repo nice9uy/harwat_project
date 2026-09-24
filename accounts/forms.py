@@ -6,7 +6,7 @@ from fleet.models import Vehicle
 
 from . import pemeriksaan as checklist
 from . import roles
-from .models import Laporan, PemeriksaanBermotor, PemeriksaanGolonganB
+from .models import Anggota, Laporan, PemeriksaanBermotor, PemeriksaanGolonganB
 
 TEXT_INPUT_CLASSES = (
     "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm "
@@ -51,6 +51,9 @@ class UserCreateForm(forms.ModelForm):
     """New users get roles.DEFAULT_PASSWORD; no password is typed in the form."""
 
     keanggotaan = forms.ChoiceField(label="Keanggotaan", choices=roles.KEANGGOTAAN)
+    ketua_tim = forms.ModelChoiceField(
+        label="Ketua Tim", queryset=Anggota.objects.none(), required=False, empty_label="Pilih ketua tim",
+    )
 
     class Meta:
         model = User
@@ -58,15 +61,28 @@ class UserCreateForm(forms.ModelForm):
 
     def __init__(self, *args, allow_superuser=False, **kwargs):
         super().__init__(*args, **kwargs)
+        ketua = Anggota.get_root_nodes().select_related("user").order_by("user__username")
+        self.fields["ketua_tim"].queryset = ketua
+        self.fields["ketua_tim"].label_from_instance = lambda node: node.user.username
+        self.ada_ketua = ketua.exists()
+        choices = roles.KEANGGOTAAN
         # Only a superuser may create another superuser.
         if not allow_superuser:
-            self.fields["keanggotaan"].choices = [
-                choice for choice in roles.KEANGGOTAAN if choice[0] != roles.SUPERUSER
-            ]
-        self.fields["keanggotaan"].choices = [("", "Pilih keanggotaan")] + list(self.fields["keanggotaan"].choices)
+            choices = [c for c in choices if c[0] != roles.SUPERUSER]
+        # Tim members go under a Ketua Tim, so they need one to exist first.
+        if not self.ada_ketua:
+            choices = [c for c in choices if c[0] not in roles.TIM]
+        self.fields["keanggotaan"].choices = [("", "Pilih keanggotaan")] + list(choices)
         self.fields["username"].widget.attrs["class"] = TEXT_INPUT_CLASSES
-        self.fields["keanggotaan"].widget.attrs["class"] = TEXT_INPUT_CLASSES
         self.fields["username"].widget.attrs["placeholder"] = "teknisi2"
+        self.fields["keanggotaan"].widget.attrs.update({"class": TEXT_INPUT_CLASSES, "x-model": "keanggotaan"})
+        self.fields["ketua_tim"].widget.attrs["class"] = TEXT_INPUT_CLASSES
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("keanggotaan") in roles.TIM and not cleaned.get("ketua_tim"):
+            self.add_error("ketua_tim", "Pilih Ketua Tim untuk anggota tim ini.")
+        return cleaned
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -79,6 +95,10 @@ class UserCreateForm(forms.ModelForm):
             user.save()
             if kode != roles.SUPERUSER:
                 user.groups.set([Group.objects.get(name=roles.GROUP_NAMES[kode])])
+            if kode == roles.KETUA_TIM:
+                Anggota.add_root(user=user)
+            elif kode in roles.TIM:
+                self.cleaned_data["ketua_tim"].add_child(user=user)
         return user
 
 

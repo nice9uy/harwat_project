@@ -1,5 +1,7 @@
+from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator
 from django.db import models
+from treebeard.mp_tree import MP_Node
 
 from . import pemeriksaan as checklist
 
@@ -238,3 +240,20 @@ class PerbaikanBermotor(models.Model):
 
     def __str__(self):
         return f"{self.item.pemeriksaan.vehicle.nopol} — {self.item} ({self.kondisi})"
+
+
+
+class Anggota(MP_Node):
+    """Team hierarchy: each Ketua Tim is a root, their Tim members are children.
+
+    Only Ketua Tim and Tim users are in the tree; other roles aren't.
+    """
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="anggota")
+
+    class Meta:
+        verbose_name = "Anggota Tim"
+        verbose_name_plural = "Anggota Tim"
+
+    def __str__(self):
+        return self.user.username

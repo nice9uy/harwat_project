@@ -1,6 +1,10 @@
 from django.contrib import admin
 
+from treebeard.admin import TreeAdmin
+from treebeard.forms import movenodeform_factory
+
 from .models import (
+    Anggota,
     Laporan,
     PemeriksaanBermotor,
     PemeriksaanBermotorItem,
@@ -101,3 +105,10 @@ class PerbaikanBermotorAdmin(admin.ModelAdmin):
     @admin.display(description="Kendaraan", ordering="item__pemeriksaan__vehicle__nopol")
     def kendaraan(self, obj):
         return obj.item.pemeriksaan.vehicle
+
+
+@admin.register(Anggota)
+class AnggotaAdmin(TreeAdmin):
+    form = movenodeform_factory(Anggota)
+    list_display = ["user"]
+    list_select_related = ["user"]

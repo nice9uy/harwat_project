@@ -1,7 +1,8 @@
 """Keanggotaan (membership) of app users.
 
 Superuser is Django's is_superuser flag; the other roles are auth Groups
-(created by migration 0006), one per user.
+(created by migrations 0006 and 0012), one per user. Tim members hang under a
+Ketua Tim in the Anggota tree (django-treebeard).
 """
 
 # Password every user created from Pengaturan starts with.
@@ -9,15 +10,20 @@ DEFAULT_PASSWORD = "12345"
 
 SUPERUSER = "superuser"
 ADMIN = "admin"
+KETUA_TIM = "ketua_tim"
 
 KEANGGOTAAN = [
     (SUPERUSER, "Superuser"),
     (ADMIN, "Admin"),
     ("pimpinan", "Pimpinan"),
+    (KETUA_TIM, "Ketua Tim"),
     ("tim_pemeriksaan", "Tim Pemeriksaan"),
     ("tim_penambahan_data", "Tim Penambahan Data"),
     ("tim_perbaikan", "Tim Perbaikan"),
 ]
+
+# Roles that must be placed under a Ketua Tim.
+TIM = {"tim_pemeriksaan", "tim_penambahan_data", "tim_perbaikan"}
 
 # Group name for every role except Superuser.
 GROUP_NAMES = {kode: label for kode, label in KEANGGOTAAN if kode != SUPERUSER}
@@ -67,6 +73,8 @@ ALL_MENUS = frozenset(MENU_VIEWS)
 # Roles limited to some menus; every other role (and a user without one)
 # sees everything.
 MENU_PER_KEANGGOTAAN = {
+    # A Ketua Tim sees what each of the three Tim roles sees.
+    KETUA_TIM: ["pemeriksaan", "form_tambah", "perbaikan", "history"],
     "tim_pemeriksaan": ["pemeriksaan", "history"],
     "tim_penambahan_data": ["form_tambah", "history"],
     "tim_perbaikan": ["perbaikan", "history"],
