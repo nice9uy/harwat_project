@@ -31,23 +31,40 @@
             <table class="w-full text-sm text-left">
                 <thead class="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                     <tr>
+                        <th class="py-2 px-4 font-medium w-12">No</th>
                         <th class="py-2 px-4 font-medium">Username</th>
                         <th class="py-2 px-4 font-medium">Email</th>
                         <th class="py-2 px-4 font-medium">Keanggotaan</th>
                         <th class="py-2 px-4 font-medium">Tanggal Dibuat</th>
+                        <th class="py-2 px-4 font-medium">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-                    {% for user in users %}
+                    {% for akun in users %}
                     <tr>
-                        <td class="py-2 px-4 font-medium text-navy dark:text-slate-100">{{ user.username }}</td>
-                        <td class="py-2 px-4">{{ user.email|default:"—" }}</td>
-                        <td class="py-2 px-4">{{ user.keanggotaan }}</td>
-                        <td class="py-2 px-4">{{ user.date_joined|date:"d M Y" }}</td>
+                        <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td>
+                        <td class="py-2 px-4 font-medium text-navy dark:text-slate-100">{{ akun.username }}</td>
+                        <td class="py-2 px-4">{{ akun.email|default:"—" }}</td>
+                        <td class="py-2 px-4">{{ akun.keanggotaan }}</td>
+                        <td class="py-2 px-4">{{ akun.date_joined|date:"d M Y" }}</td>
+                        <td class="py-2 px-4">
+                            {% if akun.is_superuser or akun.pk == request.user.pk %}
+                            <span class="text-slate-400 dark:text-slate-500" title="{% if akun.is_superuser %}Superuser tidak bisa dihapus{% else %}Tidak bisa menghapus akun sendiri{% endif %}">—</span>
+                            {% else %}
+                            <button type="button"
+                                    @click="modalOpen = true"
+                                    hx-get="{% url 'accounts:user_delete' akun.pk %}"
+                                    hx-target="#user-modal-body"
+                                    hx-swap="innerHTML"
+                                    class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">
+                                Hapus
+                            </button>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="4" class="py-6 px-4 text-center text-slate-400 dark:text-slate-500">Belum ada data user.</td>
+                        <td colspan="6" class="py-6 px-4 text-center text-slate-400 dark:text-slate-500">Belum ada data user.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

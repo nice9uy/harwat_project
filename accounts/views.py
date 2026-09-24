@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Count, Prefetch, Q
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import redirect, render, resolve_url
+from django.shortcuts import get_object_or_404, redirect, render, resolve_url
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 from django.views.decorators.http import require_POST
@@ -349,3 +349,20 @@ def user_create(request):
     is_htmx = request.headers.get("HX-Request") == "true"
     template = "accounts/_user_form_fields.html" if is_htmx else "accounts/user_form.html"
     return render(request, template, {"form": form})
+
+
+@login_required
+def user_delete(request, pk):
+    """GET: confirmation for the Pengaturan modal. POST: delete the user.
+
+    Superusers and the logged-in user's own account can't be deleted here.
+    """
+    akun = get_object_or_404(User, pk=pk)
+    if akun.is_superuser or akun.pk == request.user.pk:
+        messages.error(request, f"User {akun.username} tidak bisa dihapus.")
+        return redirect("accounts:pengaturan")
+    if request.method == "POST":
+        akun.delete()
+        messages.success(request, f"User {akun.username} berhasil dihapus.")
+        return redirect("accounts:pengaturan")
+    return render(request, "accounts/_user_delete_confirm.html", {"akun": akun, "keanggotaan": keanggotaan_label(akun)})

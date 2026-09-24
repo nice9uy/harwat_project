@@ -873,3 +873,42 @@ class TemplateCommentTests(TestCase):
                 if "{#" in line and "#}" not in line.split("{#", 1)[1]:
                     offenders.append(f"{path.relative_to(settings.BASE_DIR)}:{number}")
         self.assertEqual(offenders, [], "Use {% comment %} for multi-line template comments")
+
+
+
+class UserDeleteTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(username="operator", password="rahasia-123")
+        self.client.login(username="operator", password="rahasia-123")
+        self.target = User.objects.create_user(username="teknisi9", password="x")
+        self.root = User.objects.create_superuser(username="root", password="rahasia-123")
+
+    def test_table_has_number_and_action_columns(self):
+        response = self.client.get(reverse("accounts:pengaturan"))
+        self.assertContains(response, '<th class="py-2 px-4 font-medium w-12">No</th>', html=True)
+        self.assertContains(response, '<th class="py-2 px-4 font-medium">Aksi</th>', html=True)
+        self.assertContains(response, f'hx-get="{reverse("accounts:user_delete", args=[self.target.pk])}"')
+        self.assertNotContains(response, reverse("accounts:user_delete", args=[self.root.pk]))
+        self.assertNotContains(response, reverse("accounts:user_delete", args=[self.admin.pk]))
+
+    def test_confirm_then_delete(self):
+        url = reverse("accounts:user_delete", args=[self.target.pk])
+        self.assertContains(self.client.get(url), "Yakin ingin menghapus user")
+        self.assertTrue(User.objects.filter(pk=self.target.pk).exists())
+        response = self.client.post(url)
+        self.assertRedirects(response, reverse("accounts:pengaturan"))
+        self.assertFalse(User.objects.filter(pk=self.target.pk).exists())
+
+    def test_superuser_cannot_be_deleted(self):
+        response = self.client.post(reverse("accounts:user_delete", args=[self.root.pk]), follow=True)
+        self.assertTrue(User.objects.filter(pk=self.root.pk).exists())
+        self.assertContains(response, "User root tidak bisa dihapus.")
+
+    def test_cannot_delete_own_account(self):
+        self.client.post(reverse("accounts:user_delete", args=[self.admin.pk]))
+        self.assertTrue(User.objects.filter(pk=self.admin.pk).exists())
+
+    def test_requires_login(self):
+        self.client.logout()
+        self.client.post(reverse("accounts:user_delete", args=[self.target.pk]))
+        self.assertTrue(User.objects.filter(pk=self.target.pk).exists())
