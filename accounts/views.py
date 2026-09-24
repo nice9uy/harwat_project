@@ -4,7 +4,8 @@ import string
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import login as auth_login, logout as auth_logout
+from django.contrib.auth import login as auth_login, logout as auth_logout, update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -20,7 +21,7 @@ from fleet.models import Vehicle
 from fleet.services import get_fleet_summary
 
 from . import golongan, pemeriksaan, roles
-from .forms import BiodataForm, LaporanForm, LoginForm, UserCreateForm, UserEditForm
+from .forms import TEXT_INPUT_CLASSES, BiodataForm, LaporanForm, LoginForm, UserCreateForm, UserEditForm
 from .models import Anggota
 from .roles import keanggotaan_label
 
@@ -449,3 +450,20 @@ def user_edit(request, pk):
     else:
         form = UserEditForm(**kwargs)
     return render(request, "accounts/_user_edit_form.html", {"form": form, "akun": akun})
+
+
+@login_required
+def ganti_password_view(request):
+    """Change the logged-in user's own password (open to every role)."""
+    if request.method == "POST":
+        form = PasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)  # stay logged in
+            messages.success(request, "Password berhasil diganti.")
+            return redirect("accounts:ganti_password")
+    else:
+        form = PasswordChangeForm(request.user)
+    for field in form.fields.values():
+        field.widget.attrs["class"] = TEXT_INPUT_CLASSES
+    return render(request, "accounts/ganti_password.html", {"form": form})

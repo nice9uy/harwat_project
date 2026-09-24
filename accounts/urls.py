@@ -25,4 +25,5 @@ urlpatterns = [
     path("pengaturan/user/tambah/", views.user_create, name="user_create"),
     path("pengaturan/user/<int:pk>/hapus/", views.user_delete, name="user_delete"),
     path("pengaturan/user/<int:pk>/ubah/", views.user_edit, name="user_edit"),
+    path("ganti-password/", views.ganti_password_view, name="ganti_password"),
 ]

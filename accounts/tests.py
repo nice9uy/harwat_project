@@ -1403,3 +1403,47 @@ class TambahAnggotaTests(TestCase):
         response = self.client.post(url, {"username": "baru2", "keanggotaan": "pimpinan"})
         self.assertEqual(response.status_code, 200)
         self.assertFalse(User.objects.filter(username="baru2").exists())
+
+
+
+class GantiPasswordTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        self.user = User.objects.create_user(username="periksa", password="12345")
+        self.user.groups.add(Group.objects.get(name="Tim Pemeriksaan"))
+        self.client.login(username="periksa", password="12345")
+
+    def test_menu_below_pengaturan_for_every_role(self):
+        response = self.client.get(reverse("accounts:pemeriksaan"))
+        self.assertContains(response, f'<a href="{reverse("accounts:ganti_password")}" class=')
+        self.assertEqual(self.client.get(reverse("accounts:ganti_password")).status_code, 200)
+
+    def test_changes_password_and_stays_logged_in(self):
+        response = self.client.post(reverse("accounts:ganti_password"), {
+            "old_password": "12345",
+            "new_password1": "Kendaraan-Aman-2026",
+            "new_password2": "Kendaraan-Aman-2026",
+        }, follow=True)
+        self.assertContains(response, "Password berhasil diganti.")
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("Kendaraan-Aman-2026"))
+        self.assertEqual(self.client.get(reverse("accounts:history")).status_code, 200)
+
+    def test_wrong_old_password_or_weak_new_password_rejected(self):
+        self.client.post(reverse("accounts:ganti_password"), {
+            "old_password": "salah", "new_password1": "Kendaraan-Aman-2026", "new_password2": "Kendaraan-Aman-2026",
+        })
+        self.client.post(reverse("accounts:ganti_password"), {
+            "old_password": "12345", "new_password1": "123456789", "new_password2": "123456789",
+        })
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("12345"))
+
+    def test_sidebar_order_pengaturan_then_ganti_password(self):
+        User.objects.create_superuser(username="root", password="rahasia-123")
+        self.client.login(username="root", password="rahasia-123")
+        content = self.client.get(reverse("accounts:dashboard")).content.decode()
+        self.assertLess(
+            content.index(f'<a href="{reverse("accounts:pengaturan")}"'),
+            content.index(f'<a href="{reverse("accounts:ganti_password")}"'),
+        )
