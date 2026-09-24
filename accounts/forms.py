@@ -24,27 +24,32 @@ FILE_INPUT_CLASSES = (
     "dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
 )
 
-CHECKBOX_CLASSES = (
-    "h-4 w-4 rounded border-slate-300 text-navy focus:ring-gold "
-    "dark:border-slate-600 dark:bg-slate-900"
-)
-
 
 class LoginForm(AuthenticationForm):
     remember_me = forms.BooleanField(required=False, initial=True, label="Ingat saya")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Dark fields with room for the icon on the left (login page design).
+        field = (
+            "w-full rounded-lg border border-white/10 bg-black/60 py-3 pl-11 pr-11 text-base text-white "
+            "placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+        )
         self.fields["username"].widget.attrs.update({
-            "class": TEXT_INPUT_CLASSES,
-            "placeholder": "Username",
+            "class": field,
+            "placeholder": "nama.pengguna",
             "autofocus": True,
+            "autocomplete": "username",
         })
         self.fields["password"].widget.attrs.update({
-            "class": TEXT_INPUT_CLASSES,
-            "placeholder": "Password",
+            "class": field,
+            "placeholder": "••••••••",
+            "autocomplete": "current-password",
+            ":type": "lihat ? 'text' : 'password'",
         })
-        self.fields["remember_me"].widget.attrs.update({"class": CHECKBOX_CLASSES})
+        self.fields["remember_me"].widget.attrs.update({
+            "class": "h-5 w-5 rounded border-white/20 bg-black/60 accent-sky-500 focus:ring-sky-400",
+        })
 
 
 def _siapkan_keanggotaan(form, allow_superuser, kecuali=None):
