@@ -137,6 +137,7 @@ class _ChecklistForm(forms.ModelForm):
     golongan = None
     alat = []
     kondisi = []
+    pakai_jumlah = True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -153,7 +154,7 @@ class _ChecklistForm(forms.ModelForm):
             kondisi = self.data.get(prefix + "kondisi", "")
             if kondisi not in kondisi_valid:
                 errors.append(f"Kondisi {nomor}. {nama} belum dipilih.")
-            jumlah_raw = self.data.get(prefix + "jml", "").strip()
+            jumlah_raw = self.data.get(prefix + "jml", "").strip() if self.pakai_jumlah else ""
             jumlah = None
             if jumlah_raw:
                 if not jumlah_raw.isdigit():
@@ -166,14 +167,16 @@ class _ChecklistForm(forms.ModelForm):
                     foto = forms.ImageField().clean(foto)
                 except forms.ValidationError:
                     errors.append(f"Foto {nomor}. {nama} bukan gambar yang valid.")
-            items.append({
+            item = {
                 "nomor": nomor,
                 "nama_alat": nama,
-                "jumlah": jumlah,
                 "kondisi": kondisi,
                 "foto": foto or None,
                 "keterangan": self.data.get(prefix + "keterangan", "").strip(),
-            })
+            }
+            if self.pakai_jumlah:
+                item["jumlah"] = jumlah
+            items.append(item)
         if errors:
             raise forms.ValidationError(errors)
         self.cleaned_items = items
@@ -194,6 +197,7 @@ class PemeriksaanBermotorForm(_ChecklistForm):
     golongan = Vehicle.GroupKendaraan.KENDARAAN_BERMOTOR
     alat = checklist.KOMPONEN_BERMOTOR_BERNOMOR
     kondisi = checklist.KONDISI_BERMOTOR
+    pakai_jumlah = False
 
     class Meta:
         model = PemeriksaanBermotor

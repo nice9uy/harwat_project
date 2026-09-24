@@ -254,10 +254,11 @@ def history_kendaraan_view(request):
         # Parts repaired back to Baik no longer need attention.
         "perlu_perhatian": _perlu_perbaikan(vehicle, terakhir),
         "riwayat_perbaikan": riwayat_perbaikan,
+        "pakai_jumlah": cfg.pakai_jumlah if cfg else False,
     })
 
 
-def _clean_perbaikan(data, files, daftar, kondisi):
+def _clean_perbaikan(data, files, daftar, kondisi, pakai_jumlah):
     """Validate the repair fields of the items the technician opened.
 
     Returns (entries, errors); entries are dicts ready for the group's repair model.
@@ -272,7 +273,7 @@ def _clean_perbaikan(data, files, daftar, kondisi):
         kode = data.get(prefix + "kondisi", "")
         if kode not in kondisi_valid:
             errors.append(f"Kondisi perbaikan {label} belum dipilih.")
-        jumlah_raw = data.get(prefix + "jml", "").strip()
+        jumlah_raw = data.get(prefix + "jml", "").strip() if pakai_jumlah else ""
         if jumlah_raw and not jumlah_raw.isdigit():
             errors.append(f"Jumlah perbaikan {label} harus angka 0 atau lebih.")
         foto = files.get(prefix + "foto")
@@ -281,13 +282,15 @@ def _clean_perbaikan(data, files, daftar, kondisi):
                 foto = forms.ImageField().clean(foto)
             except forms.ValidationError:
                 errors.append(f"Foto perbaikan {label} bukan gambar yang valid.")
-        entries.append({
+        entry = {
             "item": item,
             "kondisi": kode,
-            "jumlah": int(jumlah_raw) if jumlah_raw.isdigit() else None,
             "keterangan": data.get(prefix + "keterangan", "").strip(),
             "foto": foto or None,
-        })
+        }
+        if pakai_jumlah:
+            entry["jumlah"] = int(jumlah_raw) if jumlah_raw.isdigit() else None
+        entries.append(entry)
     if not entries and not errors:
         errors.append("Pilih minimal satu item lalu klik Perbaikan untuk mengisinya.")
     return entries, errors
@@ -305,7 +308,7 @@ def perbaikan_view(request):
         else:
             _, terakhir = _riwayat_pemeriksaan(vehicle)
             entries, errors = _clean_perbaikan(
-                request.POST, request.FILES, _perlu_perbaikan(vehicle, terakhir), cfg.kondisi,
+                request.POST, request.FILES, _perlu_perbaikan(vehicle, terakhir), cfg.kondisi, cfg.pakai_jumlah,
             )
         if form.is_valid() and not errors:
             with transaction.atomic():
@@ -337,6 +340,7 @@ def perbaikan_kendaraan_view(request):
         "terakhir": terakhir,
         "daftar": _perlu_perbaikan(vehicle, terakhir),
         "kondisi": cfg.kondisi if cfg else [],
+        "pakai_jumlah": cfg.pakai_jumlah if cfg else False,
     })
 
 

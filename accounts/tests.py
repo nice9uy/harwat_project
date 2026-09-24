@@ -1076,6 +1076,20 @@ class PemeriksaanBermotorTests(TestCase):
             ("265/65 R17", 80, 75, None, 60, 100),
         )
 
+    def test_bermotor_checklist_has_no_jumlah(self):
+        response = self.client.get(reverse("accounts:pemeriksaan"))
+        content = response.content.decode()
+        bermotor = content[content.index("<template x-if=\"kendaraan && kendaraan.group_kode === 'bermotor'\">"):]
+        golongan_b = content[:content.index("<template x-if=\"kendaraan && kendaraan.group_kode === 'bermotor'\">")]
+        self.assertNotIn('name="alat_1_jml"', bermotor)
+        self.assertIn('name="alat_1_jml"', golongan_b)
+        self._post_pemeriksaan(alat_1_kondisi="HP", alat_1_jml="5")
+        mesin = PemeriksaanBermotor.objects.get().items.get(nomor=1)
+        self.assertFalse(hasattr(mesin, "jumlah"))
+        daftar = self.client.get(reverse("accounts:perbaikan_kendaraan"), {"nopol": "B 7777 KB"})
+        self.assertNotContains(daftar, f'name="perbaikan_{mesin.pk}_jml"')
+        self.assertNotContains(daftar, "Jumlah")
+
     def test_tyre_percent_above_100_is_rejected(self):
         self._post_pemeriksaan(ban_cadangan="120")
         self.assertEqual(PemeriksaanBermotor.objects.count(), 0)

@@ -1,7 +1,7 @@
 {% load pemeriksaan_tags %}
 {% comment %}
 One checklist part as an accordion panel (Jumlah, Kondisi, Foto, Keterangan).
-Expects no, nama and kondisi [(kode, label)]; the parent holds `open`.
+Expects no, nama, kondisi [(kode, label)] and pakai_jumlah; the parent holds `open`.
 {% endcomment %}
 <section data-panel="{{ no }}" x-data="{ jml: '', kondisi: '', foto: null }">
     <button type="button" @click="open = open === {{ no }} ? null : {{ no }}"
@@ -18,11 +18,13 @@ Expects no, nama and kondisi [(kode, label)]; the parent holds `open`.
         </span>
     </button>
     <div x-show="open === {{ no }}" x-cloak class="px-4 py-4 space-y-3">
+        {% if pakai_jumlah %}
         <div>
             <label for="alat_{{ no }}_jml" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Jumlah</label>
             <input type="number" id="alat_{{ no }}_jml" name="alat_{{ no }}_jml" min="0" inputmode="numeric" x-model="jml"
                    class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
         </div>
+        {% endif %}
         <fieldset>
             <legend class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kondisi</legend>
             <div class="grid {% if kondisi|length == 4 %}grid-cols-2 sm:grid-cols-4{% else %}grid-cols-3{% endif %} gap-2">

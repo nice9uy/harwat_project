@@ -90,6 +90,6 @@ after a Kendaraan Bermotor vehicle is scanned.
     </section>
 
     {% for no, nama in alat_bermotor %}
-    {% include "accounts/_pemeriksaan_item.html" with kondisi=kondisi_bermotor %}
+    {% include "accounts/_pemeriksaan_item.html" with kondisi=kondisi_bermotor pakai_jumlah=False %}
     {% endfor %}
 </div>

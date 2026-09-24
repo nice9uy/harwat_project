@@ -28,6 +28,7 @@ class Golongan:
     perbaikan_model: type
     relasi: str  # Vehicle related_name of the inspections
     kondisi: list
+    pakai_jumlah: bool  # the paper form has a Jumlah column
     baik: str = "B"
 
 
@@ -39,6 +40,7 @@ GOLONGAN = {
         perbaikan_model=PerbaikanGolonganB,
         relasi="pemeriksaan_golongan_b",
         kondisi=checklist.KONDISI,
+        pakai_jumlah=True,
     ),
     Vehicle.GroupKendaraan.KENDARAAN_BERMOTOR: Golongan(
         form=PemeriksaanBermotorForm,
@@ -47,6 +49,7 @@ GOLONGAN = {
         perbaikan_model=PerbaikanBermotor,
         relasi="pemeriksaan_bermotor",
         kondisi=checklist.KONDISI_BERMOTOR,
+        pakai_jumlah=False,
     ),
 }
 

@@ -84,7 +84,7 @@ class PemeriksaanBermotorAdmin(admin.ModelAdmin):
 
 @admin.register(PemeriksaanBermotorItem)
 class PemeriksaanBermotorItemAdmin(admin.ModelAdmin):
-    list_display = ["pemeriksaan", "nomor", "nama_alat", "jumlah", "kondisi", "keterangan"]
+    list_display = ["pemeriksaan", "nomor", "nama_alat", "kondisi", "keterangan"]
     list_filter = ["kondisi", "nama_alat"]
     list_select_related = ["pemeriksaan__vehicle"]
     search_fields = ["pemeriksaan__vehicle__nopol", "nama_alat", "keterangan"]
@@ -92,7 +92,7 @@ class PemeriksaanBermotorItemAdmin(admin.ModelAdmin):
 
 @admin.register(PerbaikanBermotor)
 class PerbaikanBermotorAdmin(admin.ModelAdmin):
-    list_display = ["item", "kendaraan", "kondisi", "jumlah", "teknisi", "dibuat_pada"]
+    list_display = ["item", "kendaraan", "kondisi", "teknisi", "dibuat_pada"]
     list_filter = ["kondisi"]
     list_select_related = ["item__pemeriksaan__vehicle", "teknisi"]
     search_fields = ["item__pemeriksaan__vehicle__nopol", "item__nama_alat", "teknisi__nama", "keterangan"]

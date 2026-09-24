@@ -199,7 +199,6 @@ class PemeriksaanBermotorItem(models.Model):
     pemeriksaan = models.ForeignKey(PemeriksaanBermotor, on_delete=models.CASCADE, related_name="items")
     nomor = models.PositiveSmallIntegerField()
     nama_alat = models.CharField(max_length=100, verbose_name="Nama Komponen")
-    jumlah = models.PositiveIntegerField(null=True, blank=True)
     kondisi = models.CharField(max_length=2, choices=checklist.KONDISI_BERMOTOR)
     foto = models.ImageField(upload_to="pemeriksaan/", blank=True)
     keterangan = models.TextField(blank=True)
@@ -228,7 +227,6 @@ class PerbaikanBermotor(models.Model):
         verbose_name="Item Pemeriksaan",
     )
     kondisi = models.CharField(max_length=2, choices=checklist.KONDISI_BERMOTOR)
-    jumlah = models.PositiveIntegerField(null=True, blank=True)
     keterangan = models.TextField(blank=True)
     foto = models.ImageField(upload_to="perbaikan/", blank=True)
     dibuat_pada = models.DateTimeField(auto_now_add=True)
