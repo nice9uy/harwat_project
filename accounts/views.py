@@ -21,6 +21,7 @@ from fleet.services import get_fleet_summary
 
 from . import golongan, pemeriksaan, roles
 from .forms import BiodataForm, LaporanForm, LoginForm, UserCreateForm, UserEditForm
+from .models import Anggota
 from .roles import keanggotaan_label
 
 
@@ -346,12 +347,28 @@ def perbaikan_kendaraan_view(request):
 
 @login_required
 def pengaturan_view(request):
-    users = User.objects.prefetch_related("groups").select_related("anggota").order_by("username")
-    for user in users:
-        user.keanggotaan = keanggotaan_label(user)
-        node = getattr(user, "anggota", None)
-        parent = node.get_parent() if node is not None and not node.is_root() else None
-        user.ketua_tim = parent.user.username if parent else ""
+    """Users outside the team tree first, then each Ketua Tim followed by its members."""
+    semua = {u.pk: u for u in User.objects.prefetch_related("groups").order_by("username")}
+    users, dalam_pohon, tree = [], set(), []
+    nodes = list(Anggota.get_tree().select_related("user"))
+    # Ketua Tim (roots) and their members, each sorted by username.
+    for ketua in sorted((n for n in nodes if n.depth == 1), key=lambda n: n.user.username):
+        anggota = sorted(
+            (n for n in nodes if n.depth == 2 and n.path.startswith(ketua.path)), key=lambda n: n.user.username,
+        )
+        for node in [ketua, *anggota]:
+            akun = semua[node.user_id]
+            akun.kedalaman = node.depth - 1
+            akun.ketua_tim = ketua.user.username if node.depth > 1 else ""
+            tree.append(akun)
+            dalam_pohon.add(akun.pk)
+    for akun in semua.values():
+        if akun.pk not in dalam_pohon:
+            akun.kedalaman, akun.ketua_tim = 0, ""
+            users.append(akun)
+    users += tree
+    for akun in users:
+        akun.keanggotaan = keanggotaan_label(akun)
     return render(request, "accounts/pengaturan.html", {"users": users})
 
 

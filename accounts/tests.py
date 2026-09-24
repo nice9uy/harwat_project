@@ -1345,3 +1345,27 @@ class UserEditTests(TestCase):
         root.refresh_from_db()
         self.assertTrue(root.is_superuser)
         self.assertNotContains(self.client.get(reverse("accounts:user_edit", args=[self.pemeriksa.pk])), 'value="superuser"')
+
+
+
+class PengaturanHierarchyTableTests(TestCase):
+    def test_members_listed_under_their_ketua(self):
+        from django.contrib.auth.models import Group
+        User.objects.create_superuser(username="admin0", password="rahasia-123")
+        self.client.login(username="admin0", password="rahasia-123")
+        ketua_b = _buat_ketua("b_ketua")
+        ketua_a = _buat_ketua("a_ketua")
+        for username, ketua in (("zz_anggota_a", ketua_a), ("aa_anggota_b", ketua_b), ("mm_anggota_a", ketua_a)):
+            user = User.objects.create_user(username=username, password="x")
+            user.groups.add(Group.objects.get(name="Tim Pemeriksaan"))
+            type(ketua).objects.get(pk=ketua.pk).add_child(user=user)
+        content = self.client.get(reverse("accounts:pengaturan")).content.decode()
+        import re
+        tbody = content[content.index("<tbody"):content.index("</tbody>")]
+        # Second cell of each row holds the username (possibly after an icon or "└─").
+        order = [
+            re.sub(r"<[^>]+>|└─|\s", "", cell)
+            for cell in re.findall(r"<tr>\s*<td[^>]*>\d+</td>\s*<td[^>]*>(.*?)</td>", tbody, re.S)
+        ]
+        self.assertEqual(order, ["admin0", "a_ketua", "mm_anggota_a", "zz_anggota_a", "b_ketua", "aa_anggota_b"])
+        self.assertEqual(content.count("└─"), 3)
