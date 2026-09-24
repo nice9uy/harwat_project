@@ -1,5 +1,5 @@
 from django import forms
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import Group, User
 
 from fleet.models import Vehicle
@@ -47,13 +47,14 @@ class LoginForm(AuthenticationForm):
         self.fields["remember_me"].widget.attrs.update({"class": CHECKBOX_CLASSES})
 
 
-class UserCreateForm(UserCreationForm):
-    email = forms.EmailField(required=False, label="Email")
+class UserCreateForm(forms.ModelForm):
+    """New users get roles.DEFAULT_PASSWORD; no password is typed in the form."""
+
     keanggotaan = forms.ChoiceField(label="Keanggotaan", choices=roles.KEANGGOTAAN)
 
-    class Meta(UserCreationForm.Meta):
+    class Meta:
         model = User
-        fields = ("username", "email")
+        fields = ("username",)
 
     def __init__(self, *args, allow_superuser=False, **kwargs):
         super().__init__(*args, **kwargs)
@@ -63,13 +64,13 @@ class UserCreateForm(UserCreationForm):
                 choice for choice in roles.KEANGGOTAAN if choice[0] != roles.SUPERUSER
             ]
         self.fields["keanggotaan"].choices = [("", "Pilih keanggotaan")] + list(self.fields["keanggotaan"].choices)
-        for name in ("username", "email", "password1", "password2"):
-            self.fields[name].widget.attrs["class"] = TEXT_INPUT_CLASSES
+        self.fields["username"].widget.attrs["class"] = TEXT_INPUT_CLASSES
         self.fields["keanggotaan"].widget.attrs["class"] = TEXT_INPUT_CLASSES
         self.fields["username"].widget.attrs["placeholder"] = "teknisi2"
 
     def save(self, commit=True):
         user = super().save(commit=False)
+        user.set_password(roles.DEFAULT_PASSWORD)
         kode = self.cleaned_data["keanggotaan"]
         user.is_superuser = kode == roles.SUPERUSER
         # Superuser and Admin can open Django admin.

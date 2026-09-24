@@ -120,9 +120,6 @@ class UserCreateViewTests(TestCase):
     def test_post_valid_data_creates_user(self):
         response = self.client.post(reverse("accounts:user_create"), {
             "username": "teknisi2",
-            "email": "teknisi2@example.com",
-            "password1": "kompleks-sekali-123",
-            "password2": "kompleks-sekali-123",
             "keanggotaan": "tim_pemeriksaan",
         })
         self.assertRedirects(response, reverse("accounts:pengaturan"))
@@ -135,9 +132,6 @@ class UserCreateViewTests(TestCase):
             reverse("accounts:user_create"),
             {
                 "username": "teknisi3",
-                "email": "",
-                "password1": "kompleks-sekali-123",
-                "password2": "kompleks-sekali-123",
                 "keanggotaan": "pimpinan",
             },
             HTTP_HX_REQUEST="true",
@@ -149,8 +143,6 @@ class UserCreateViewTests(TestCase):
     def _create(self, keanggotaan):
         return self.client.post(reverse("accounts:user_create"), {
             "username": "baru",
-            "password1": "kompleks-sekali-123",
-            "password2": "kompleks-sekali-123",
             "keanggotaan": keanggotaan,
         })
 
@@ -197,15 +189,19 @@ class UserCreateViewTests(TestCase):
             {"Admin", "Pimpinan", "Tim Pemeriksaan", "Tim Penambahan Data", "Tim Perbaikan"},
         )
 
-    def test_post_mismatched_passwords_shows_error(self):
-        response = self.client.post(reverse("accounts:user_create"), {
-            "username": "teknisi4",
-            "email": "",
-            "password1": "kompleks-sekali-123",
-            "password2": "beda-sekali-456",
-        })
+    def test_new_user_gets_default_password_and_no_email_field(self):
+        response = self.client.get(reverse("accounts:user_create"))
+        self.assertNotContains(response, 'name="email"')
+        self.assertNotContains(response, 'name="password1"')
+        self.assertContains(response, "Password awal user baru")
+        self._create("tim_perbaikan")
+        self.assertTrue(User.objects.get(username="baru").check_password("12345"))
+
+    def test_duplicate_username_is_rejected(self):
+        self._create("tim_perbaikan")
+        response = self._create("tim_perbaikan")
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(User.objects.filter(username="teknisi4").exists())
+        self.assertEqual(User.objects.filter(username="baru").count(), 1)
 
 
 def _pemeriksaan_data(vehicle, **overrides):

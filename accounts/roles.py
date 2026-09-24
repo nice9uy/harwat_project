@@ -4,6 +4,9 @@ Superuser is Django's is_superuser flag; the other roles are auth Groups
 (created by migration 0006), one per user.
 """
 
+# Password every user created from Pengaturan starts with.
+DEFAULT_PASSWORD = "12345"
+
 SUPERUSER = "superuser"
 ADMIN = "admin"
 

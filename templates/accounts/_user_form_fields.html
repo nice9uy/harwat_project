@@ -16,25 +16,11 @@
         {% if form.username.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.username.errors.0 }}</p>{% endif %}
     </div>
     <div>
-        <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
-        {{ form.email }}
-        {% if form.email.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.email.errors.0 }}</p>{% endif %}
-    </div>
-    <div>
         <label for="{{ form.keanggotaan.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Keanggotaan</label>
         {{ form.keanggotaan }}
         {% if form.keanggotaan.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.keanggotaan.errors.0 }}</p>{% endif %}
     </div>
-    <div>
-        <label for="{{ form.password1.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password</label>
-        {{ form.password1 }}
-        {% if form.password1.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.password1.errors.0 }}</p>{% endif %}
-    </div>
-    <div>
-        <label for="{{ form.password2.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Konfirmasi Password</label>
-        {{ form.password2 }}
-        {% if form.password2.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.password2.errors.0 }}</p>{% endif %}
-    </div>
+    <p class="rounded-md bg-slate-100 dark:bg-slate-900 px-3 py-2 text-xs text-slate-600 dark:text-slate-300">Password awal user baru: <span class="font-mono font-semibold">12345</span></p>
     <div class="flex items-center gap-3 pt-2">
         <button type="submit" class="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white hover:bg-navy-light focus:outline-none focus:ring-2 focus:ring-gold/50">Simpan</button>
         <button type="button" @click="modalOpen = false" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Batal</button>
