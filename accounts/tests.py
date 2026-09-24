@@ -990,7 +990,11 @@ class SidebarLogoutTests(TestCase):
         User.objects.create_user(username="teknisi1", password="rahasia-123")
         self.client.login(username="teknisi1", password="rahasia-123")
         content = self.client.get(reverse("accounts:dashboard")).content.decode()
+        button = content.index('@click="logoutOpen = true"')
+        self.assertLess(content.index("</nav>"), button)
+        self.assertLess(button, content.index("</aside>"))
+        # The button only opens a confirmation; the logout form lives in that modal.
         logout_form = content.index(f'action="{reverse("accounts:logout")}"')
-        self.assertLess(content.index("</nav>"), logout_form)
-        self.assertLess(logout_form, content.index("</aside>"))
+        self.assertLess(content.index('x-show="logoutOpen"'), logout_form)
         self.assertEqual(content.count(f'action="{reverse("accounts:logout")}"'), 1)
+        self.assertContains(self.client.get(reverse("accounts:dashboard")), "Yakin ingin keluar dari aplikasi?")
