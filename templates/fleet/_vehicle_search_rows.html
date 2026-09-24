@@ -1,0 +1,21 @@
+{% for vehicle in vehicles %}
+<tr>
+    <td class="py-2 px-3 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td>
+    <td class="py-2 px-3 font-medium text-navy dark:text-slate-100">
+        <a href="{% url 'fleet:vehicle_list' %}?group={{ vehicle.group_kendaraan }}" class="hover:text-gold hover:underline">{{ vehicle.nopol }}</a>
+    </td>
+    <td class="py-2 px-3">{{ vehicle.merek }}</td>
+    <td class="py-2 px-3">{{ vehicle.no_chasis|default:"-" }}</td>
+    <td class="py-2 px-3">{{ vehicle.no_mesin|default:"-" }}</td>
+    <td class="py-2 px-3 whitespace-nowrap">{{ vehicle.get_group_kendaraan_display }}</td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="6" class="py-6 px-3 text-center text-slate-400 dark:text-slate-500">{% if q %}Tidak ada kendaraan yang cocok dengan "{{ q }}".{% else %}Belum ada data kendaraan.{% endif %}</td>
+</tr>
+{% endfor %}
+{% if total > maks %}
+<tr>
+    <td colspan="6" class="py-2 px-3 text-center text-xs text-slate-500 dark:text-slate-400">Menampilkan {{ maks }} dari {{ total }} kendaraan. Persempit pencarian.</td>
+</tr>
+{% endif %}

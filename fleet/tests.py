@@ -627,3 +627,37 @@ class VehicleFotoSlotsTests(TestCase):
         vehicle = Vehicle.objects.create(nopol="B 1 A", merek="X")
         response = self.client.get(reverse("fleet:vehicle_update", args=[vehicle.pk]), HTTP_HX_REQUEST="true")
         self.assertNotRegex(response.content.decode(), r'id="foto_1" name="foto"[^>]*required')
+
+
+
+class VehicleSearchTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.client.login(username="teknisi1", password="rahasia-123")
+        Vehicle.objects.create(nopol="B 1111 AA", merek="Hino Dutro", no_chasis="CH-AAA", no_mesin="MS-111")
+        Vehicle.objects.create(nopol="B 2222 BB", merek="Honda Beat", group_kendaraan="bermotor", no_mesin="MS-222")
+
+    def test_list_has_cari_button(self):
+        response = self.client.get(reverse("fleet:vehicle_list"))
+        self.assertContains(response, f'hx-get="{reverse("fleet:vehicle_search")}"')
+        self.assertContains(response, "Cari")
+
+    def test_modal_shows_search_field_and_all_vehicles(self):
+        response = self.client.get(reverse("fleet:vehicle_search"))
+        self.assertContains(response, 'type="search" name="q"')
+        self.assertContains(response, "B 1111 AA")
+        self.assertContains(response, "B 2222 BB")
+        self.assertContains(response, "Kendaraan Bermotor")
+
+    def test_live_search_filters_rows(self):
+        for q, found, missing in (("hino", "B 1111 AA", "B 2222 BB"), ("MS-222", "B 2222 BB", "B 1111 AA"),
+                                  ("ch-aaa", "B 1111 AA", "B 2222 BB"), ("2222", "B 2222 BB", "B 1111 AA")):
+            response = self.client.get(reverse("fleet:vehicle_search"), {"q": q, "hasil": "1"})
+            self.assertContains(response, found)
+            self.assertNotContains(response, missing)
+            self.assertNotContains(response, 'type="search"')
+
+    def test_no_match_message(self):
+        response = self.client.get(reverse("fleet:vehicle_search"), {"q": "zzz", "hasil": "1"})
+        self.assertContains(response, 'Tidak ada kendaraan yang cocok dengan')
+        self.assertContains(response, 'zzz')

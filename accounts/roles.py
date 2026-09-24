@@ -51,7 +51,7 @@ MENU_VIEWS = {
     "armada": {
         "fleet:vehicle_list", "fleet:vehicle_create", "fleet:vehicle_update",
         "fleet:vehicle_delete", "fleet:vehicle_delete_confirm", "fleet:vehicle_photos",
-        "fleet:vehicle_qr_modal",
+        "fleet:vehicle_qr_modal", "fleet:vehicle_search",
     },
     "jadwal": set(),
     "servis": set(),

@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme, urlencode
@@ -150,3 +151,22 @@ def vehicle_lookup(request):
         "group_kendaraan": vehicle.get_group_kendaraan_display(),
         "group_kode": vehicle.group_kendaraan,
     })
+
+
+PENCARIAN_MAKS = 50
+
+
+@login_required
+def vehicle_search(request):
+    """Cari modal: vehicles of every group matching No. Registrasi, Merk/Type,
+    No. Chasis or No. Mesin. ``?hasil=1`` returns only the table rows (live search)."""
+    q = request.GET.get("q", "").strip()
+    vehicles = Vehicle.objects.order_by("nopol")
+    if q:
+        vehicles = vehicles.filter(
+            Q(nopol__icontains=q) | Q(merek__icontains=q) | Q(no_chasis__icontains=q) | Q(no_mesin__icontains=q)
+        )
+    total = vehicles.count()
+    context = {"vehicles": vehicles[:PENCARIAN_MAKS], "total": total, "q": q, "maks": PENCARIAN_MAKS}
+    template = "fleet/_vehicle_search_rows.html" if request.GET.get("hasil") else "fleet/_vehicle_search_modal.html"
+    return render(request, template, context)

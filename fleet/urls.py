@@ -8,6 +8,7 @@ urlpatterns = [
     path("", views.vehicle_list, name="vehicle_list"),
     path("tambah/", views.vehicle_create, name="vehicle_create"),
     path("cari/", views.vehicle_lookup, name="vehicle_lookup"),
+    path("pencarian/", views.vehicle_search, name="vehicle_search"),
     path("<int:pk>/edit/", views.vehicle_update, name="vehicle_update"),
     path("<int:pk>/hapus/", views.vehicle_delete, name="vehicle_delete"),
     path("<int:pk>/hapus/konfirmasi/", views.vehicle_delete_confirm, name="vehicle_delete_confirm"),
