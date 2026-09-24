@@ -1,0 +1,18 @@
+{% comment %}
+Inspection checklist for Kendaraan Diesel: chapters (I-V) and systems as
+headings, one accordion panel per part (Sat, Jml Riil/Nyata, Kondisi, Foto,
+Keterangan). Loaded after a Kendaraan Diesel vehicle is scanned.
+{% endcomment %}
+<div x-data="{ open: null }" @buka-panel.window="open = $event.detail" class="rounded-md border border-slate-300 dark:border-slate-600 overflow-hidden">
+    {% for bab, judul, sistem_list in diesel_bab %}
+    <h3 class="bg-navy px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white">{{ bab }}. {{ judul }}</h3>
+    {% for huruf, sistem, items in sistem_list %}
+    {% if sistem %}<h4 class="border-b border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">{{ huruf }}. {{ sistem }}</h4>{% endif %}
+    <div class="divide-y divide-slate-200 dark:divide-slate-700">
+        {% for no, lokal, nama in items %}
+        {% include "accounts/_pemeriksaan_item.html" with label_no=lokal %}
+        {% endfor %}
+    </div>
+    {% endfor %}
+    {% endfor %}
+</div>

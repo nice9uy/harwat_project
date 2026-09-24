@@ -285,7 +285,7 @@ class LaporanViewTests(TestCase):
         from .pemeriksaan import ALAT
         self.assertEqual(len(ALAT), 40)
         self.client.login(username="teknisi1", password="rahasia-123")
-        response = self.client.get(reverse("accounts:pemeriksaan"))
+        response = self.client.get(reverse("accounts:pemeriksaan_checklist", args=["B"]))
         for text in ("Pembagian Kelas", "Eselon Reparasi", "Macam Pemeriksaan", "Tiba-tiba"):
             self.assertContains(response, text)
         self.assertContains(response, 'name="pembagian_kelas" value="6"')
@@ -641,10 +641,10 @@ class PemeriksaanGolonganBSaveTests(TestCase):
         self.assertContains(response, "tidak bisa dihapus karena sudah punya data pemeriksaan")
 
     def test_form_marks_classification_and_kondisi_required(self):
-        response = self.client.get(reverse("accounts:pemeriksaan"))
+        response = self.client.get(reverse("accounts:pemeriksaan_checklist", args=["B"]))
         for name in ("pembagian_kelas", "eselon_reparasi", "macam_pemeriksaan", "buku_jalan", "alat_40_kondisi"):
             self.assertRegex(response.content.decode(), rf'name="{name}" value="[^"]+"[^>]*required')
-        self.assertContains(response, 'name="vehicle"')
+        self.assertContains(self.client.get(reverse("accounts:pemeriksaan")), 'name="vehicle"')
 
 
 class PemeriksaanCaptchaCheckTests(TestCase):
@@ -681,8 +681,10 @@ class PemeriksaanCaptchaCheckTests(TestCase):
         self.assertContains(response, self.url)
         self.assertContains(response, '@click="kirim()"')
         self.assertRegex(response.content.decode(), r'<button type="button" @click="kirim\(\)"[^>]*>Konfirmasi &amp; Kirim</button>')
-        self.assertContains(response, "<template x-if=\"kendaraan && kendaraan.group_kode === 'B'\">")
-        self.assertContains(response, "<template x-if=\"kendaraan && kendaraan.group_kode === 'bermotor'\">")
+        # Only the scanned group's checklist is loaded, after the scan.
+        self.assertContains(response, 'id="checklist"')
+        self.assertContains(response, "golonganDenganForm: ['B', 'bermotor', 'diesel']")
+        self.assertNotContains(response, 'name="alat_1_kondisi"')
         self.assertContains(response, "belum tersedia.")
 
 
@@ -1067,7 +1069,7 @@ class PemeriksaanBermotorTests(TestCase):
     def test_page_has_bermotor_checklist(self):
         from accounts.pemeriksaan import KOMPONEN_BERMOTOR
         self.assertEqual(len(KOMPONEN_BERMOTOR), 63)
-        response = self.client.get(reverse("accounts:pemeriksaan"))
+        response = self.client.get(reverse("accounts:pemeriksaan_checklist", args=["bermotor"]))
         for text in ("BBM, Buku Harian, Macam &amp; Tempat Pemeriksaan, Ban", 'name="bbm"', 'name="tempat_pemeriksaan"',
                      'name="ukuran_ban"', 'name="ban_depan_kiri" min="0" max="100"', 'name="ban_cadangan"',
                      'name="buku_harian" value="ada"', "1.</span> Mesin / Tune Up / Over Haul", "63.</span> Winch",
@@ -1089,10 +1091,8 @@ class PemeriksaanBermotorTests(TestCase):
         )
 
     def test_bermotor_checklist_has_no_jumlah(self):
-        response = self.client.get(reverse("accounts:pemeriksaan"))
-        content = response.content.decode()
-        bermotor = content[content.index("<template x-if=\"kendaraan && kendaraan.group_kode === 'bermotor'\">"):]
-        golongan_b = content[:content.index("<template x-if=\"kendaraan && kendaraan.group_kode === 'bermotor'\">")]
+        bermotor = self.client.get(reverse("accounts:pemeriksaan_checklist", args=["bermotor"])).content.decode()
+        golongan_b = self.client.get(reverse("accounts:pemeriksaan_checklist", args=["B"])).content.decode()
         self.assertNotIn('name="alat_1_jml"', bermotor)
         self.assertIn('name="alat_1_jml"', golongan_b)
         self._post_pemeriksaan(alat_1_kondisi="HP", alat_1_jml="5")
@@ -1465,3 +1465,81 @@ class PengaturanCollapseTests(TestCase):
         self.assertContains(response, f'<tr x-show="!tutup[{ketua.pk}]">')
         self.assertContains(response, "@click=\"tutup[", count=1)  # the ketua without members has no toggle
         self.assertContains(response, 'title="Jumlah anggota">1</span>')
+
+
+
+def _diesel_data(vehicle, **overrides):
+    data = {"vehicle": vehicle.pk}
+    for nomor in range(1, 142):
+        data[f"alat_{nomor}_kondisi"] = "B"
+    data.update(overrides)
+    return data
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class PemeriksaanDieselTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.client.login(username="teknisi1", password="rahasia-123")
+        self.vehicle = Vehicle.objects.create(nopol="B 3333 DD", merek="Isuzu Elf", group_kendaraan="diesel")
+
+    def _biodata(self, nama="Budi Santoso"):
+        return {
+            "nip": "1", "nama": nama, "pangkat": "Kapten", "jabatan": "Teknisi", "satuan": "ABC",
+            "foto": SimpleUploadedFile("foto.gif", TINY_GIF, content_type="image/gif"),
+        }
+
+    def _post(self, **overrides):
+        self.client.get(reverse("accounts:pemeriksaan"))
+        return self.client.post(reverse("accounts:pemeriksaan"), {
+            **self._biodata(), "captcha": self.client.session["laporan_captcha"],
+            **_diesel_data(self.vehicle, **overrides),
+        })
+
+    def test_checklist_has_chapters_systems_and_141_parts(self):
+        from accounts.pemeriksaan import KOMPONEN_DIESEL_BERNOMOR
+        self.assertEqual(len(KOMPONEN_DIESEL_BERNOMOR), 141)
+        response = self.client.get(reverse("accounts:pemeriksaan_checklist", args=["diesel"]))
+        for text in ("I. Power Plant", "A. Engine System", "V. Frame, Suspension, Body, Cab and Hood",
+                     "1.</span> Block Mesin", "18.</span> Jok Depan Ki/Ka",
+                     'name="alat_1_sat"', 'name="alat_1_riil"', 'name="alat_1_nyata"',
+                     'name="alat_141_kondisi" value="ADA"', 'name="alat_141_kondisi" value="TA"',
+                     'name="alat_141_keterangan"', 'name="alat_141_foto"'):
+            self.assertContains(response, text)
+        self.assertNotContains(response, 'name="alat_1_jml"')
+        self.assertEqual(self.client.get(reverse("accounts:pemeriksaan_checklist", args=["zzz"])).status_code, 404)
+
+    def test_saves_diesel_inspection(self):
+        response = self._post(alat_1_kondisi="RB", alat_1_sat="bh", alat_1_riil="1", alat_1_nyata="0",
+                              alat_2_kondisi="ADA", alat_3_kondisi="TA")
+        self.assertRedirects(response, reverse("accounts:pemeriksaan"))
+        from accounts.models import PemeriksaanDiesel
+        hasil = PemeriksaanDiesel.objects.get()
+        self.assertEqual(hasil.items.count(), 141)
+        block = hasil.items.get(nomor=1)
+        self.assertEqual((block.nama_alat, block.kondisi, block.satuan, block.jumlah_riil, block.jumlah_nyata),
+                         ("Block Mesin", "RB", "bh", 1, 0))
+        self.assertEqual(hasil.items.get(nomor=141).nama_alat, "Jok Depan Ki/Ka")
+
+    def test_perbaikan_and_history_for_diesel(self):
+        self._post(alat_1_kondisi="RB", alat_2_kondisi="ADA", alat_3_kondisi="TA", alat_4_kondisi="RR")
+        daftar = self.client.get(reverse("accounts:perbaikan_kendaraan"), {"nopol": "B 3333 DD"})
+        # RB, TA and RR need repair; B and ADA don't.
+        self.assertContains(daftar, "Item yang Harus Diperbaiki (3)")
+        self.assertContains(daftar, "Jml Riil / Nyata")
+        history = self.client.get(reverse("accounts:history_kendaraan"), {"nopol": "B 3333 DD"})
+        for text in ("B 137", "ADA 1", "TA 1", "RB 1", "RR 1", "Perlu Perhatian (3)"):
+            self.assertContains(history, text)
+        from accounts.models import PemeriksaanDiesel
+        block = PemeriksaanDiesel.objects.get().items.get(nomor=1)
+        self.client.post(reverse("accounts:perbaikan"), {
+            **self._biodata("Andi"), "vehicle": self.vehicle.pk,
+            f"perbaikan_{block.pk}_aktif": "1", f"perbaikan_{block.pk}_kondisi": "ADA",
+        })
+        daftar = self.client.get(reverse("accounts:perbaikan_kendaraan"), {"nopol": "B 3333 DD"})
+        self.assertContains(daftar, "Item yang Harus Diperbaiki (2)")
+
+    def test_vehicle_with_diesel_inspection_cannot_be_deleted(self):
+        self._post()
+        self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.pk]))
+        self.assertTrue(Vehicle.objects.filter(pk=self.vehicle.pk).exists())

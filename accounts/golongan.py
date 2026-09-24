@@ -9,13 +9,16 @@ from dataclasses import dataclass
 from fleet.models import Vehicle
 
 from . import pemeriksaan as checklist
-from .forms import PemeriksaanBermotorForm, PemeriksaanGolonganBForm
+from .forms import PemeriksaanBermotorForm, PemeriksaanDieselForm, PemeriksaanGolonganBForm
 from .models import (
     PemeriksaanBermotor,
     PemeriksaanBermotorItem,
+    PemeriksaanDiesel,
+    PemeriksaanDieselItem,
     PemeriksaanGolonganB,
     PemeriksaanGolonganBItem,
     PerbaikanBermotor,
+    PerbaikanDiesel,
     PerbaikanGolonganB,
 )
 
@@ -29,7 +32,9 @@ class Golongan:
     relasi: str  # Vehicle related_name of the inspections
     kondisi: list
     pakai_jumlah: bool  # the paper form has a Jumlah column
-    baik: str = "B"
+    template: str  # checklist shown after the QR scan
+    baik: tuple = ("B",)  # kondisi codes that need no repair
+    pakai_satuan: bool = False  # Sat / Jumlah Riil / Jumlah Nyata columns (diesel)
 
 
 GOLONGAN = {
@@ -41,6 +46,7 @@ GOLONGAN = {
         relasi="pemeriksaan_golongan_b",
         kondisi=checklist.KONDISI,
         pakai_jumlah=True,
+        template="accounts/_pemeriksaan_golongan_b.html",
     ),
     Vehicle.GroupKendaraan.KENDARAAN_BERMOTOR: Golongan(
         form=PemeriksaanBermotorForm,
@@ -50,6 +56,19 @@ GOLONGAN = {
         relasi="pemeriksaan_bermotor",
         kondisi=checklist.KONDISI_BERMOTOR,
         pakai_jumlah=False,
+        template="accounts/_pemeriksaan_bermotor.html",
+    ),
+    Vehicle.GroupKendaraan.KENDARAAN_DIESEL: Golongan(
+        form=PemeriksaanDieselForm,
+        pemeriksaan_model=PemeriksaanDiesel,
+        item_model=PemeriksaanDieselItem,
+        perbaikan_model=PerbaikanDiesel,
+        relasi="pemeriksaan_diesel",
+        kondisi=checklist.KONDISI_DIESEL,
+        pakai_jumlah=False,
+        template="accounts/_pemeriksaan_diesel.html",
+        baik=("B", "ADA"),
+        pakai_satuan=True,
     ),
 }
 

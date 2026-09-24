@@ -14,6 +14,7 @@ urlpatterns = [
     path("dashboard/partial/", views.dashboard_partial, name="dashboard_partial"),
     path("pemeriksaan/", views.laporan_view, name="pemeriksaan"),
     path("pemeriksaan/cek-captcha/", views.pemeriksaan_captcha_view, name="pemeriksaan_captcha"),
+    path("pemeriksaan/checklist/<str:kode>/", views.pemeriksaan_checklist_view, name="pemeriksaan_checklist"),
     # Old address, kept so bookmarks keep working.
     path("laporan/", RedirectView.as_view(pattern_name="accounts:pemeriksaan", permanent=True)),
     path("form-tambah/", views.form_tambah_view, name="form_tambah"),

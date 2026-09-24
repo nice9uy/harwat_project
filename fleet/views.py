@@ -104,7 +104,9 @@ def vehicle_delete_confirm(request, pk):
 @require_POST
 def vehicle_delete(request, pk):
     vehicle = get_object_or_404(Vehicle, pk=pk)
-    if vehicle.pemeriksaan_golongan_b.exists() or vehicle.pemeriksaan_bermotor.exists():
+    from accounts.golongan import GOLONGAN  # accounts depends on fleet, not the other way round
+
+    if any(getattr(vehicle, cfg.relasi).exists() for cfg in GOLONGAN.values()):
         messages.error(request, f"Kendaraan {vehicle.nopol} tidak bisa dihapus karena sudah punya data pemeriksaan.")
         return redirect(_list_url(vehicle.group_kendaraan))
     # Rows cascade, but the image files would otherwise stay on disk.

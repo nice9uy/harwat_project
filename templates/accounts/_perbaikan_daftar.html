@@ -42,7 +42,7 @@
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Hasil Perbaikan</p>
                     <fieldset>
                         <legend class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kondisi</legend>
-                        <div class="grid {% if kondisi|length == 4 %}grid-cols-2 sm:grid-cols-4{% else %}grid-cols-3{% endif %} gap-2">
+                        <div class="grid {% if kondisi|length == 5 %}grid-cols-3 sm:grid-cols-5{% elif kondisi|length == 4 %}grid-cols-2 sm:grid-cols-4{% else %}grid-cols-3{% endif %} gap-2">
                             {% for kode, arti in kondisi %}
                             <label class="flex flex-col items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 py-2 text-slate-700 dark:text-slate-200 cursor-pointer
                                 {{ kode|kondisi_warna_dipilih }} has-checked:text-white">

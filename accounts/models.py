@@ -257,3 +257,79 @@ class Anggota(MP_Node):
 
     def __str__(self):
         return self.user.username
+
+
+
+class PemeriksaanDiesel(models.Model):
+    """One inspection of a Kendaraan Diesel (paper form grouped by system, 141 parts)."""
+
+    pemeriksa = models.ForeignKey(
+        Laporan, on_delete=models.CASCADE, related_name="pemeriksaan_diesel",
+        verbose_name="Biodata Pemeriksa",
+    )
+    vehicle = models.ForeignKey(
+        "fleet.Vehicle", on_delete=models.PROTECT, related_name="pemeriksaan_diesel",
+        verbose_name="Kendaraan",
+    )
+    dibuat_pada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Pemeriksaan Kendaraan Diesel"
+        verbose_name_plural = "Pemeriksaan Kendaraan Diesel"
+        ordering = ["-dibuat_pada", "-id"]
+
+    def __str__(self):
+        return f"{self.vehicle.nopol} — {self.dibuat_pada:%d-%m-%Y}"
+
+    def ringkasan(self):
+        return "Pemeriksaan Kendaraan Diesel"
+
+
+class PemeriksaanDieselItem(models.Model):
+    """One checked part of a PemeriksaanDiesel: satuan, jumlah riil/nyata, kondisi."""
+
+    pemeriksaan = models.ForeignKey(PemeriksaanDiesel, on_delete=models.CASCADE, related_name="items")
+    nomor = models.PositiveSmallIntegerField()
+    nama_alat = models.CharField(max_length=100, verbose_name="Nama Komponen")
+    satuan = models.CharField(max_length=30, blank=True)
+    jumlah_riil = models.PositiveIntegerField(null=True, blank=True, verbose_name="Jumlah Riil")
+    jumlah_nyata = models.PositiveIntegerField(null=True, blank=True, verbose_name="Jumlah Nyata")
+    kondisi = models.CharField(max_length=3, choices=checklist.KONDISI_DIESEL)
+    foto = models.ImageField(upload_to="pemeriksaan/", blank=True)
+    keterangan = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Item Pemeriksaan Kendaraan Diesel"
+        verbose_name_plural = "Item Pemeriksaan Kendaraan Diesel"
+        ordering = ["nomor"]
+        constraints = [
+            models.UniqueConstraint(fields=["pemeriksaan", "nomor"], name="unique_item_per_pemeriksaan_diesel"),
+        ]
+
+    def __str__(self):
+        return f"{self.nomor}. {self.nama_alat}"
+
+
+class PerbaikanDiesel(models.Model):
+    """A repair of one part of a Kendaraan Diesel inspection that needed it."""
+
+    teknisi = models.ForeignKey(
+        Laporan, on_delete=models.CASCADE, related_name="perbaikan_diesel",
+        verbose_name="Biodata Teknisi",
+    )
+    item = models.ForeignKey(
+        PemeriksaanDieselItem, on_delete=models.CASCADE, related_name="perbaikan",
+        verbose_name="Item Pemeriksaan",
+    )
+    kondisi = models.CharField(max_length=3, choices=checklist.KONDISI_DIESEL)
+    keterangan = models.TextField(blank=True)
+    foto = models.ImageField(upload_to="perbaikan/", blank=True)
+    dibuat_pada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Perbaikan Kendaraan Diesel"
+        verbose_name_plural = "Perbaikan Kendaraan Diesel"
+        ordering = ["-dibuat_pada", "-id"]
+
+    def __str__(self):
+        return f"{self.item.pemeriksaan.vehicle.nopol} — {self.item} ({self.kondisi})"

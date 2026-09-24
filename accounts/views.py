@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Count, Prefetch, Q
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render, resolve_url
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme, urlencode
@@ -146,17 +146,36 @@ def laporan_view(request):
         "form": form,
         "pemeriksaan_form": pemeriksaan_form,
         "captcha_code": captcha_code,
+        # JS array literal for x-data (single quotes: it sits in a "…" attribute).
+        "golongan_dengan_form": "[" + ", ".join(f"'{str(kode)}'" for kode in golongan.GOLONGAN) + "]",
+    })
+
+
+@login_required
+def pemeriksaan_checklist_view(request, kode):
+    """The checklist of one vehicle group, loaded into Form Pemeriksaan after the QR scan.
+
+    Loading only the scanned group's checklist keeps the page small and
+    keeps other groups' same-named, required fields out of the form.
+    """
+    cfg = golongan.GOLONGAN.get(kode)
+    if cfg is None:
+        raise Http404("Form pemeriksaan untuk golongan ini belum tersedia.")
+    return render(request, cfg.template, {
+        "kondisi": cfg.kondisi,
+        "pakai_jumlah": cfg.pakai_jumlah,
+        "pakai_satuan": cfg.pakai_satuan,
         # Golongan B
         "pembagian_kelas": pemeriksaan.PEMBAGIAN_KELAS,
         "eselon_reparasi": pemeriksaan.ESELON_REPARASI,
         "macam_pemeriksaan": pemeriksaan.MACAM_PEMERIKSAAN,
         "buku_jalan": pemeriksaan.BUKU_JALAN,
-        "kondisi_golongan_b": pemeriksaan.KONDISI,
         "alat_golongan_b": pemeriksaan.ALAT_BERNOMOR,
         # Kendaraan Bermotor
         "buku_harian": pemeriksaan.BUKU_HARIAN,
-        "kondisi_bermotor": pemeriksaan.KONDISI_BERMOTOR,
         "alat_bermotor": pemeriksaan.KOMPONEN_BERMOTOR_BERNOMOR,
+        # Kendaraan Diesel
+        "diesel_bab": pemeriksaan.DIESEL_BAB,
     })
 
 
@@ -226,14 +245,14 @@ def _perlu_perbaikan(vehicle, terakhir):
     if terakhir is None:
         return []
     cfg = golongan.for_vehicle(vehicle)
-    items = terakhir.items.exclude(kondisi=cfg.baik).prefetch_related(
+    items = terakhir.items.exclude(kondisi__in=cfg.baik).prefetch_related(
         Prefetch("perbaikan", queryset=cfg.perbaikan_model.objects.select_related("teknisi"))
     )
     daftar = []
     for item in items:
         repairs = list(item.perbaikan.all())
         item.perbaikan_terakhir = repairs[0] if repairs else None
-        if item.perbaikan_terakhir is None or item.perbaikan_terakhir.kondisi != cfg.baik:
+        if item.perbaikan_terakhir is None or item.perbaikan_terakhir.kondisi not in cfg.baik:
             daftar.append(item)
     return daftar
 
@@ -257,6 +276,7 @@ def history_kendaraan_view(request):
         "perlu_perhatian": _perlu_perbaikan(vehicle, terakhir),
         "riwayat_perbaikan": riwayat_perbaikan,
         "pakai_jumlah": cfg.pakai_jumlah if cfg else False,
+        "pakai_satuan": cfg.pakai_satuan if cfg else False,
     })
 
 
@@ -343,6 +363,7 @@ def perbaikan_kendaraan_view(request):
         "daftar": _perlu_perbaikan(vehicle, terakhir),
         "kondisi": cfg.kondisi if cfg else [],
         "pakai_jumlah": cfg.pakai_jumlah if cfg else False,
+        "pakai_satuan": cfg.pakai_satuan if cfg else False,
     })
 
 

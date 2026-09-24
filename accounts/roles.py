@@ -61,7 +61,10 @@ MENU_VIEWS = {
     },
     "jadwal": set(),
     "servis": set(),
-    "pemeriksaan": {"accounts:pemeriksaan", "accounts:pemeriksaan_captcha", "fleet:vehicle_lookup"},
+    "pemeriksaan": {
+        "accounts:pemeriksaan", "accounts:pemeriksaan_captcha", "accounts:pemeriksaan_checklist",
+        "fleet:vehicle_lookup",
+    },
     # Form Tambah adds the vehicle through the Armada create modal.
     "form_tambah": {"accounts:form_tambah", "fleet:vehicle_create"},
     "history": {"accounts:history", "accounts:history_kendaraan", "fleet:vehicle_qr"},

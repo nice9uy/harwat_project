@@ -6,7 +6,7 @@ from fleet.models import Vehicle
 
 from . import pemeriksaan as checklist
 from . import roles
-from .models import Anggota, Laporan, PemeriksaanBermotor, PemeriksaanGolonganB
+from .models import Anggota, Laporan, PemeriksaanBermotor, PemeriksaanDiesel, PemeriksaanGolonganB
 
 TEXT_INPUT_CLASSES = (
     "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm "
@@ -248,6 +248,10 @@ class _ChecklistForm(forms.ModelForm):
     kondisi = []
     pakai_jumlah = True
 
+    def clean_item_extra(self, prefix, label, errors):
+        """Extra per-part fields of this group's form (none by default)."""
+        return {}
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["vehicle"].queryset = Vehicle.objects.filter(group_kendaraan=self.golongan)
@@ -285,6 +289,7 @@ class _ChecklistForm(forms.ModelForm):
             }
             if self.pakai_jumlah:
                 item["jumlah"] = jumlah
+            item.update(self.clean_item_extra(prefix, f"{nomor}. {nama}", errors))
             items.append(item)
         if errors:
             raise forms.ValidationError(errors)
@@ -314,3 +319,24 @@ class PemeriksaanBermotorForm(_ChecklistForm):
             "vehicle", "bbm", "buku_harian", "macam_pemeriksaan", "tempat_pemeriksaan",
             "ukuran_ban", "ban_depan_kiri", "ban_depan_kanan", "ban_belakang_kiri", "ban_belakang_kanan", "ban_cadangan",
         ]
+
+
+class PemeriksaanDieselForm(_ChecklistForm):
+    golongan = Vehicle.GroupKendaraan.KENDARAAN_DIESEL
+    alat = checklist.KOMPONEN_DIESEL_BERNOMOR
+    kondisi = checklist.KONDISI_DIESEL
+    pakai_jumlah = False
+
+    class Meta:
+        model = PemeriksaanDiesel
+        fields = ["vehicle"]
+
+    def clean_item_extra(self, prefix, label, errors):
+        """Sat, Jumlah Riil and Jumlah Nyata columns of the diesel form."""
+        extra = {"satuan": self.data.get(prefix + "sat", "").strip()[:30]}
+        for field, kolom in (("jumlah_riil", "riil"), ("jumlah_nyata", "nyata")):
+            raw = self.data.get(prefix + kolom, "").strip()
+            if raw and not raw.isdigit():
+                errors.append(f"Jumlah {kolom} {label} harus angka 0 atau lebih.")
+            extra[field] = int(raw) if raw.isdigit() else None
+        return extra
