@@ -1,3 +1,4 @@
+from django.core.validators import MaxValueValidator
 from django.db import models
 
 from . import pemeriksaan as checklist
@@ -142,7 +143,32 @@ class PemeriksaanBermotor(models.Model):
         max_length=20, choices=checklist.MACAM_PEMERIKSAAN, verbose_name="Macam Pemeriksaan",
     )
     tempat_pemeriksaan = models.CharField(max_length=150, blank=True, verbose_name="Tempat Pemeriksaan")
+    ukuran_ban = models.CharField(max_length=50, blank=True, verbose_name="Ukuran Ban")
+    # Tyre condition in percent (0-100), as on the paper form's "Ban Uk." table.
+    ban_depan_kiri = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(100)], verbose_name="Ban Depan Kiri (%)",
+    )
+    ban_depan_kanan = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(100)], verbose_name="Ban Depan Kanan (%)",
+    )
+    ban_belakang_kiri = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(100)], verbose_name="Ban Belakang Kiri (%)",
+    )
+    ban_belakang_kanan = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(100)], verbose_name="Ban Belakang Kanan (%)",
+    )
+    ban_cadangan = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(100)], verbose_name="Ban Cadangan (%)",
+    )
     dibuat_pada = models.DateTimeField(auto_now_add=True)
+
+    BAN_FIELDS = [
+        ("ban_depan_kiri", "Depan Kiri"),
+        ("ban_depan_kanan", "Depan Kanan"),
+        ("ban_belakang_kiri", "Belakang Kiri"),
+        ("ban_belakang_kanan", "Belakang Kanan"),
+        ("ban_cadangan", "Cadangan"),
+    ]
 
     class Meta:
         verbose_name = "Pemeriksaan Kendaraan Bermotor"
@@ -161,6 +187,9 @@ class PemeriksaanBermotor(models.Model):
             parts.append(f"BBM {self.bbm}")
         if self.tempat_pemeriksaan:
             parts.append(self.tempat_pemeriksaan)
+        ban = [f"{label} {getattr(self, field)}%" for field, label in self.BAN_FIELDS if getattr(self, field) is not None]
+        if self.ukuran_ban or ban:
+            parts.append(" ".join(filter(None, [f"Ban {self.ukuran_ban}".strip(), ", ".join(ban)])))
         return " · ".join(parts)
 
 

@@ -72,7 +72,9 @@ class PemeriksaanBermotorItemInline(admin.TabularInline):
 
 @admin.register(PemeriksaanBermotor)
 class PemeriksaanBermotorAdmin(admin.ModelAdmin):
-    list_display = ["vehicle", "pemeriksa", "bbm", "buku_harian", "macam_pemeriksaan", "tempat_pemeriksaan", "dibuat_pada"]
+    list_display = [
+        "vehicle", "pemeriksa", "bbm", "buku_harian", "macam_pemeriksaan", "tempat_pemeriksaan", "ukuran_ban", "dibuat_pada",
+    ]
     list_filter = ["macam_pemeriksaan", "buku_harian"]
     list_select_related = ["vehicle", "pemeriksa"]
     search_fields = ["vehicle__nopol", "pemeriksa__nama", "pemeriksa__nip", "tempat_pemeriksaan"]

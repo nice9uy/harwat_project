@@ -1018,6 +1018,12 @@ def _bermotor_data(vehicle, **overrides):
         "buku_harian": "ada",
         "macam_pemeriksaan": "tiba_tiba",
         "tempat_pemeriksaan": "Bengkel 202",
+        "ukuran_ban": "265/65 R17",
+        "ban_depan_kiri": "80",
+        "ban_depan_kanan": "75",
+        "ban_belakang_kiri": "",
+        "ban_belakang_kanan": "60",
+        "ban_cadangan": "100",
     }
     for nomor in range(1, 64):
         data[f"alat_{nomor}_kondisi"] = "B"
@@ -1050,7 +1056,8 @@ class PemeriksaanBermotorTests(TestCase):
         from accounts.pemeriksaan import KOMPONEN_BERMOTOR
         self.assertEqual(len(KOMPONEN_BERMOTOR), 63)
         response = self.client.get(reverse("accounts:pemeriksaan"))
-        for text in ("BBM, Buku Harian, Macam &amp; Tempat Pemeriksaan", 'name="bbm"', 'name="tempat_pemeriksaan"',
+        for text in ("BBM, Buku Harian, Macam &amp; Tempat Pemeriksaan, Ban", 'name="bbm"', 'name="tempat_pemeriksaan"',
+                     'name="ukuran_ban"', 'name="ban_depan_kiri" min="0" max="100"', 'name="ban_cadangan"',
                      'name="buku_harian" value="ada"', "1.</span> Mesin / Tune Up / Over Haul", "63.</span> Winch",
                      'name="alat_63_kondisi" value="TA"', "Harus Diperbaiki", "Harus Diganti", "Tidak Ada"):
             self.assertContains(response, text)
@@ -1063,6 +1070,15 @@ class PemeriksaanBermotorTests(TestCase):
                          (self.vehicle, "Solar", "ada", "tiba_tiba", "Bengkel 202"))
         self.assertEqual(hasil.items.count(), 63)
         self.assertEqual(hasil.items.get(nomor=60).nama_alat, "Dongkrak")
+        self.assertEqual(
+            (hasil.ukuran_ban, hasil.ban_depan_kiri, hasil.ban_depan_kanan, hasil.ban_belakang_kiri,
+             hasil.ban_belakang_kanan, hasil.ban_cadangan),
+            ("265/65 R17", 80, 75, None, 60, 100),
+        )
+
+    def test_tyre_percent_above_100_is_rejected(self):
+        self._post_pemeriksaan(ban_cadangan="120")
+        self.assertEqual(PemeriksaanBermotor.objects.count(), 0)
         self.assertEqual(PemeriksaanGolonganB.objects.count(), 0)
 
     def test_golongan_b_kondisi_code_rejected_for_bermotor(self):
@@ -1073,7 +1089,7 @@ class PemeriksaanBermotorTests(TestCase):
     def test_history_and_perbaikan_for_bermotor(self):
         self._post_pemeriksaan(alat_1_kondisi="HP", alat_2_kondisi="HG", alat_60_kondisi="TA")
         history = self.client.get(reverse("accounts:history_kendaraan"), {"nopol": "B 7777 KB"})
-        for text in ("HP 1", "HG 1", "TA 1", "B 60", "Tiba-tiba · Buku harian ada · BBM Solar · Bengkel 202",
+        for text in ("HP 1", "HG 1", "TA 1", "B 60", "Tiba-tiba · Buku harian ada · BBM Solar · Bengkel 202 · Ban 265/65 R17 Depan Kiri 80%, Depan Kanan 75%, Belakang Kanan 60%, Cadangan 100%",
                      "Perlu Perhatian (3)"):
             self.assertContains(history, text)
 
