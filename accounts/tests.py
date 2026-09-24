@@ -554,12 +554,12 @@ class HistoryPerbaikanMenuTests(TestCase):
             self.assertContains(response, f'id="id_{field}"')
         self.assertContains(response, "Lanjut")
 
-    def test_sidebar_order_after_form_tambah(self):
+    def test_sidebar_order_perbaikan_then_history(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         content = self.client.get(reverse("accounts:dashboard")).content.decode()
         positions = [
             content.index(f'href="{reverse(f"accounts:{name}")}"')
-            for name in ("form_tambah", "history", "perbaikan", "pengaturan")
+            for name in ("form_tambah", "perbaikan", "history", "pengaturan")
         ]
         self.assertEqual(positions, sorted(positions))
 
