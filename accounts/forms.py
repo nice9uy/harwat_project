@@ -214,7 +214,9 @@ class BiodataForm(forms.ModelForm):
         self.fields["nama"].widget.attrs["placeholder"] = "Budi Santoso"
         self.fields["pangkat"].widget.attrs["placeholder"] = "Kapten (TNI) / Penata Muda - III-a (PNS)"
         self.fields["jabatan"].widget.attrs["placeholder"] = "Teknisi"
-        self.fields["satuan"].widget.attrs["placeholder"] = "Satuan Kerja ABC"
+        # Satuan comes from the Satuan table (Pengaturan > Satuan).
+        self.fields["satuan"].empty_label = "Pilih satuan"
+        self.fields["satuan"].queryset = Satuan.objects.order_by("nama")
 
 
 class LaporanForm(BiodataForm):

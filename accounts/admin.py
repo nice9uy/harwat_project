@@ -24,7 +24,7 @@ from .models import (
 class LaporanAdmin(admin.ModelAdmin):
     list_display = ["nama", "nip", "pangkat", "jabatan", "satuan", "dibuat_pada"]
     list_filter = ["satuan"]
-    search_fields = ["nama", "nip", "satuan"]
+    search_fields = ["nama", "nip", "satuan__nama"]
     date_hierarchy = "dibuat_pada"
 
 
@@ -47,7 +47,7 @@ class PemeriksaanGolonganBAdmin(admin.ModelAdmin):
     ]
     list_filter = ["macam_pemeriksaan", "pembagian_kelas", "eselon_reparasi", "buku_jalan"]
     list_select_related = ["vehicle", "pemeriksa"]
-    search_fields = ["vehicle__nopol", "pemeriksa__nama", "pemeriksa__nip", "kesatuan"]
+    search_fields = ["vehicle__nopol", "pemeriksa__nama", "pemeriksa__nip", "kesatuan__nama"]
     date_hierarchy = "dibuat_pada"
     inlines = [PemeriksaanGolonganBItemInline]
 

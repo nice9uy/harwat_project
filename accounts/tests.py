@@ -18,6 +18,11 @@ from accounts.models import (
 )
 from fleet.models import Vehicle
 
+
+def _satuan(nama="Satuan Kerja ABC"):
+    from accounts.models import Satuan
+    return Satuan.objects.get_or_create(nama=nama)[0]
+
 # 1x1 transparent GIF — smallest valid image Pillow will accept for an
 # ImageField's upload validation.
 TINY_GIF = (
@@ -231,7 +236,7 @@ def _pemeriksaan_data(vehicle, **overrides):
         "eselon_reparasi": "3",
         "macam_pemeriksaan": "tehnis",
         "buku_jalan": "ada",
-        "kesatuan": "Yonif Mekanis 202/TM",
+        "kesatuan": _satuan("Yonif Mekanis 202/TM").pk,
     }
     for nomor in range(1, 41):
         data[f"alat_{nomor}_kondisi"] = "B"
@@ -294,7 +299,7 @@ class LaporanViewTests(TestCase):
         self.assertContains(response, 'name="macam_pemeriksaan" value="tiba_tiba"')
         self.assertContains(response, 'name="buku_jalan" value="ada"')
         self.assertContains(response, 'name="buku_jalan" value="tidak"')
-        self.assertContains(response, 'id="kesatuan" name="kesatuan"')
+        self.assertContains(response, '<select id="kesatuan" name="kesatuan"')
         for no, nama in ((1, "Motor"), (20, "Gear Belakang"), (21, "Rantai"), (40, "Cat")):
             self.assertContains(response, f"{no}.</span> {nama}")
             self.assertContains(response, f'name="alat_{no}_jml"')
@@ -337,7 +342,7 @@ class LaporanViewTests(TestCase):
             "nama": "Budi Santoso",
             "pangkat": "Penata Muda / III-a",
             "jabatan": "Teknisi",
-            "satuan": "Satuan Kerja ABC",
+            "satuan": _satuan("Satuan Kerja ABC").pk,
             "foto": foto,
             "captcha": code,
             **_pemeriksaan_data(self.vehicle),
@@ -356,7 +361,7 @@ class LaporanViewTests(TestCase):
             "nama": "",
             "pangkat": "Penata Muda / III-a",
             "jabatan": "Teknisi",
-            "satuan": "Satuan Kerja ABC",
+            "satuan": _satuan("Satuan Kerja ABC").pk,
             "captcha": code,
             **_pemeriksaan_data(self.vehicle),
         })
@@ -373,7 +378,7 @@ class LaporanViewTests(TestCase):
             "nama": "Budi Santoso",
             "pangkat": "Penata Muda / III-a",
             "jabatan": "Teknisi",
-            "satuan": "Satuan Kerja ABC",
+            "satuan": _satuan("Satuan Kerja ABC").pk,
             "foto": foto,
             "captcha": wrong_code,
             **_pemeriksaan_data(self.vehicle),
@@ -391,7 +396,7 @@ class LaporanViewTests(TestCase):
             "nama": "Budi Santoso",
             "pangkat": "Penata Muda / III-a",
             "jabatan": "Teknisi",
-            "satuan": "Satuan Kerja ABC",
+            "satuan": _satuan("Satuan Kerja ABC").pk,
             "foto": foto,
             "captcha": code.lower(),
             **_pemeriksaan_data(self.vehicle),
@@ -589,7 +594,7 @@ class PemeriksaanGolonganBSaveTests(TestCase):
             "nama": "Budi Santoso",
             "pangkat": "Kapten",
             "jabatan": "Teknisi",
-            "satuan": "Satuan Kerja ABC",
+            "satuan": _satuan("Satuan Kerja ABC").pk,
             "foto": SimpleUploadedFile("foto.gif", TINY_GIF, content_type="image/gif"),
             "captcha": self.client.session["laporan_captcha"],
             **_pemeriksaan_data(self.vehicle),
@@ -608,7 +613,7 @@ class PemeriksaanGolonganBSaveTests(TestCase):
         self.assertEqual(hasil.vehicle, self.vehicle)
         self.assertEqual(hasil.pemeriksa, Laporan.objects.get())
         self.assertEqual(
-            (hasil.pembagian_kelas, hasil.eselon_reparasi, hasil.macam_pemeriksaan, hasil.buku_jalan, hasil.kesatuan),
+            (hasil.pembagian_kelas, hasil.eselon_reparasi, hasil.macam_pemeriksaan, hasil.buku_jalan, hasil.kesatuan.nama),
             ("2", "3", "tehnis", "ada", "Yonif Mekanis 202/TM"),
         )
         self.assertEqual(hasil.items.count(), 40)
@@ -697,7 +702,7 @@ class HistoryScanTests(TestCase):
 
     def _inspection(self, rusak_berat=0):
         pemeriksa = Laporan.objects.create(
-            nip="1", nama="Budi Santoso", pangkat="Kapten", jabatan="Teknisi", satuan="ABC", foto="laporan/x.gif",
+            nip="1", nama="Budi Santoso", pangkat="Kapten", jabatan="Teknisi", satuan=_satuan("ABC"), foto="laporan/x.gif",
         )
         hasil = PemeriksaanGolonganB.objects.create(
             pemeriksa=pemeriksa, vehicle=self.vehicle, pembagian_kelas="2", eselon_reparasi="3",
@@ -807,7 +812,7 @@ class PerbaikanSaveTests(HistoryScanTests):
 
     def _post(self, **fields):
         data = {
-            "nip": "2", "nama": "Andi Teknisi", "pangkat": "Serka", "jabatan": "Mekanik", "satuan": "Bengkel",
+            "nip": "2", "nama": "Andi Teknisi", "pangkat": "Serka", "jabatan": "Mekanik", "satuan": _satuan("Bengkel").pk,
             "foto": SimpleUploadedFile("teknisi.gif", TINY_GIF, content_type="image/gif"),
             "vehicle": self.vehicle.pk,
         }
@@ -1055,7 +1060,7 @@ class PemeriksaanBermotorTests(TestCase):
 
     def _biodata(self, nama="Budi Santoso"):
         return {
-            "nip": "1", "nama": nama, "pangkat": "Kapten", "jabatan": "Teknisi", "satuan": "ABC",
+            "nip": "1", "nama": nama, "pangkat": "Kapten", "jabatan": "Teknisi", "satuan": _satuan("ABC").pk,
             "foto": SimpleUploadedFile("foto.gif", TINY_GIF, content_type="image/gif"),
         }
 
@@ -1495,7 +1500,7 @@ class PemeriksaanDieselTests(TestCase):
 
     def _biodata(self, nama="Budi Santoso"):
         return {
-            "nip": "1", "nama": nama, "pangkat": "Kapten", "jabatan": "Teknisi", "satuan": "ABC",
+            "nip": "1", "nama": nama, "pangkat": "Kapten", "jabatan": "Teknisi", "satuan": _satuan("ABC").pk,
             "foto": SimpleUploadedFile("foto.gif", TINY_GIF, content_type="image/gif"),
         }
 
@@ -1615,3 +1620,34 @@ class SatuanTests(TestCase):
         self.client.post(reverse("accounts:satuan_create"), {"nama": "X"})
         from accounts.models import Satuan
         self.assertFalse(Satuan.objects.exists())
+
+
+
+class SatuanDipakaiTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username="operator", password="rahasia-123")
+        self.client.login(username="operator", password="rahasia-123")
+
+    def test_biodata_satuan_is_a_choice_from_the_satuan_table(self):
+        kodim = _satuan("Kodim 0507")
+        response = self.client.get(reverse("accounts:pemeriksaan"))
+        self.assertContains(response, '<select name="satuan"')
+        self.assertContains(response, f'<option value="{kodim.pk}">Kodim 0507</option>', html=True)
+        for name in ("accounts:form_tambah", "accounts:perbaikan"):
+            self.assertContains(self.client.get(reverse(name)), f'<option value="{kodim.pk}">Kodim 0507</option>', html=True)
+
+    def test_hint_when_no_satuan_yet(self):
+        self.assertContains(self.client.get(reverse("accounts:pemeriksaan")), "Belum ada data satuan.")
+
+    def test_kesatuan_choices_in_golongan_b_checklist(self):
+        yonif = _satuan("Yonif 202")
+        response = self.client.get(reverse("accounts:pemeriksaan_checklist", args=["B"]))
+        self.assertContains(response, f'<option value="{yonif.pk}">Yonif 202</option>', html=True)
+
+    def test_satuan_in_use_cannot_be_deleted(self):
+        from accounts.models import Laporan, Satuan
+        kodim = _satuan("Kodim 0507")
+        Laporan.objects.create(nip="1", nama="A", pangkat="B", jabatan="C", satuan=kodim, foto="x.gif")
+        response = self.client.post(reverse("accounts:satuan_delete", args=[kodim.pk]), follow=True)
+        self.assertTrue(Satuan.objects.filter(pk=kodim.pk).exists())
+        self.assertContains(response, "masih dipakai")

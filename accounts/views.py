@@ -174,6 +174,7 @@ def pemeriksaan_checklist_view(request, kode):
         # Kendaraan Bermotor
         "buku_harian": pemeriksaan.BUKU_HARIAN,
         "alat_bermotor": pemeriksaan.KOMPONEN_BERMOTOR_BERNOMOR,
+        "satuan_list": Satuan.objects.order_by("nama"),
         # Kendaraan Diesel
         "diesel_bab": pemeriksaan.DIESEL_BAB,
         "ya_tidak": pemeriksaan.YA_TIDAK,
@@ -527,6 +528,9 @@ def satuan_delete(request, pk):
     """GET: confirmation for the modal. POST: delete the Satuan."""
     satuan = get_object_or_404(Satuan, pk=pk)
     if request.method == "POST":
+        if satuan.biodata.exists() or satuan.pemeriksaan_golongan_b.exists():
+            messages.error(request, f"Satuan {satuan.nama} masih dipakai di biodata atau pemeriksaan, jadi tidak bisa dihapus.")
+            return _ke_tab_satuan(request)
         satuan.delete()
         messages.success(request, f"Satuan {satuan.nama} berhasil dihapus.")
         return _ke_tab_satuan(request)

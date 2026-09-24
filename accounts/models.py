@@ -17,7 +17,7 @@ class Laporan(models.Model):
     nama = models.CharField(max_length=150)
     pangkat = models.CharField(max_length=100)
     jabatan = models.CharField(max_length=150)
-    satuan = models.CharField(max_length=150)
+    satuan = models.ForeignKey("Satuan", on_delete=models.PROTECT, related_name="biodata")
     foto = models.ImageField(upload_to="laporan/")
     dibuat_pada = models.DateTimeField(auto_now_add=True)
 
@@ -51,7 +51,10 @@ class PemeriksaanGolonganB(models.Model):
         max_length=20, choices=checklist.MACAM_PEMERIKSAAN, verbose_name="Macam Pemeriksaan",
     )
     buku_jalan = models.CharField(max_length=10, choices=checklist.BUKU_JALAN, verbose_name="Buku Jalan")
-    kesatuan = models.CharField(max_length=150, blank=True, verbose_name="Kesatuan")
+    kesatuan = models.ForeignKey(
+        "Satuan", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="pemeriksaan_golongan_b", verbose_name="Kesatuan",
+    )
     dibuat_pada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -70,7 +73,7 @@ class PemeriksaanGolonganB(models.Model):
             f"Buku jalan {self.get_buku_jalan_display().lower()}",
         ]
         if self.kesatuan:
-            parts.append(self.kesatuan)
+            parts.append(self.kesatuan.nama)
         return " · ".join(parts)
 
 
