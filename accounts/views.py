@@ -362,6 +362,8 @@ def pengaturan_view(request):
             akun.kedalaman = node.depth - 1
             akun.ketua_tim = ketua.user.username if node.depth > 1 else ""
             akun.anggota_pk = node.pk if node.depth == 1 else None
+            akun.ketua_pk = ketua.pk  # which branch a member row collapses with
+            akun.jumlah_anggota = len(anggota) if node.depth == 1 else 0
             tree.append(akun)
             dalam_pohon.add(akun.pk)
     for akun in semua.values():

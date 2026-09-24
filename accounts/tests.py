@@ -1363,8 +1363,8 @@ class PengaturanHierarchyTableTests(TestCase):
         tbody = content[content.index("<tbody"):content.index("</tbody>")]
         # Second cell of each row holds the username (possibly after an icon or "└─").
         order = [
-            re.sub(r"<[^>]+>|└─|\s", "", cell)
-            for cell in re.findall(r"<tr>\s*<td[^>]*>\d+</td>\s*<td[^>]*>(.*?)</td>", tbody, re.S)
+            re.sub(r"<[^>]+>|└─|\s", "", re.sub(r'<span[^>]*title="Jumlah anggota">\d+</span>', "", cell))
+            for cell in re.findall(r"<tr[^>]*>\s*<td[^>]*>\d+</td>\s*<td[^>]*>(.*?)</td>", tbody, re.S)
         ]
         self.assertEqual(order, ["admin0", "a_ketua", "mm_anggota_a", "zz_anggota_a", "b_ketua", "aa_anggota_b"])
         self.assertEqual(content.count("└─"), 3)
@@ -1447,3 +1447,21 @@ class GantiPasswordTests(TestCase):
             content.index(f'<a href="{reverse("accounts:pengaturan")}"'),
             content.index(f'<a href="{reverse("accounts:ganti_password")}"'),
         )
+
+
+
+class PengaturanCollapseTests(TestCase):
+    def test_ketua_row_toggles_its_members(self):
+        from django.contrib.auth.models import Group
+        User.objects.create_user(username="operator", password="rahasia-123")
+        self.client.login(username="operator", password="rahasia-123")
+        ketua = _buat_ketua("tes")
+        _buat_ketua("sendiri")
+        member = User.objects.create_user(username="yes", password="x")
+        member.groups.add(Group.objects.get(name="Tim Pemeriksaan"))
+        type(ketua).objects.get(pk=ketua.pk).add_child(user=member)
+        response = self.client.get(reverse("accounts:pengaturan"))
+        self.assertContains(response, f'@click="tutup[{ketua.pk}] = !tutup[{ketua.pk}]"')
+        self.assertContains(response, f'<tr x-show="!tutup[{ketua.pk}]">')
+        self.assertContains(response, "@click=\"tutup[", count=1)  # the ketua without members has no toggle
+        self.assertContains(response, 'title="Jumlah anggota">1</span>')
