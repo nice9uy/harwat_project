@@ -360,6 +360,7 @@ def pengaturan_view(request):
             akun = semua[node.user_id]
             akun.kedalaman = node.depth - 1
             akun.ketua_tim = ketua.user.username if node.depth > 1 else ""
+            akun.anggota_pk = node.pk if node.depth == 1 else None
             tree.append(akun)
             dalam_pohon.add(akun.pk)
     for akun in semua.values():
@@ -374,8 +375,11 @@ def pengaturan_view(request):
 
 @login_required
 def user_create(request):
+    # ?ketua=<Anggota pk>: add a member directly under that Ketua Tim.
+    ketua = Anggota.get_root_nodes().select_related("user").filter(pk=request.GET.get("ketua") or None).first()
+    kwargs = {"allow_superuser": request.user.is_superuser, "ketua": ketua}
     if request.method == "POST":
-        form = UserCreateForm(request.POST, allow_superuser=request.user.is_superuser)
+        form = UserCreateForm(request.POST, **kwargs)
         if form.is_valid():
             with transaction.atomic():
                 form.save()
@@ -386,7 +390,7 @@ def user_create(request):
                 return response
             return redirect(success_url)
     else:
-        form = UserCreateForm(allow_superuser=request.user.is_superuser)
+        form = UserCreateForm(**kwargs)
     is_htmx = request.headers.get("HX-Request") == "true"
     template = "accounts/_user_form_fields.html" if is_htmx else "accounts/user_form.html"
     return render(request, template, {"form": form})

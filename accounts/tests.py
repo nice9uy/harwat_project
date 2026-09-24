@@ -1369,3 +1369,38 @@ class PengaturanHierarchyTableTests(TestCase):
         ]
         self.assertEqual(order, ["admin0", "a_ketua", "mm_anggota_a", "zz_anggota_a", "b_ketua", "aa_anggota_b"])
         self.assertEqual(content.count("└─"), 3)
+
+
+
+class TambahAnggotaTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username="operator", password="rahasia-123")
+        self.client.login(username="operator", password="rahasia-123")
+        self.ketua = _buat_ketua("tes")
+        self.bukan_ketua = User.objects.create_user(username="biasa", password="x")
+
+    def test_button_only_on_ketua_rows(self):
+        response = self.client.get(reverse("accounts:pengaturan"))
+        self.assertContains(response, f'hx-get="{reverse("accounts:user_create")}?ketua={self.ketua.pk}"')
+        self.assertContains(response, "+ Anggota", count=1)
+
+    def test_modal_is_preset_to_the_ketua_and_tim_roles(self):
+        response = self.client.get(reverse("accounts:user_create"), {"ketua": self.ketua.pk}, HTTP_HX_REQUEST="true")
+        self.assertContains(response, "Tambah Anggota")
+        self.assertContains(response, "Ketua Tim tes")
+        self.assertContains(response, f'type="hidden" name="ketua_tim" value="{self.ketua.pk}"')
+        for kode in ("tim_pemeriksaan", "tim_penambahan_data", "tim_perbaikan"):
+            self.assertContains(response, f'value="{kode}"')
+        for kode in ("admin", "pimpinan", "ketua_tim"):
+            self.assertNotContains(response, f'value="{kode}"')
+
+    def test_saves_member_under_that_ketua_even_if_ketua_tim_is_tampered(self):
+        from accounts.models import Anggota
+        lain = _buat_ketua("lain")
+        url = reverse("accounts:user_create") + f"?ketua={self.ketua.pk}"
+        self.client.post(url, {"username": "baru", "keanggotaan": "tim_perbaikan", "ketua_tim": lain.pk})
+        node = Anggota.objects.get(user__username="baru")
+        self.assertEqual(node.get_parent().user.username, "tes")
+        response = self.client.post(url, {"username": "baru2", "keanggotaan": "pimpinan"})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(username="baru2").exists())

@@ -1,6 +1,6 @@
-<h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-4">Tambah User</h2>
+<h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-4">{% if form.ketua %}Tambah Anggota <span class="font-normal text-slate-500 dark:text-slate-400">· Ketua Tim {{ form.ketua.user.username }}</span>{% else %}Tambah User{% endif %}</h2>
 <form method="post"
-      hx-post="{% url 'accounts:user_create' %}"
+      hx-post="{% url 'accounts:user_create' %}{% if form.ketua %}?ketua={{ form.ketua.pk }}{% endif %}"
       hx-target="this"
       hx-swap="outerHTML"
       x-data="{ keanggotaan: '{{ form.keanggotaan.value|default_if_none:''|escapejs }}' }"
@@ -22,11 +22,15 @@
         {% if form.keanggotaan.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.keanggotaan.errors.0 }}</p>{% endif %}
         {% if not form.ada_ketua %}<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Tim Pemeriksaan, Tim Penambahan Data dan Tim Perbaikan bisa ditambahkan setelah ada Ketua Tim.</p>{% endif %}
     </div>
+    {% if form.ketua %}
+    {{ form.ketua_tim }}
+    {% else %}
     <div x-show="['tim_pemeriksaan', 'tim_penambahan_data', 'tim_perbaikan'].includes(keanggotaan)" x-cloak>
         <label for="{{ form.ketua_tim.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Ketua Tim</label>
         {{ form.ketua_tim }}
         {% if form.ketua_tim.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.ketua_tim.errors.0 }}</p>{% endif %}
     </div>
+    {% endif %}
     <p class="rounded-md bg-slate-100 dark:bg-slate-900 px-3 py-2 text-xs text-slate-600 dark:text-slate-300">Password awal user baru: <span class="font-mono font-semibold">12345</span></p>
     <div class="flex items-center gap-3 pt-2">
         <button type="submit" class="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white hover:bg-navy-light focus:outline-none focus:ring-2 focus:ring-gold/50">Simpan</button>

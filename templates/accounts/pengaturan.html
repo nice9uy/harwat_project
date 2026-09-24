@@ -64,6 +64,16 @@
                         <td class="py-2 px-4">{{ akun.date_joined|date:"d M Y" }}</td>
                         <td class="py-2 px-4">
                             <div class="flex items-center gap-3">
+                            {% if akun.anggota_pk %}
+                            <button type="button"
+                                    @click="modalOpen = true"
+                                    hx-get="{% url 'accounts:user_create' %}?ketua={{ akun.anggota_pk }}"
+                                    hx-target="#user-modal-body"
+                                    hx-swap="innerHTML"
+                                    class="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700">
+                                + Anggota
+                            </button>
+                            {% endif %}
                             {% if akun.pk != request.user.pk and not akun.is_superuser or akun.pk != request.user.pk and request.user.is_superuser %}
                             <button type="button"
                                     @click="modalOpen = true"

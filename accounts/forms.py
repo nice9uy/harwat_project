@@ -119,11 +119,23 @@ class UserCreateForm(forms.ModelForm):
         model = User
         fields = ("username",)
 
-    def __init__(self, *args, allow_superuser=False, **kwargs):
+    def __init__(self, *args, allow_superuser=False, ketua=None, **kwargs):
         super().__init__(*args, **kwargs)
         _siapkan_keanggotaan(self, allow_superuser)
         self.fields["username"].widget.attrs["class"] = TEXT_INPUT_CLASSES
         self.fields["username"].widget.attrs["placeholder"] = "teknisi2"
+        # "+ Anggota" on a Ketua Tim row: only Tim roles, under that ketua.
+        self.ketua = ketua
+        if ketua is not None:
+            self.fields["keanggotaan"].choices = [("", "Pilih keanggotaan")] + [
+                c for c in roles.KEANGGOTAAN if c[0] in roles.TIM
+            ]
+            self.fields["ketua_tim"].initial = ketua.pk
+            self.fields["ketua_tim"].widget = forms.HiddenInput()
+
+    def clean_ketua_tim(self):
+        ketua = self.cleaned_data.get("ketua_tim")
+        return self.ketua if self.ketua is not None else ketua
 
     def clean(self):
         cleaned = super().clean()
