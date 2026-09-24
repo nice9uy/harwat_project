@@ -59,6 +59,17 @@ class PemeriksaanGolonganB(models.Model):
     def __str__(self):
         return f"{self.vehicle.nopol} — {self.dibuat_pada:%d-%m-%Y}"
 
+    def ringkasan(self):
+        parts = [
+            f"Kelas {self.pembagian_kelas}",
+            f"Eselon {self.eselon_reparasi}",
+            self.get_macam_pemeriksaan_display(),
+            f"Buku jalan {self.get_buku_jalan_display().lower()}",
+        ]
+        if self.kesatuan:
+            parts.append(self.kesatuan)
+        return " · ".join(parts)
+
 
 class PemeriksaanGolonganBItem(models.Model):
     """One of the 40 checked parts (Motor … Cat) of a PemeriksaanGolonganB."""
@@ -107,6 +118,95 @@ class PerbaikanGolonganB(models.Model):
     class Meta:
         verbose_name = "Perbaikan Golongan B"
         verbose_name_plural = "Perbaikan Golongan B"
+        ordering = ["-dibuat_pada", "-id"]
+
+    def __str__(self):
+        return f"{self.item.pemeriksaan.vehicle.nopol} — {self.item} ({self.kondisi})"
+
+
+
+class PemeriksaanBermotor(models.Model):
+    """One inspection of a Kendaraan Bermotor vehicle (63-component paper form)."""
+
+    pemeriksa = models.ForeignKey(
+        Laporan, on_delete=models.CASCADE, related_name="pemeriksaan_bermotor",
+        verbose_name="Biodata Pemeriksa",
+    )
+    vehicle = models.ForeignKey(
+        "fleet.Vehicle", on_delete=models.PROTECT, related_name="pemeriksaan_bermotor",
+        verbose_name="Kendaraan",
+    )
+    bbm = models.CharField(max_length=100, blank=True, verbose_name="BBM")
+    buku_harian = models.CharField(max_length=10, choices=checklist.BUKU_HARIAN, verbose_name="Buku Harian")
+    macam_pemeriksaan = models.CharField(
+        max_length=20, choices=checklist.MACAM_PEMERIKSAAN, verbose_name="Macam Pemeriksaan",
+    )
+    tempat_pemeriksaan = models.CharField(max_length=150, blank=True, verbose_name="Tempat Pemeriksaan")
+    dibuat_pada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Pemeriksaan Kendaraan Bermotor"
+        verbose_name_plural = "Pemeriksaan Kendaraan Bermotor"
+        ordering = ["-dibuat_pada", "-id"]
+
+    def __str__(self):
+        return f"{self.vehicle.nopol} — {self.dibuat_pada:%d-%m-%Y}"
+
+    def ringkasan(self):
+        parts = [
+            self.get_macam_pemeriksaan_display(),
+            f"Buku harian {self.get_buku_harian_display().lower()}",
+        ]
+        if self.bbm:
+            parts.append(f"BBM {self.bbm}")
+        if self.tempat_pemeriksaan:
+            parts.append(self.tempat_pemeriksaan)
+        return " · ".join(parts)
+
+
+class PemeriksaanBermotorItem(models.Model):
+    """One of the 63 checked components of a PemeriksaanBermotor."""
+
+    pemeriksaan = models.ForeignKey(PemeriksaanBermotor, on_delete=models.CASCADE, related_name="items")
+    nomor = models.PositiveSmallIntegerField()
+    nama_alat = models.CharField(max_length=100, verbose_name="Nama Komponen")
+    jumlah = models.PositiveIntegerField(null=True, blank=True)
+    kondisi = models.CharField(max_length=2, choices=checklist.KONDISI_BERMOTOR)
+    foto = models.ImageField(upload_to="pemeriksaan/", blank=True)
+    keterangan = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Item Pemeriksaan Kendaraan Bermotor"
+        verbose_name_plural = "Item Pemeriksaan Kendaraan Bermotor"
+        ordering = ["nomor"]
+        constraints = [
+            models.UniqueConstraint(fields=["pemeriksaan", "nomor"], name="unique_item_per_pemeriksaan_bermotor"),
+        ]
+
+    def __str__(self):
+        return f"{self.nomor}. {self.nama_alat}"
+
+
+class PerbaikanBermotor(models.Model):
+    """A repair of one component that wasn't Baik in a Kendaraan Bermotor inspection."""
+
+    teknisi = models.ForeignKey(
+        Laporan, on_delete=models.CASCADE, related_name="perbaikan_bermotor",
+        verbose_name="Biodata Teknisi",
+    )
+    item = models.ForeignKey(
+        PemeriksaanBermotorItem, on_delete=models.CASCADE, related_name="perbaikan",
+        verbose_name="Item Pemeriksaan",
+    )
+    kondisi = models.CharField(max_length=2, choices=checklist.KONDISI_BERMOTOR)
+    jumlah = models.PositiveIntegerField(null=True, blank=True)
+    keterangan = models.TextField(blank=True)
+    foto = models.ImageField(upload_to="perbaikan/", blank=True)
+    dibuat_pada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Perbaikan Kendaraan Bermotor"
+        verbose_name_plural = "Perbaikan Kendaraan Bermotor"
         ordering = ["-dibuat_pada", "-id"]
 
     def __str__(self):

@@ -19,9 +19,8 @@ from fleet.images import compress_photo
 from fleet.models import Vehicle
 from fleet.services import get_fleet_summary
 
-from . import pemeriksaan, roles
-from .forms import BiodataForm, LaporanForm, LoginForm, PemeriksaanGolonganBForm, UserCreateForm
-from .models import PemeriksaanGolonganBItem, PerbaikanGolonganB
+from . import golongan, pemeriksaan, roles
+from .forms import BiodataForm, LaporanForm, LoginForm, UserCreateForm
 from .roles import keanggotaan_label
 
 
@@ -110,10 +109,15 @@ def _new_captcha_code():
 
 @login_required
 def laporan_view(request):
+    pemeriksaan_form = None
     if request.method == "POST":
         expected = request.session.get("laporan_captcha", "")
         form = LaporanForm(request.POST, request.FILES, expected_captcha=expected)
-        pemeriksaan_form = PemeriksaanGolonganBForm(request.POST, request.FILES)
+        vehicle = Vehicle.objects.filter(pk=request.POST.get("vehicle") or None).first()
+        # The vehicle's group picks the checklist; without a (known) vehicle
+        # the Golongan B form reports the missing scan.
+        golongan_cfg = golongan.for_vehicle(vehicle) or golongan.GOLONGAN[Vehicle.GroupKendaraan.GOLONGAN_B]
+        pemeriksaan_form = golongan_cfg.form(request.POST, request.FILES)
         if form.is_valid() and pemeriksaan_form.is_valid():
             with transaction.atomic():
                 pemeriksa = form.save()
@@ -122,7 +126,7 @@ def laporan_view(request):
                 hasil.save()
                 for item in pemeriksaan_form.cleaned_items:
                     foto = item.pop("foto")
-                    PemeriksaanGolonganBItem.objects.create(
+                    golongan_cfg.item_model.objects.create(
                         pemeriksaan=hasil,
                         foto=compress_photo(foto) if foto else "",
                         **item,
@@ -132,7 +136,6 @@ def laporan_view(request):
             return redirect("accounts:pemeriksaan")
     else:
         form = LaporanForm()
-        pemeriksaan_form = PemeriksaanGolonganBForm()
 
     captcha_code = _new_captcha_code()
     request.session["laporan_captcha"] = captcha_code
@@ -141,12 +144,17 @@ def laporan_view(request):
         "form": form,
         "pemeriksaan_form": pemeriksaan_form,
         "captcha_code": captcha_code,
+        # Golongan B
         "pembagian_kelas": pemeriksaan.PEMBAGIAN_KELAS,
         "eselon_reparasi": pemeriksaan.ESELON_REPARASI,
         "macam_pemeriksaan": pemeriksaan.MACAM_PEMERIKSAAN,
         "buku_jalan": pemeriksaan.BUKU_JALAN,
-        "kondisi": pemeriksaan.KONDISI,
-        "alat": pemeriksaan.ALAT_BERNOMOR,
+        "kondisi_golongan_b": pemeriksaan.KONDISI,
+        "alat_golongan_b": pemeriksaan.ALAT_BERNOMOR,
+        # Kendaraan Bermotor
+        "buku_harian": pemeriksaan.BUKU_HARIAN,
+        "kondisi_bermotor": pemeriksaan.KONDISI_BERMOTOR,
+        "alat_bermotor": pemeriksaan.KOMPONEN_BERMOTOR_BERNOMOR,
     })
 
 
@@ -190,50 +198,53 @@ def _vehicle_from_scan(request):
 
 
 def _riwayat_pemeriksaan(vehicle):
-    """Golongan B inspections, newest first, with their B/RR/RB counts;
-    plus the latest one and its parts rated RR/RB (need repair)."""
+    """Inspections of the vehicle's group, newest first, each with
+    ``kondisi_counts`` [(kode, label, count)]; plus the latest one."""
+    cfg = golongan.for_vehicle(vehicle)
+    if cfg is None:
+        return [], None
     riwayat = list(
-        vehicle.pemeriksaan_golongan_b.select_related("pemeriksa")
-        .annotate(
-            jumlah_b=Count("items", filter=Q(items__kondisi="B")),
-            jumlah_rr=Count("items", filter=Q(items__kondisi="RR")),
-            jumlah_rb=Count("items", filter=Q(items__kondisi="RB")),
-        )
+        getattr(vehicle, cfg.relasi).select_related("pemeriksa")
+        .annotate(**{
+            f"jumlah_{kode}": Count("items", filter=Q(items__kondisi=kode)) for kode, _ in cfg.kondisi
+        })
         # Meta.ordering is dropped on GROUP BY queries, so order explicitly.
         .order_by("-dibuat_pada", "-id")
     )
-    terakhir = riwayat[0] if riwayat else None
-    perlu_perhatian = terakhir.items.exclude(kondisi="B") if terakhir else []
-    return riwayat, terakhir, perlu_perhatian
+    for hasil in riwayat:
+        hasil.kondisi_counts = [(kode, label, getattr(hasil, f"jumlah_{kode}")) for kode, label in cfg.kondisi]
+    return riwayat, (riwayat[0] if riwayat else None)
 
 
-def _perlu_perbaikan(terakhir):
-    """RR/RB parts of the latest inspection whose latest repair isn't Baik yet.
+def _perlu_perbaikan(vehicle, terakhir):
+    """Parts of the latest inspection not rated Baik whose latest repair isn't Baik yet.
 
     Each item gets ``perbaikan_terakhir`` (its most recent repair or None).
     """
     if terakhir is None:
         return []
-    items = terakhir.items.exclude(kondisi="B").prefetch_related(
-        Prefetch("perbaikan", queryset=PerbaikanGolonganB.objects.select_related("teknisi"))
+    cfg = golongan.for_vehicle(vehicle)
+    items = terakhir.items.exclude(kondisi=cfg.baik).prefetch_related(
+        Prefetch("perbaikan", queryset=cfg.perbaikan_model.objects.select_related("teknisi"))
     )
     daftar = []
     for item in items:
         repairs = list(item.perbaikan.all())
         item.perbaikan_terakhir = repairs[0] if repairs else None
-        if item.perbaikan_terakhir is None or item.perbaikan_terakhir.kondisi != "B":
+        if item.perbaikan_terakhir is None or item.perbaikan_terakhir.kondisi != cfg.baik:
             daftar.append(item)
     return daftar
 
 
 @login_required
 def history_kendaraan_view(request):
-    """Inspection history of the vehicle whose QR code was scanned."""
+    """Inspection and repair history of the vehicle whose QR code was scanned."""
     vehicle = _vehicle_from_scan(request)
-    riwayat, terakhir, _ = _riwayat_pemeriksaan(vehicle) if vehicle else ([], None, [])
+    riwayat, terakhir = _riwayat_pemeriksaan(vehicle) if vehicle else ([], None)
     riwayat_perbaikan = []
-    if vehicle is not None:
-        riwayat_perbaikan = PerbaikanGolonganB.objects.filter(
+    cfg = golongan.for_vehicle(vehicle)
+    if cfg is not None:
+        riwayat_perbaikan = cfg.perbaikan_model.objects.filter(
             item__pemeriksaan__vehicle=vehicle
         ).select_related("item", "teknisi")
     return render(request, "accounts/_history_kendaraan.html", {
@@ -241,25 +252,25 @@ def history_kendaraan_view(request):
         "riwayat": riwayat,
         "terakhir": terakhir,
         # Parts repaired back to Baik no longer need attention.
-        "perlu_perhatian": _perlu_perbaikan(terakhir),
+        "perlu_perhatian": _perlu_perbaikan(vehicle, terakhir),
         "riwayat_perbaikan": riwayat_perbaikan,
     })
 
 
-def _clean_perbaikan(data, files, daftar):
+def _clean_perbaikan(data, files, daftar, kondisi):
     """Validate the repair fields of the items the technician opened.
 
-    Returns (entries, errors); entries are dicts ready for PerbaikanGolonganB.
+    Returns (entries, errors); entries are dicts ready for the group's repair model.
     """
-    kondisi_valid = {kode for kode, _ in pemeriksaan.KONDISI}
+    kondisi_valid = {kode for kode, _ in kondisi}
     entries, errors = [], []
     for item in daftar:
         prefix = f"perbaikan_{item.pk}_"
         if not data.get(prefix + "aktif"):
             continue
         label = f"{item.nomor}. {item.nama_alat}"
-        kondisi = data.get(prefix + "kondisi", "")
-        if kondisi not in kondisi_valid:
+        kode = data.get(prefix + "kondisi", "")
+        if kode not in kondisi_valid:
             errors.append(f"Kondisi perbaikan {label} belum dipilih.")
         jumlah_raw = data.get(prefix + "jml", "").strip()
         if jumlah_raw and not jumlah_raw.isdigit():
@@ -272,7 +283,7 @@ def _clean_perbaikan(data, files, daftar):
                 errors.append(f"Foto perbaikan {label} bukan gambar yang valid.")
         entries.append({
             "item": item,
-            "kondisi": kondisi,
+            "kondisi": kode,
             "jumlah": int(jumlah_raw) if jumlah_raw.isdigit() else None,
             "keterangan": data.get(prefix + "keterangan", "").strip(),
             "foto": foto or None,
@@ -288,17 +299,20 @@ def perbaikan_view(request):
     if request.method == "POST":
         form = BiodataForm(request.POST, request.FILES)
         vehicle = Vehicle.objects.filter(pk=request.POST.get("vehicle") or None).first()
-        if vehicle is None:
+        cfg = golongan.for_vehicle(vehicle)
+        if cfg is None:
             errors.append("Scan QR Code kendaraan terlebih dahulu.")
         else:
-            _, terakhir, _ = _riwayat_pemeriksaan(vehicle)
-            entries, errors = _clean_perbaikan(request.POST, request.FILES, _perlu_perbaikan(terakhir))
+            _, terakhir = _riwayat_pemeriksaan(vehicle)
+            entries, errors = _clean_perbaikan(
+                request.POST, request.FILES, _perlu_perbaikan(vehicle, terakhir), cfg.kondisi,
+            )
         if form.is_valid() and not errors:
             with transaction.atomic():
                 teknisi = form.save()
                 for entry in entries:
                     foto = entry.pop("foto")
-                    PerbaikanGolonganB.objects.create(
+                    cfg.perbaikan_model.objects.create(
                         teknisi=teknisi, foto=compress_photo(foto) if foto else "", **entry,
                     )
             messages.success(request, f"Perbaikan {vehicle.nopol} berhasil disimpan ({len(entries)} item).")
@@ -309,20 +323,20 @@ def perbaikan_view(request):
         "form": form,
         "perbaikan_errors": errors,
         "nopol": request.GET.get("nopol", ""),
-        "kondisi": pemeriksaan.KONDISI,
     })
 
 
 @login_required
 def perbaikan_kendaraan_view(request):
-    """Parts to repair on the scanned vehicle: RR/RB items of its last inspection."""
+    """Parts to repair on the scanned vehicle: non-Baik items of its last inspection."""
     vehicle = _vehicle_from_scan(request)
-    _, terakhir, _ = _riwayat_pemeriksaan(vehicle) if vehicle else ([], None, [])
+    _, terakhir = _riwayat_pemeriksaan(vehicle) if vehicle else ([], None)
+    cfg = golongan.for_vehicle(vehicle)
     return render(request, "accounts/_perbaikan_daftar.html", {
         "vehicle": vehicle,
         "terakhir": terakhir,
-        "daftar": _perlu_perbaikan(terakhir),
-        "kondisi": pemeriksaan.KONDISI,
+        "daftar": _perlu_perbaikan(vehicle, terakhir),
+        "kondisi": cfg.kondisi if cfg else [],
     })
 
 

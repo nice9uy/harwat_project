@@ -184,13 +184,20 @@
           </div>
         </template>
 
-        <p x-show="kendaraan && kendaraan.group_kode !== 'B'" x-cloak
+        <p x-show="kendaraan && !['B', 'bermotor'].includes(kendaraan.group_kode)" x-cloak
            class="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
             Form pemeriksaan untuk <span x-text="kendaraan && kendaraan.group_kendaraan"></span> belum tersedia.
         </p>
 
-        <div x-show="kendaraan && kendaraan.group_kode === 'B'" x-cloak x-ref="pemeriksaan" class="space-y-4">
-            {% include "accounts/_pemeriksaan_golongan_b.html" %}
+        <div x-show="kendaraan && ['B', 'bermotor'].includes(kendaraan.group_kode)" x-cloak x-ref="pemeriksaan" class="space-y-4">
+            {# x-if, not x-show: only the scanned group's checklist may be in the form, #}
+            {# or the other one's same-named, required fields would block submitting. #}
+            <template x-if="kendaraan && kendaraan.group_kode === 'B'">
+                <div>{% include "accounts/_pemeriksaan_golongan_b.html" %}</div>
+            </template>
+            <template x-if="kendaraan && kendaraan.group_kode === 'bermotor'">
+                <div>{% include "accounts/_pemeriksaan_bermotor.html" %}</div>
+            </template>
             <input type="hidden" name="vehicle" :value="kendaraan ? kendaraan.id : ''">
             <button type="button" id="pemeriksaan-lanjutkan" @click="lanjutkan()"
                     class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">

@@ -1,0 +1,48 @@
+{% comment %}
+Inspection checklist for Kendaraan Bermotor (63-component paper form), shown
+after a Kendaraan Bermotor vehicle is scanned.
+{% endcomment %}
+<div x-data="{ open: 'klasifikasi' }" @buka-panel.window="open = $event.detail" class="divide-y divide-slate-200 dark:divide-slate-700 rounded-md border border-slate-300 dark:border-slate-600 overflow-hidden">
+    <section data-panel='"klasifikasi"'>
+        <button type="button" @click="open = open === 'klasifikasi' ? null : 'klasifikasi'"
+                :aria-expanded="open === 'klasifikasi'"
+                class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-navy dark:text-slate-100 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700">
+            BBM, Buku Harian, Macam &amp; Tempat Pemeriksaan
+            <svg :class="open === 'klasifikasi' && 'rotate-180'" class="h-4 w-4 shrink-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+        </button>
+        <div x-show="open === 'klasifikasi'" class="px-4 py-4 space-y-4">
+            <div>
+                <label for="bbm" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">BBM</label>
+                <input type="text" id="bbm" name="bbm" placeholder="Solar / Pertalite / 3/4 tangki" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+            </div>
+            <fieldset>
+                <legend class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Buku Harian</legend>
+                <div class="grid grid-cols-2 gap-2">
+                    {% for value, label in buku_harian %}
+                    <label class="flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 py-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-blue-600 has-checked:bg-blue-600 has-checked:text-white">
+                        <input type="radio" name="buku_harian" value="{{ value }}" required class="sr-only">{{ label }}
+                    </label>
+                    {% endfor %}
+                </div>
+            </fieldset>
+            <fieldset>
+                <legend class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Macam Pemeriksaan</legend>
+                <div class="grid grid-cols-2 gap-2">
+                    {% for value, label in macam_pemeriksaan %}
+                    <label class="flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 py-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-blue-600 has-checked:bg-blue-600 has-checked:text-white">
+                        <input type="radio" name="macam_pemeriksaan" value="{{ value }}" required class="sr-only">{{ label }}
+                    </label>
+                    {% endfor %}
+                </div>
+            </fieldset>
+            <div>
+                <label for="tempat_pemeriksaan" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tempat Pemeriksaan</label>
+                <input type="text" id="tempat_pemeriksaan" name="tempat_pemeriksaan" placeholder="Bengkel Yonif Mekanis 202/TM" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+            </div>
+        </div>
+    </section>
+
+    {% for no, nama in alat_bermotor %}
+    {% include "accounts/_pemeriksaan_item.html" with kondisi=kondisi_bermotor %}
+    {% endfor %}
+</div>

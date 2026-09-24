@@ -6,7 +6,7 @@ from fleet.models import Vehicle
 
 from . import pemeriksaan as checklist
 from . import roles
-from .models import Laporan, PemeriksaanGolonganB
+from .models import Laporan, PemeriksaanBermotor, PemeriksaanGolonganB
 
 TEXT_INPUT_CLASSES = (
     "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm "
@@ -125,30 +125,30 @@ class LaporanForm(BiodataForm):
         return value
 
 
-class PemeriksaanGolonganBForm(forms.ModelForm):
-    """Tab PEMERIKSAAN: scanned vehicle, classification and the 40 parts.
+class _ChecklistForm(forms.ModelForm):
+    """Tab PEMERIKSAAN: scanned vehicle, header fields and the checklist.
 
-    Part fields come from the accordion as alat_<n>_jml / _kondisi / _foto /
-    _keterangan for n = 1..40 and are validated here into ``cleaned_items``.
+    Checklist fields come from the accordion as alat_<n>_jml / _kondisi /
+    _foto / _keterangan for each numbered part in ``alat`` and are
+    validated into ``cleaned_items``. Subclasses set ``golongan``
+    (Vehicle.group_kendaraan), ``alat`` and ``kondisi``.
     """
 
-    class Meta:
-        model = PemeriksaanGolonganB
-        fields = ["vehicle", "pembagian_kelas", "eselon_reparasi", "macam_pemeriksaan", "buku_jalan", "kesatuan"]
+    golongan = None
+    alat = []
+    kondisi = []
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["vehicle"].queryset = Vehicle.objects.filter(
-            group_kendaraan=Vehicle.GroupKendaraan.GOLONGAN_B
-        )
+        self.fields["vehicle"].queryset = Vehicle.objects.filter(group_kendaraan=self.golongan)
         self.fields["vehicle"].error_messages["required"] = "Scan QR Code kendaraan terlebih dahulu."
         self.cleaned_items = []
 
     def clean(self):
         cleaned = super().clean()
-        kondisi_valid = {kode for kode, _ in checklist.KONDISI}
+        kondisi_valid = {kode for kode, _ in self.kondisi}
         items, errors = [], []
-        for nomor, nama in checklist.ALAT_BERNOMOR:
+        for nomor, nama in self.alat:
             prefix = f"alat_{nomor}_"
             kondisi = self.data.get(prefix + "kondisi", "")
             if kondisi not in kondisi_valid:
@@ -178,3 +178,23 @@ class PemeriksaanGolonganBForm(forms.ModelForm):
             raise forms.ValidationError(errors)
         self.cleaned_items = items
         return cleaned
+
+
+class PemeriksaanGolonganBForm(_ChecklistForm):
+    golongan = Vehicle.GroupKendaraan.GOLONGAN_B
+    alat = checklist.ALAT_BERNOMOR
+    kondisi = checklist.KONDISI
+
+    class Meta:
+        model = PemeriksaanGolonganB
+        fields = ["vehicle", "pembagian_kelas", "eselon_reparasi", "macam_pemeriksaan", "buku_jalan", "kesatuan"]
+
+
+class PemeriksaanBermotorForm(_ChecklistForm):
+    golongan = Vehicle.GroupKendaraan.KENDARAAN_BERMOTOR
+    alat = checklist.KOMPONEN_BERMOTOR_BERNOMOR
+    kondisi = checklist.KONDISI_BERMOTOR
+
+    class Meta:
+        model = PemeriksaanBermotor
+        fields = ["vehicle", "bbm", "buku_harian", "macam_pemeriksaan", "tempat_pemeriksaan"]
