@@ -1138,8 +1138,8 @@ class BreadcrumbTests(TestCase):
     def test_starts_at_biodata_without_home(self):
         User.objects.create_user(username="u", password="rahasia-123")
         self.client.login(username="u", password="rahasia-123")
-        for name, first in (("accounts:pemeriksaan", "Biodata Pemeriksa"), ("accounts:form_tambah", "Biodata"),
-                            ("accounts:perbaikan", "Biodata")):
+        for name, first in (("accounts:pemeriksaan", "Biodata Pemeriksa"), ("accounts:form_tambah", "Biodata Pemeriksa"),
+                            ("accounts:perbaikan", "Biodata Pemeriksa")):
             content = self.client.get(reverse(name)).content.decode()
             crumb = content[content.index('<nav aria-label="Breadcrumb"'):content.index("</nav>", content.index('<nav aria-label="Breadcrumb"'))]
             self.assertNotIn("Home", crumb)

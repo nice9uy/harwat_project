@@ -13,7 +13,7 @@
               this.step = 2;
           },
       }">
-    {% include "accounts/_breadcrumb_langkah.html" with langkah1="Biodata" langkah2="Tambah Kendaraan" %}
+    {% include "accounts/_breadcrumb_langkah.html" with langkah1="Biodata Pemeriksa" langkah2="Tambah Kendaraan" %}
     {% csrf_token %}
     <div x-ref="biodata" x-show="step === 1" class="max-w-md mx-auto space-y-4">
     {% include "accounts/_biodata_fields.html" %}
