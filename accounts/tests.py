@@ -123,11 +123,11 @@ class UserCreateViewTests(TestCase):
             "email": "teknisi2@example.com",
             "password1": "kompleks-sekali-123",
             "password2": "kompleks-sekali-123",
-            "keanggotaan": "petugas_pemeriksaan",
+            "keanggotaan": "tim_pemeriksaan",
         })
         self.assertRedirects(response, reverse("accounts:pengaturan"))
         user = User.objects.get(username="teknisi2")
-        self.assertEqual(list(user.groups.values_list("name", flat=True)), ["Petugas Pemeriksaan"])
+        self.assertEqual(list(user.groups.values_list("name", flat=True)), ["Tim Pemeriksaan"])
         self.assertFalse(user.is_staff or user.is_superuser)
 
     def test_post_htmx_returns_hx_redirect(self):
@@ -181,11 +181,11 @@ class UserCreateViewTests(TestCase):
         self.assertTrue(user.is_superuser and user.is_staff)
 
     def test_pengaturan_lists_keanggotaan(self):
-        self._create("petugas_perbaikan")
+        self._create("tim_perbaikan")
         User.objects.create_superuser(username="root", password="rahasia-123")
         response = self.client.get(reverse("accounts:pengaturan"))
         self.assertContains(response, "<th class=\"py-2 px-4 font-medium\">Keanggotaan</th>", html=True)
-        self.assertContains(response, "Petugas Perbaikan")
+        self.assertContains(response, "Tim Perbaikan")
         self.assertContains(response, "Superuser")
 
     def test_all_role_groups_exist(self):
@@ -194,7 +194,7 @@ class UserCreateViewTests(TestCase):
         from accounts.roles import GROUP_NAMES
         self.assertEqual(
             set(Group.objects.values_list("name", flat=True)) & set(GROUP_NAMES.values()),
-            {"Admin", "Pimpinan", "Petugas Pemeriksaan", "Petugas Penambahan Data", "Petugas Perbaikan"},
+            {"Admin", "Pimpinan", "Tim Pemeriksaan", "Tim Penambahan Data", "Tim Perbaikan"},
         )
 
     def test_post_mismatched_passwords_shows_error(self):

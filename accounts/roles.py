@@ -11,9 +11,9 @@ KEANGGOTAAN = [
     (SUPERUSER, "Superuser"),
     (ADMIN, "Admin"),
     ("pimpinan", "Pimpinan"),
-    ("petugas_pemeriksaan", "Petugas Pemeriksaan"),
-    ("petugas_penambahan_data", "Petugas Penambahan Data"),
-    ("petugas_perbaikan", "Petugas Perbaikan"),
+    ("tim_pemeriksaan", "Tim Pemeriksaan"),
+    ("tim_penambahan_data", "Tim Penambahan Data"),
+    ("tim_perbaikan", "Tim Perbaikan"),
 ]
 
 # Group name for every role except Superuser.
