@@ -3,7 +3,7 @@
         hx-get="{% url 'fleet:vehicle_update' vehicle.pk %}"
         hx-target="#vehicle-modal-body"
         hx-swap="innerHTML"
-        class="text-navy dark:text-slate-300 hover:text-gold">
+        class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700">
     Edit
 </button>
 <button type="button"
@@ -11,6 +11,6 @@
         hx-get="{% url 'fleet:vehicle_delete_confirm' vehicle.pk %}"
         hx-target="#vehicle-modal-body"
         hx-swap="innerHTML"
-        class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">
+        class="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">
     Hapus
 </button>

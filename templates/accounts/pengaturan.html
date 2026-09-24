@@ -63,7 +63,7 @@
                         <td class="py-2 px-4">{{ akun.ketua_tim|default:"—" }}</td>
                         <td class="py-2 px-4">{{ akun.date_joined|date:"d M Y" }}</td>
                         <td class="py-2 px-4">
-                            <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-2">
                             {% if akun.anggota_pk %}
                             <button type="button"
                                     @click="modalOpen = true"
@@ -80,7 +80,7 @@
                                     hx-get="{% url 'accounts:user_edit' akun.pk %}"
                                     hx-target="#user-modal-body"
                                     hx-swap="innerHTML"
-                                    class="text-navy dark:text-slate-300 hover:text-gold">
+                                    class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700">
                                 Edit
                             </button>
                             {% endif %}
@@ -92,7 +92,7 @@
                                     hx-get="{% url 'accounts:user_delete' akun.pk %}"
                                     hx-target="#user-modal-body"
                                     hx-swap="innerHTML"
-                                    class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">
+                                    class="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">
                                 Hapus
                             </button>
                             {% endif %}
