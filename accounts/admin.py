@@ -2,11 +2,11 @@ from django.contrib import admin
 
 from .models import (
     Laporan,
-    PemeriksaanBermotor,
-    PemeriksaanBermotorItem,
+    PemeriksaanMotor,
+    PemeriksaanMotorItem,
     PemeriksaanGolonganB,
     PemeriksaanGolonganBItem,
-    PerbaikanBermotor,
+    PerbaikanMotor,
     PerbaikanGolonganB,
     RevokedToken,
 )
@@ -65,13 +65,13 @@ class PerbaikanGolonganBAdmin(admin.ModelAdmin):
         return obj.item.pemeriksaan.vehicle
 
 
-class PemeriksaanBermotorItemInline(admin.TabularInline):
-    model = PemeriksaanBermotorItem
+class PemeriksaanMotorItemInline(admin.TabularInline):
+    model = PemeriksaanMotorItem
     extra = 0
 
 
-@admin.register(PemeriksaanBermotor)
-class PemeriksaanBermotorAdmin(admin.ModelAdmin):
+@admin.register(PemeriksaanMotor)
+class PemeriksaanMotorAdmin(admin.ModelAdmin):
     list_display = [
         "vehicle", "pemeriksa", "bbm", "buku_harian", "macam_pemeriksaan", "tempat_pemeriksaan", "ukuran_ban", "dibuat_pada",
     ]
@@ -79,19 +79,19 @@ class PemeriksaanBermotorAdmin(admin.ModelAdmin):
     list_select_related = ["vehicle", "pemeriksa"]
     search_fields = ["vehicle__nopol", "pemeriksa__nama", "pemeriksa__nip", "tempat_pemeriksaan"]
     date_hierarchy = "dibuat_pada"
-    inlines = [PemeriksaanBermotorItemInline]
+    inlines = [PemeriksaanMotorItemInline]
 
 
-@admin.register(PemeriksaanBermotorItem)
-class PemeriksaanBermotorItemAdmin(admin.ModelAdmin):
+@admin.register(PemeriksaanMotorItem)
+class PemeriksaanMotorItemAdmin(admin.ModelAdmin):
     list_display = ["pemeriksaan", "nomor", "nama_alat", "kondisi", "keterangan"]
     list_filter = ["kondisi", "nama_alat"]
     list_select_related = ["pemeriksaan__vehicle"]
     search_fields = ["pemeriksaan__vehicle__nopol", "nama_alat", "keterangan"]
 
 
-@admin.register(PerbaikanBermotor)
-class PerbaikanBermotorAdmin(admin.ModelAdmin):
+@admin.register(PerbaikanMotor)
+class PerbaikanMotorAdmin(admin.ModelAdmin):
     list_display = ["item", "kendaraan", "kondisi", "teknisi", "dibuat_pada"]
     list_filter = ["kondisi"]
     list_select_related = ["item__pemeriksaan__vehicle", "teknisi"]

@@ -14,7 +14,7 @@ class Vehicle(models.Model):
 
     class GroupKendaraan(models.TextChoices):
         GOLONGAN_B = "B", "Golongan B"
-        KENDARAAN_BERMOTOR = "bermotor", "Kendaraan Bermotor"
+        MOTOR = "motor", "Motor"
 
     class Status(models.TextChoices):
         SIAP_PAKAI = "siap_pakai", "Siap Pakai"

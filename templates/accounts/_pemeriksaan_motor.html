@@ -1,6 +1,6 @@
 {% comment %}
-Inspection checklist for Kendaraan Bermotor (63-component paper form), shown
-after a Kendaraan Bermotor vehicle is scanned.
+Inspection checklist for Motor (63-component paper form), shown
+after a Motor vehicle is scanned.
 {% endcomment %}
 <div x-data="{ open: 'klasifikasi' }" @buka-panel.window="open = $event.detail" class="divide-y divide-slate-200 dark:divide-slate-700 rounded-md border border-slate-300 dark:border-slate-600 overflow-hidden">
     <section data-panel='"klasifikasi"'>
@@ -89,7 +89,7 @@ after a Kendaraan Bermotor vehicle is scanned.
         </div>
     </section>
 
-    {% for no, nama in alat_bermotor %}
-    {% include "accounts/_pemeriksaan_item.html" with kondisi=kondisi_bermotor pakai_jumlah=False %}
+    {% for no, nama in alat_motor %}
+    {% include "accounts/_pemeriksaan_item.html" with kondisi=kondisi_motor pakai_jumlah=False %}
     {% endfor %}
 </div>

@@ -126,15 +126,15 @@ class PerbaikanGolonganB(models.Model):
 
 
 
-class PemeriksaanBermotor(models.Model):
-    """One inspection of a Kendaraan Bermotor vehicle (63-component paper form)."""
+class PemeriksaanMotor(models.Model):
+    """One inspection of a Motor vehicle (63-component paper form)."""
 
     pemeriksa = models.ForeignKey(
-        Laporan, on_delete=models.CASCADE, related_name="pemeriksaan_bermotor",
+        Laporan, on_delete=models.CASCADE, related_name="pemeriksaan_motor",
         verbose_name="Biodata Pemeriksa",
     )
     vehicle = models.ForeignKey(
-        "fleet.Vehicle", on_delete=models.PROTECT, related_name="pemeriksaan_bermotor",
+        "fleet.Vehicle", on_delete=models.PROTECT, related_name="pemeriksaan_motor",
         verbose_name="Kendaraan",
     )
     bbm = models.CharField(max_length=100, blank=True, verbose_name="BBM")
@@ -171,8 +171,8 @@ class PemeriksaanBermotor(models.Model):
     ]
 
     class Meta:
-        verbose_name = "Pemeriksaan Kendaraan Bermotor"
-        verbose_name_plural = "Pemeriksaan Kendaraan Bermotor"
+        verbose_name = "Pemeriksaan Motor"
+        verbose_name_plural = "Pemeriksaan Motor"
         ordering = ["-dibuat_pada", "-id"]
 
     def __str__(self):
@@ -193,47 +193,47 @@ class PemeriksaanBermotor(models.Model):
         return " · ".join(parts)
 
 
-class PemeriksaanBermotorItem(models.Model):
-    """One of the 63 checked components of a PemeriksaanBermotor."""
+class PemeriksaanMotorItem(models.Model):
+    """One of the 63 checked components of a PemeriksaanMotor."""
 
-    pemeriksaan = models.ForeignKey(PemeriksaanBermotor, on_delete=models.CASCADE, related_name="items")
+    pemeriksaan = models.ForeignKey(PemeriksaanMotor, on_delete=models.CASCADE, related_name="items")
     nomor = models.PositiveSmallIntegerField()
     nama_alat = models.CharField(max_length=100, verbose_name="Nama Komponen")
-    kondisi = models.CharField(max_length=2, choices=checklist.KONDISI_BERMOTOR)
+    kondisi = models.CharField(max_length=2, choices=checklist.KONDISI_MOTOR)
     foto = models.ImageField(upload_to="pemeriksaan/", blank=True)
     keterangan = models.TextField(blank=True)
 
     class Meta:
-        verbose_name = "Item Pemeriksaan Kendaraan Bermotor"
-        verbose_name_plural = "Item Pemeriksaan Kendaraan Bermotor"
+        verbose_name = "Item Pemeriksaan Motor"
+        verbose_name_plural = "Item Pemeriksaan Motor"
         ordering = ["nomor"]
         constraints = [
-            models.UniqueConstraint(fields=["pemeriksaan", "nomor"], name="unique_item_per_pemeriksaan_bermotor"),
+            models.UniqueConstraint(fields=["pemeriksaan", "nomor"], name="unique_item_per_pemeriksaan_motor"),
         ]
 
     def __str__(self):
         return f"{self.nomor}. {self.nama_alat}"
 
 
-class PerbaikanBermotor(models.Model):
-    """A repair of one component that wasn't Baik in a Kendaraan Bermotor inspection."""
+class PerbaikanMotor(models.Model):
+    """A repair of one component that wasn't Baik in a Motor inspection."""
 
     teknisi = models.ForeignKey(
-        Laporan, on_delete=models.CASCADE, related_name="perbaikan_bermotor",
+        Laporan, on_delete=models.CASCADE, related_name="perbaikan_motor",
         verbose_name="Biodata Teknisi",
     )
     item = models.ForeignKey(
-        PemeriksaanBermotorItem, on_delete=models.CASCADE, related_name="perbaikan",
+        PemeriksaanMotorItem, on_delete=models.CASCADE, related_name="perbaikan",
         verbose_name="Item Pemeriksaan",
     )
-    kondisi = models.CharField(max_length=2, choices=checklist.KONDISI_BERMOTOR)
+    kondisi = models.CharField(max_length=2, choices=checklist.KONDISI_MOTOR)
     keterangan = models.TextField(blank=True)
     foto = models.ImageField(upload_to="perbaikan/", blank=True)
     dibuat_pada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = "Perbaikan Kendaraan Bermotor"
-        verbose_name_plural = "Perbaikan Kendaraan Bermotor"
+        verbose_name = "Perbaikan Motor"
+        verbose_name_plural = "Perbaikan Motor"
         ordering = ["-dibuat_pada", "-id"]
 
     def __str__(self):

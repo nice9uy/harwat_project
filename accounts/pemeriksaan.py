@@ -22,9 +22,9 @@ ALAT = [
 ALAT_BERNOMOR = list(enumerate(ALAT, start=1))
 
 
-# --- Kendaraan Bermotor (paper form with 63 components) ---
+# --- Motor (paper form with 63 components) ---
 
-KONDISI_BERMOTOR = [
+KONDISI_MOTOR = [
     ("B", "Baik"),
     ("HP", "Harus Diperbaiki"),
     ("HG", "Harus Diganti"),
@@ -32,7 +32,7 @@ KONDISI_BERMOTOR = [
 ]
 BUKU_HARIAN = BUKU_JALAN
 
-KOMPONEN_BERMOTOR = [
+KOMPONEN_MOTOR = [
     "Mesin / Tune Up / Over Haul", "Head Cylinder / Blok Cylinder / Carter", "Piston Assy",
     "Intake Valve / Exhaust Valve", "Noken As, Rocker Arm", "Valve Assy", "Poros Engkol, Flywheel",
     "Timing Chain / Timing Belt", "Pulley", "Drive Belt", "Engine Mounting",
@@ -51,7 +51,7 @@ KOMPONEN_BERMOTOR = [
     "Ban Depan / Belakang / Kanan / Kiri", "Ban Cadangan", "Dongkrak", "Tabung Pemadam",
     "Kotak P3K", "Winch",
 ]
-KOMPONEN_BERMOTOR_BERNOMOR = list(enumerate(KOMPONEN_BERMOTOR, start=1))
+KOMPONEN_MOTOR_BERNOMOR = list(enumerate(KOMPONEN_MOTOR, start=1))
 
 # Badge colours per kondisi code, for both forms. Full class strings so
 # Tailwind's scanner picks them up from this file.

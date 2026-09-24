@@ -577,31 +577,31 @@ class VehicleLookupTests(TestCase):
 
 
 @override_settings(MEDIA_ROOT=MEDIA_ROOT)
-class KendaraanBermotorTabTests(TestCase):
+class KendaraanMotorTabTests(TestCase):
     def setUp(self):
         User.objects.create_user(username="teknisi1", password="rahasia-123")
         self.client.login(username="teknisi1", password="rahasia-123")
         Vehicle.objects.create(nopol="B 1111 AA", merek="Truk")
-        Vehicle.objects.create(nopol="B 2222 BB", merek="Motor", group_kendaraan="bermotor")
+        Vehicle.objects.create(nopol="B 2222 BB", merek="Motor", group_kendaraan="motor")
 
     def test_armada_shows_both_tabs(self):
         response = self.client.get(reverse("fleet:vehicle_list"))
         self.assertContains(response, "GOLONGAN B")
-        self.assertContains(response, "KENDARAAN BERMOTOR")
-        self.assertContains(response, f'href="{reverse("fleet:vehicle_list")}?group=bermotor"')
+        self.assertContains(response, "MOTOR")
+        self.assertContains(response, f'href="{reverse("fleet:vehicle_list")}?group=motor"')
 
-    def test_bermotor_tab_lists_only_its_vehicles_and_adds_to_it(self):
-        response = self.client.get(reverse("fleet:vehicle_list"), {"group": "bermotor"})
+    def test_motor_tab_lists_only_its_vehicles_and_adds_to_it(self):
+        response = self.client.get(reverse("fleet:vehicle_list"), {"group": "motor"})
         self.assertContains(response, "B 2222 BB")
         self.assertNotContains(response, "B 1111 AA")
-        self.assertContains(response, f'hx-get="{reverse("fleet:vehicle_create")}?group=bermotor"')
-        response = self.client.post(reverse("fleet:vehicle_create") + "?group=bermotor", {
+        self.assertContains(response, f'hx-get="{reverse("fleet:vehicle_create")}?group=motor"')
+        response = self.client.post(reverse("fleet:vehicle_create") + "?group=motor", {
             "nopol": "B 3333 CC", "merek": "Honda", "foto": _photos(),
         })
-        self.assertRedirects(response, reverse("fleet:vehicle_list") + "?group=bermotor")
-        self.assertEqual(Vehicle.objects.get(nopol="B 3333 CC").group_kendaraan, "bermotor")
+        self.assertRedirects(response, reverse("fleet:vehicle_list") + "?group=motor")
+        self.assertEqual(Vehicle.objects.get(nopol="B 3333 CC").group_kendaraan, "motor")
 
-    def test_bermotor_vehicle_is_not_accepted_by_golongan_b_inspection(self):
+    def test_motor_vehicle_is_not_accepted_by_golongan_b_inspection(self):
         from accounts.forms import PemeriksaanGolonganBForm
         motor = Vehicle.objects.get(nopol="B 2222 BB")
         form = PemeriksaanGolonganBForm(data={"vehicle": motor.pk})
