@@ -73,7 +73,8 @@ def _dashboard_context():
 
 @login_required
 def dashboard_view(request):
-    return render(request, "accounts/dashboard.html", _dashboard_context())
+    # The Grafik tab is only in the full page; the 10 s refresh swaps just the summary.
+    return render(request, "accounts/dashboard.html", {**_dashboard_context(), "grafik": dashboard.grafik()})
 
 
 @login_required

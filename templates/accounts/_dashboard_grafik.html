@@ -1,0 +1,48 @@
+{% load l10n %}
+{% load fleet_tags %}
+{% comment %}Grafik tab of the dashboard (accounts.dashboard.grafik()).{% endcomment %}
+<style>
+    /* Chart palette: categorical slots 1-2 (validated), stepped for each theme. */
+    .viz { --seri-1: #2a78d6; --seri-2: #eb6834; --viz-grid: #e2e8f0; --viz-ink: #64748b; --viz-surface: #ffffff; }
+    .dark .viz { --seri-1: #3987e5; --seri-2: #d95926; --viz-grid: #334155; --viz-ink: #94a3b8; --viz-surface: #1e293b; }
+    .viz .seri-1 { fill: var(--seri-1); }
+    .viz .seri-2 { fill: var(--seri-2); }
+    .viz .viz-kunci { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+    .viz .viz-kunci.seri-1 { background: var(--seri-1); }
+    .viz .viz-kunci.seri-2 { background: var(--seri-2); }
+    .viz .viz-grid { stroke: var(--viz-grid); stroke-width: 1; }
+    .viz .viz-sumbu, .viz .viz-nilai { fill: var(--viz-ink); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .viz .viz-label { fill: currentColor; font-size: 13px; }
+    .viz .viz-hit { fill: transparent; }
+    .viz .viz-mark:hover path { opacity: .8; }
+</style>
+<div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+    <section class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+        <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Pemeriksaan &amp; Perbaikan per Bulan</h2>
+        <p class="mb-3 text-xs text-slate-500 dark:text-slate-400">6 bulan terakhir, semua golongan</p>
+        {% include "accounts/_grafik_kolom.html" with g=grafik.aktivitas judul="Pemeriksaan dan perbaikan per bulan" %}
+    </section>
+
+    <section class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+        <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Biaya Servis per Bulan</h2>
+        <p class="mb-3 text-xs text-slate-500 dark:text-slate-400">Total 6 bulan: {{ grafik.total_biaya|rupiah }}</p>
+        {% include "accounts/_grafik_kolom.html" with g=grafik.biaya judul="Biaya servis per bulan" %}
+    </section>
+
+    <section class="viz rounded-lg border border-slate-200 bg-white p-4 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 xl:col-span-2">
+        <h2 class="text-sm font-semibold">Kendaraan per Golongan</h2>
+        <p class="mb-3 text-xs text-slate-500 dark:text-slate-400">Jumlah kendaraan di Armada</p>
+    {% localize off %}{# SVG coordinates need a decimal point, not the Indonesian comma #}
+        <svg viewBox="0 0 {{ grafik.golongan.lebar }} {{ grafik.golongan.tinggi }}" class="w-full h-auto max-w-3xl" role="img" aria-label="Kendaraan per golongan">
+            {% for b in grafik.golongan.bar %}
+            <g class="viz-mark">
+                <title>{{ b.label }}: {{ b.nilai }} kendaraan</title>
+                <text x="{{ grafik.golongan.x0|add:-12 }}" y="{{ b.y|add:12 }}" class="viz-label" text-anchor="end" dominant-baseline="middle">{{ b.label }}</text>
+                {% if b.path %}<path d="{{ b.path }}" class="seri-1"></path>{% endif %}
+                <text x="{% if b.path %}{{ b.x_nilai }}{% else %}{{ grafik.golongan.x0|add:8 }}{% endif %}" y="{{ b.y|add:12 }}" class="viz-nilai" dominant-baseline="middle">{{ b.nilai }}</text>
+            </g>
+            {% endfor %}
+        </svg>
+    {% endlocalize %}
+    </section>
+</div>

@@ -1768,3 +1768,33 @@ class LaporanMenuTests(TestCase):
         user.groups.add(Group.objects.get(name="Tim Pemeriksaan"))
         self.client.login(username="t", password="rahasia-123")
         self.assertRedirects(self.client.get(reverse("accounts:laporan_perbaikan")), reverse("accounts:pemeriksaan"))
+
+
+class DashboardGrafikTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username="u", password="rahasia-123")
+        self.client.login(username="u", password="rahasia-123")
+
+    def test_tabs_and_charts(self):
+        from datetime import date
+        from fleet.models import Servis
+        truk = Vehicle.objects.create(nopol="B 1 TRK", merek="Hino")
+        Vehicle.objects.create(nopol="B 2 MTR", merek="Honda", group_kendaraan="bermotor")
+        Servis.objects.create(vehicle=truk, tanggal=date.today(), jenis_servis="Oli", biaya=1_500_000)
+        response = self.client.get(reverse("accounts:dashboard"))
+        for text in ("RINGKASAN", "GRAFIK", "Pemeriksaan &amp; Perbaikan per Bulan", "Biaya Servis per Bulan",
+                     "Kendaraan per Golongan", "Golongan B: 1 kendaraan", "Kendaraan Bermotor: 1 kendaraan",
+                     "Biaya servis · ", "Rp 1,5 jt", "Lihat tabel", "Total 6 bulan: Rp 1.500.000"):
+            self.assertContains(response, text)
+
+    def test_svg_numbers_use_a_decimal_point_under_indonesian_locale(self):
+        import re
+        Vehicle.objects.create(nopol="B 1 TRK", merek="Hino")
+        content = self.client.get(reverse("accounts:dashboard")).content.decode()
+        svgs = "".join(re.findall(r"<svg viewBox.*?</svg>", content, re.S))
+        self.assertTrue(svgs)
+        self.assertIsNone(re.search(r'(?:x|y|x1|x2|y1|y2|width|height)="-?\d+,\d', svgs))
+
+    def test_refresh_partial_has_no_chart_queries(self):
+        response = self.client.get(reverse("accounts:dashboard_partial"))
+        self.assertNotContains(response, "Kendaraan per Golongan")
