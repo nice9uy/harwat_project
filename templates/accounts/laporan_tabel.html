@@ -49,7 +49,7 @@
                     @click="modalOpen = true" @keydown.enter="$el.click()" tabindex="0" role="button" title="Lihat detail"
                     class="cursor-pointer hover:bg-slate-100 focus:bg-slate-100 focus:outline-none dark:hover:bg-slate-700/60 dark:focus:bg-slate-700/60"{% endif %}>
                     <td class="px-4 py-2 text-slate-500 dark:text-slate-400">{{ halaman.start_index|add:forloop.counter0 }}</td>
-                    {% for sel in baris %}<td class="px-4 py-2{% if forloop.counter == kolom_tanggal %} whitespace-nowrap tabular-nums{% endif %}{% if forloop.counter == kolom_utama %} font-medium text-navy dark:text-slate-100{% endif %}">{{ sel|default:"—" }}</td>{% endfor %}
+                    {% for sel in baris %}<td class="px-4 py-2{% if forloop.counter == kolom_tanggal %} whitespace-nowrap tabular-nums{% endif %}{% if forloop.counter == kolom_utama %} font-medium text-navy dark:text-slate-100{% endif %}">{% if sel == "" or sel is None %}—{% else %}{{ sel }}{% endif %}</td>{% endfor %}
                 </tr>
                 {% empty %}
                 <tr><td colspan="{{ header|length|add:1 }}" class="px-4 py-6 text-center text-slate-400 dark:text-slate-500">Tidak ada data untuk filter ini.</td></tr>

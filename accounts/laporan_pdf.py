@@ -42,6 +42,7 @@ _gaya = getSampleStyleSheet()
 TEKS = ParagraphStyle("teks", parent=_gaya["Normal"], fontName="Helvetica", fontSize=8.5, leading=11)
 TEKS_TEBAL = ParagraphStyle("teks_tebal", parent=TEKS, fontName="Helvetica-Bold")
 KEPALA = ParagraphStyle("kepala", parent=TEKS, fontName="Helvetica-Bold", textColor=colors.white)
+KEPALA_KECIL = ParagraphStyle("kepala_kecil", parent=KEPALA, fontSize=7.5, leading=9.5)
 BAGIAN = ParagraphStyle("bagian", parent=TEKS, fontName="Helvetica-Bold", fontSize=10, textColor=NAVY, spaceBefore=8, spaceAfter=4)
 JUDUL = ParagraphStyle("judul", parent=TEKS, fontName="Helvetica-Bold", fontSize=13, leading=16, textColor=NAVY)
 SUB = ParagraphStyle("sub", parent=TEKS, fontSize=9, textColor=colors.HexColor("#475569"))
@@ -403,3 +404,68 @@ def laporan_penambahan_pdf(request, pk):
     )
     nama_file = f"laporan-penambahan-{slugify(vehicle.nopol)}.pdf"
     return _pdf_response(request, buat_pdf_penambahan(vehicle), nama_file)
+
+
+def _tabel_data(kepala, lebar_mm, baris_data):
+    """A navy-headed, zebra-striped table; ``lebar_mm`` per column."""
+    baris = [[Paragraph(k, KEPALA_KECIL) for k in kepala]] + [[_p(sel) for sel in b] for b in baris_data]
+    if not baris_data:
+        baris.append([_p("Tidak ada data.", TENGAH)] + [""] * (len(kepala) - 1))
+    tabel = Table(baris, colWidths=[w * mm for w in lebar_mm], repeatRows=1)
+    gaya = [
+        ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("GRID", (0, 0), (-1, -1), 0.25, GARIS),
+    ]
+    gaya += [("BACKGROUND", (0, i), (-1, i), ZEBRA) for i in range(2, len(baris), 2)]
+    if not baris_data:
+        gaya.append(("SPAN", (0, 1), (-1, 1)))
+    tabel.setStyle(TableStyle(gaya))
+    return tabel
+
+
+def buat_pdf_tim(k):
+    """Team report from laporan_tim.konteks_tim()."""
+    ketua = k["ketua"]
+    nama_ketua = ketua.get_full_name() or ketua.username
+    isi = [
+        _kop("LAPORAN TIM", k["keterangan_filter"]),
+        Paragraph("Ringkasan", BAGIAN),
+        _tabel_kunci_nilai([
+            ("Ketua Tim", nama_ketua), ("Jumlah Anggota", k["jumlah_anggota"]),
+            ("Pemeriksaan", k["total"]["pemeriksaan"]), ("Perbaikan", k["total"]["perbaikan"]),
+            ("Penambahan Kendaraan", k["total"]["penambahan"]),
+            ("Total Kegiatan", sum(k["total"].values())),
+        ]),
+        Paragraph("Anggota Tim", BAGIAN),
+        _tabel_data(
+            ["No", "Username", "Nama", "Keanggotaan", "Pemeriksaan", "Perbaikan", "Penambahan", "Login Terakhir"],
+            [8, 24, 28, 27, 22, 19, 22, 30],
+            [
+                (i, u.username, u.get_full_name(), u.keanggotaan, u.jumlah["pemeriksaan"], u.jumlah["perbaikan"],
+                 u.jumlah["penambahan"], _tanggal(u.last_login) if u.last_login else "Belum pernah")
+                for i, u in enumerate(k["anggota"], start=1)
+            ],
+        ),
+        Paragraph("Aktivitas Tim", BAGIAN),
+        _tabel_data(
+            ["No", "Tanggal", "Kegiatan", "Kendaraan", "Rincian", "Personil", "Akun"],
+            [9, 25, 22, 24, 46, 31, 23],
+            [
+                (i, _tanggal(a["waktu"]), a["kegiatan"], a["kendaraan"], a["rincian"],
+                 a["personil"].nama if a["personil"] else "-", a["akun"].username)
+                for i, a in enumerate(k["aktivitas"], start=1)
+            ],
+        ),
+    ]
+    if len(k["aktivitas"]) >= k["maks_aktivitas"]:
+        isi.append(_p(f"Menampilkan {k['maks_aktivitas']} kegiatan terbaru. Persempit periode untuk yang lebih lama."))
+    return _dokumen(isi, f"Laporan Tim {nama_ketua}")
+
+
+@login_required
+def laporan_tim_pdf(request, pk):
+    from .laporan_tim import konteks_tim  # laporan_tim imports laporan, which is fine; avoid a cycle at import
+
+    k = konteks_tim(request, pk)
+    return _pdf_response(request, buat_pdf_tim(k), f"laporan-tim-{slugify(k['ketua'].username)}.pdf")

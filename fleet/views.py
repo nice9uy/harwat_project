@@ -77,6 +77,7 @@ def vehicle_create(request):
         if form.is_valid():
             with transaction.atomic():
                 if biodata is not None:
+                    biodata.instance.akun = request.user
                     form.instance.penambah = biodata.save()
                 vehicle = form.save()
             if next_url:

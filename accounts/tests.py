@@ -658,6 +658,8 @@ class PemeriksaanGolonganBSaveTests(TestCase):
         hasil = PemeriksaanGolonganB.objects.get()
         self.assertEqual(hasil.vehicle, self.vehicle)
         self.assertEqual(hasil.pemeriksa, Laporan.objects.get())
+        # The biodata remembers the account that saved it (for Laporan Tim).
+        self.assertEqual(hasil.pemeriksa.akun.username, "teknisi1")
         self.assertEqual(
             (hasil.pembagian_kelas, hasil.eselon_reparasi, hasil.macam_pemeriksaan, hasil.buku_jalan, hasil.kesatuan.nama),
             ("2", "3", "tehnis", "ada", "Yonif Mekanis 202/TM"),
@@ -898,6 +900,7 @@ class PerbaikanSaveTests(HistoryScanTests):
         perbaikan = PerbaikanGolonganB.objects.get()
         self.assertEqual((perbaikan.item, perbaikan.kondisi, perbaikan.jumlah), (motor, "B", 1))
         self.assertEqual(perbaikan.teknisi.nama, "Andi Teknisi")
+        self.assertIsNotNone(perbaikan.teknisi.akun)
         self.assertTrue(perbaikan.foto.name.startswith("perbaikan/"))
         daftar = self._daftar()
         self.assertContains(daftar, "Item yang Harus Diperbaiki (1)")

@@ -1,0 +1,100 @@
+{% comment %}
+Laporan Tim detail modal: a Ketua Tim's members with their activity counts,
+and the team's newest activity, for the report's period and group.
+{% endcomment %}
+<div x-data="{ tab: 'anggota' }" class="space-y-4">
+    <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+            <h2 class="truncate text-lg font-semibold text-navy dark:text-slate-100">Tim {{ ketua.get_full_name|default:ketua.username }}</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">{{ keterangan_filter }}</p>
+        </div>
+        <div class="flex shrink-0 items-center gap-3">
+            {% include "accounts/_tombol_pdf.html" with url=url_pdf judul="Laporan lengkap tim ini (PDF)" %}
+            <button type="button" @click="modalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" aria-label="Tutup">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+    </div>
+
+    <dl class="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+        <div class="rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700"><dt class="text-xs text-slate-500 dark:text-slate-400">Anggota</dt><dd class="text-lg font-semibold tabular-nums text-navy dark:text-slate-100">{{ jumlah_anggota }}</dd></div>
+        <div class="rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700"><dt class="text-xs text-slate-500 dark:text-slate-400">Pemeriksaan</dt><dd class="text-lg font-semibold tabular-nums text-navy dark:text-slate-100">{{ total.pemeriksaan }}</dd></div>
+        <div class="rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700"><dt class="text-xs text-slate-500 dark:text-slate-400">Perbaikan</dt><dd class="text-lg font-semibold tabular-nums text-navy dark:text-slate-100">{{ total.perbaikan }}</dd></div>
+        <div class="rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700"><dt class="text-xs text-slate-500 dark:text-slate-400">Penambahan Kendaraan</dt><dd class="text-lg font-semibold tabular-nums text-navy dark:text-slate-100">{{ total.penambahan }}</dd></div>
+    </dl>
+
+    <nav class="flex gap-6 overflow-x-auto border-b border-slate-200 dark:border-slate-700 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {% include "accounts/_laporan_tab.html" with kunci="anggota" label="Anggota Tim" jumlah=anggota|length %}
+        {% include "accounts/_laporan_tab.html" with kunci="aktivitas" label="Aktivitas Tim" jumlah=aktivitas|length %}
+    </nav>
+
+    <div x-show="tab === 'anggota'" class="max-h-[55vh] overflow-auto rounded-md border border-slate-200 dark:border-slate-700">
+        <table class="w-full text-left text-sm">
+            <thead class="sticky top-0 border-b border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                <tr>
+                    <th class="w-10 px-3 py-2 font-medium">No</th>
+                    <th class="px-3 py-2 font-medium">Username</th>
+                    <th class="px-3 py-2 font-medium">Nama</th>
+                    <th class="px-3 py-2 font-medium">Keanggotaan</th>
+                    <th class="px-3 py-2 font-medium">Pemeriksaan</th>
+                    <th class="px-3 py-2 font-medium">Perbaikan</th>
+                    <th class="px-3 py-2 font-medium">Penambahan</th>
+                    <th class="px-3 py-2 font-medium">Login Terakhir</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                {% for u in anggota %}
+                <tr class="{% if forloop.first %}bg-gold/10{% endif %}">
+                    <td class="px-3 py-2 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td>
+                    <td class="px-3 py-2 font-medium text-navy dark:text-slate-100">{{ u.username }}</td>
+                    <td class="px-3 py-2">{{ u.get_full_name|default:"—" }}</td>
+                    <td class="whitespace-nowrap px-3 py-2">{{ u.keanggotaan }}</td>
+                    <td class="px-3 py-2 tabular-nums">{{ u.jumlah.pemeriksaan }}</td>
+                    <td class="px-3 py-2 tabular-nums">{{ u.jumlah.perbaikan }}</td>
+                    <td class="px-3 py-2 tabular-nums">{{ u.jumlah.penambahan }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 tabular-nums">{{ u.last_login|date:"d-m-Y H:i"|default:"Belum pernah" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div x-show="tab === 'aktivitas'" x-cloak class="space-y-2">
+        <div class="max-h-[55vh] overflow-auto rounded-md border border-slate-200 dark:border-slate-700">
+            <table class="w-full text-left text-sm">
+                <thead class="sticky top-0 border-b border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                    <tr>
+                        <th class="w-10 px-3 py-2 font-medium">No</th>
+                        <th class="px-3 py-2 font-medium">Tanggal</th>
+                        <th class="px-3 py-2 font-medium">Kegiatan</th>
+                        <th class="px-3 py-2 font-medium">Kendaraan</th>
+                        <th class="px-3 py-2 font-medium">Golongan</th>
+                        <th class="px-3 py-2 font-medium">Rincian</th>
+                        <th class="px-3 py-2 font-medium">Personil</th>
+                        <th class="px-3 py-2 font-medium">Akun</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                    {% for a in aktivitas %}
+                    <tr>
+                        <td class="px-3 py-2 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td>
+                        <td class="whitespace-nowrap px-3 py-2 tabular-nums">{{ a.waktu|date:"d-m-Y H:i" }}</td>
+                        <td class="whitespace-nowrap px-3 py-2">
+                            <span class="rounded px-1.5 py-0.5 text-xs font-medium {% if a.kegiatan == 'Pemeriksaan' %}bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300{% elif a.kegiatan == 'Perbaikan' %}bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300{% else %}bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300{% endif %}">{{ a.kegiatan }}</span>
+                        </td>
+                        <td class="px-3 py-2 font-medium text-navy dark:text-slate-100">{{ a.kendaraan }}</td>
+                        <td class="whitespace-nowrap px-3 py-2">{{ a.golongan }}</td>
+                        <td class="px-3 py-2">{{ a.rincian }}</td>
+                        <td class="px-3 py-2">{% if a.personil %}{{ a.personil.nama }} <span class="text-slate-500 dark:text-slate-400">({{ a.personil.pangkat }})</span>{% else %}—{% endif %}</td>
+                        <td class="px-3 py-2">{{ a.akun.username }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="px-3 py-6 text-center text-slate-400 dark:text-slate-500">Belum ada kegiatan tim untuk filter ini.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if aktivitas|length >= maks_aktivitas %}<p class="text-xs text-slate-500 dark:text-slate-400">Menampilkan {{ maks_aktivitas }} kegiatan terbaru. Persempit periode untuk melihat yang lebih lama.</p>{% endif %}
+        <p class="text-xs text-slate-500 dark:text-slate-400">Kegiatan dihitung dari akun yang menyimpannya; kegiatan sebelum pencatatan akun dimulai tidak terhitung.</p>
+    </div>
+</div>

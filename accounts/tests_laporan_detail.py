@@ -204,6 +204,7 @@ class LaporanPerbaikanDanPenambahanTests(TestCase):
         self.assertEqual(response["HX-Redirect"], reverse("accounts:form_tambah"))
         vehicle = Vehicle.objects.get(nopol="B 7 X")
         self.assertEqual(vehicle.penambah.nama, "Sari")
+        self.assertEqual(vehicle.penambah.akun, self.root)
         self.assertEqual(vehicle.ditambahkan_oleh, self.root)
         # Only one of the two "foto" fields is the biodata photo.
         self.assertEqual(vehicle.fotos.count(), 4)

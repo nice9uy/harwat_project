@@ -20,6 +20,12 @@ class Laporan(models.Model):
     satuan = models.ForeignKey("Satuan", on_delete=models.PROTECT, related_name="biodata")
     foto = models.ImageField(upload_to="laporan/")
     dibuat_pada = models.DateTimeField(auto_now_add=True)
+    # The account that submitted this biodata (with an inspection, repair or
+    # new vehicle): ties the activity to a team member for Laporan Tim.
+    # Empty for biodata saved before this column existed.
+    akun = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="biodata", verbose_name="Akun",
+    )
 
     class Meta:
         verbose_name = "Biodata Pemeriksa"

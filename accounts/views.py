@@ -107,6 +107,7 @@ def laporan_view(request):
         pemeriksaan_form = golongan_cfg.form(request.POST, request.FILES)
         if form.is_valid() and pemeriksaan_form.is_valid():
             with transaction.atomic():
+                form.instance.akun = request.user
                 pemeriksa = form.save()
                 hasil = pemeriksaan_form.save(commit=False)
                 hasil.pemeriksa = pemeriksa
@@ -340,6 +341,7 @@ def perbaikan_view(request):
             )
         if form.is_valid() and not errors:
             with transaction.atomic():
+                form.instance.akun = request.user
                 teknisi = form.save()
                 for entry in entries:
                     foto = entry.pop("foto")

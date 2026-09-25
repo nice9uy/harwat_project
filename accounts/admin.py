@@ -26,6 +26,8 @@ class LaporanAdmin(admin.ModelAdmin):
     list_filter = ["satuan"]
     search_fields = ["nama", "nip", "satuan__nama"]
     date_hierarchy = "dibuat_pada"
+    list_select_related = ["satuan"]
+    raw_id_fields = ["akun"]
 
 
 @admin.register(RevokedToken)

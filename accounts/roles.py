@@ -87,6 +87,7 @@ MENU_VIEWS = {
         "accounts:laporan_penambahan", "accounts:laporan_penambahan_detail", "accounts:laporan_penambahan_pdf",
         "fleet:vehicle_qr",
     },
+    "laporan_tim": {"accounts:laporan_tim", "accounts:laporan_tim_detail", "accounts:laporan_tim_pdf"},
     "pengaturan": {
         "accounts:pengaturan", "accounts:user_create", "accounts:user_delete", "accounts:user_edit",
         "accounts:satuan_create", "accounts:satuan_update", "accounts:satuan_delete",
