@@ -2,7 +2,7 @@
 {% block title %}{{ judul }} — BMN Harwat{% endblock %}
 {% block page_title %}{{ judul }}{% endblock %}
 {% block content %}
-<div class="space-y-4">
+<div class="space-y-4" x-data="{ modalOpen: false }">
     <form method="get" class="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
         <div>
             <label for="dari" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Dari tanggal</label>
@@ -44,8 +44,10 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-                {% for baris in halaman %}
-                <tr>
+                {% for baris, tautan in halaman %}
+                <tr{% if tautan %} hx-get="{{ tautan }}" hx-target="#laporan-modal-body" hx-swap="innerHTML"
+                    @click="modalOpen = true" @keydown.enter="$el.click()" tabindex="0" role="button" title="Lihat detail"
+                    class="cursor-pointer hover:bg-slate-100 focus:bg-slate-100 focus:outline-none dark:hover:bg-slate-700/60 dark:focus:bg-slate-700/60"{% endif %}>
                     <td class="px-4 py-2 text-slate-500 dark:text-slate-400">{{ halaman.start_index|add:forloop.counter0 }}</td>
                     {% for sel in baris %}<td class="px-4 py-2{% if forloop.first %} whitespace-nowrap tabular-nums{% endif %}{% if forloop.counter == 2 %} font-medium text-navy dark:text-slate-100{% endif %}">{{ sel|default:"—" }}</td>{% endfor %}
                 </tr>
@@ -57,5 +59,14 @@
     </div>
 
     {% include "_pagination.html" with halaman=halaman %}
+
+    <div x-show="modalOpen" x-cloak
+         @click.self="modalOpen = false"
+         @keydown.escape.window="modalOpen = false"
+         class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/50 px-4 py-8 sm:py-4">
+        <div class="w-full max-w-5xl bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl my-auto">
+            <div id="laporan-modal-body"><p class="py-6 text-center text-sm text-slate-400">Memuat…</p></div>
+        </div>
+    </div>
 </div>
 {% endblock %}

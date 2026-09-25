@@ -29,6 +29,10 @@ urlpatterns = [
     path("pengaturan/user/<int:pk>/ubah/", views.user_edit, name="user_edit"),
     path("ganti-password/", views.ganti_password_view, name="ganti_password"),
     path("laporan-pemeriksaan/", laporan.laporan_pemeriksaan, name="laporan_pemeriksaan"),
+    path(
+        "laporan-pemeriksaan/kendaraan/<int:pk>/", laporan.laporan_pemeriksaan_detail,
+        name="laporan_pemeriksaan_detail",
+    ),
     path("laporan-perbaikan/", laporan.laporan_perbaikan, name="laporan_perbaikan"),
     path("laporan-penambahan/", laporan.laporan_penambahan, name="laporan_penambahan"),
     path("pengaturan/satuan/tambah/", views.satuan_form_view, name="satuan_create"),

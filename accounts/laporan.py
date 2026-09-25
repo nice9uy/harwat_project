@@ -9,7 +9,8 @@ from io import BytesIO
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.http import HttpResponse
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -96,10 +97,11 @@ def _excel(judul, header, rows, f, nama_file):
     return response
 
 
-def _render(request, template, judul, header, rows, f, nama_file):
+def _render(request, template, judul, header, rows, f, nama_file, tautan=None):
+    """``tautan``: optional per-row URL (same order as ``rows``) opened in the detail modal."""
     if request.GET.get("unduh") == "excel":
         return _excel(judul, header, rows, f, nama_file)
-    halaman = halaman_dari(request, rows)
+    halaman = halaman_dari(request, list(zip(rows, tautan or [None] * len(rows))))
     query = request.GET.copy()
     query.pop("page", None)
     return render(request, template, {
@@ -129,6 +131,7 @@ def laporan_pemeriksaan(request):
         for hasil in _rentang(qs, "dibuat_pada", f):
             rows.append((
                 hasil.dibuat_pada,
+                f"{reverse('accounts:laporan_pemeriksaan_detail', args=[hasil.vehicle_id])}?pemeriksaan={hasil.pk}",
                 hasil.vehicle.nopol,
                 hasil.vehicle.merek,
                 Vehicle.GroupKendaraan(kode).label,
@@ -137,9 +140,50 @@ def laporan_pemeriksaan(request):
                 hasil.jumlah_perlu,
             ))
     rows.sort(key=lambda r: r[0], reverse=True)
-    rows = [(r[0].strftime("%d-%m-%Y %H:%M"),) + r[1:] for r in rows]
+    tautan = [r[1] for r in rows]
+    rows = [(timezone.localtime(r[0]).strftime("%d-%m-%Y %H:%M"),) + r[2:] for r in rows]
     header = ["Tanggal", "No. Registrasi", "Merk/Type", "Golongan", "Pemeriksa", "Item Baik", "Item Perlu Perbaikan"]
-    return _render(request, "accounts/laporan_tabel.html", "Laporan Pemeriksaan", header, rows, f, "laporan-pemeriksaan.xlsx")
+    return _render(
+        request, "accounts/laporan_tabel.html", "Laporan Pemeriksaan", header, rows, f, "laporan-pemeriksaan.xlsx",
+        tautan=tautan,
+    )
+
+
+@login_required
+def laporan_pemeriksaan_detail(request, pk):
+    """Modal for a Laporan Pemeriksaan row: every inspection of that vehicle
+    (the clicked one highlighted) and the personnel who inspected it."""
+    vehicle = get_object_or_404(Vehicle, pk=pk)
+    cfg = golongan.for_vehicle(vehicle)
+    riwayat = []
+    if cfg is not None:
+        riwayat = list(
+            cfg.pemeriksaan_model.objects.filter(vehicle=vehicle)
+            .select_related("pemeriksa__satuan")
+            .annotate(
+                jumlah_item=Count("items"),
+                jumlah_perlu=Count("items", filter=~Q(items__kondisi__in=cfg.baik)),
+            )
+            .order_by("-dibuat_pada", "-id")
+        )
+    # One row per person (by NIP): each inspection saves its own biodata, so the
+    # newest biodata is shown with how often and when they last inspected.
+    personil = {}
+    for hasil in riwayat:
+        hasil.jumlah_baik = hasil.jumlah_item - hasil.jumlah_perlu
+        orang = personil.setdefault(hasil.pemeriksa.nip, {"biodata": hasil.pemeriksa, "terakhir": hasil.dibuat_pada, "jumlah": 0})
+        orang["jumlah"] += 1
+    try:
+        dipilih = int(request.GET.get("pemeriksaan", ""))
+    except ValueError:
+        dipilih = None
+    return render(request, "accounts/_laporan_pemeriksaan_detail.html", {
+        "vehicle": vehicle,
+        "riwayat": riwayat,
+        "personil": list(personil.values()),
+        "dipilih": dipilih,
+        "tab": "personil" if request.GET.get("tab") == "personil" else "riwayat",
+    })
 
 
 @login_required
@@ -161,7 +205,7 @@ def laporan_perbaikan(request):
                 p.keterangan,
             ))
     rows.sort(key=lambda r: r[0], reverse=True)
-    rows = [(r[0].strftime("%d-%m-%Y %H:%M"),) + r[1:] for r in rows]
+    rows = [(timezone.localtime(r[0]).strftime("%d-%m-%Y %H:%M"),) + r[1:] for r in rows]
     header = ["Tanggal", "No. Registrasi", "Golongan", "Komponen", "Kondisi Awal", "Kondisi Setelah", "Teknisi", "Keterangan"]
     return _render(request, "accounts/laporan_tabel.html", "Laporan Perbaikan", header, rows, f, "laporan-perbaikan.xlsx")
 
@@ -175,7 +219,7 @@ def laporan_penambahan(request):
     qs = _rentang(qs, "dibuat_pada", f)
     rows = [
         (
-            v.dibuat_pada.strftime("%d-%m-%Y %H:%M") if v.dibuat_pada else "-",
+            timezone.localtime(v.dibuat_pada).strftime("%d-%m-%Y %H:%M") if v.dibuat_pada else "-",
             v.nopol, v.merek, v.get_group_kendaraan_display(), v.no_chasis or "-", v.no_mesin or "-",
         )
         for v in qs

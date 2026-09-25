@@ -1,0 +1,101 @@
+{% comment %}
+Laporan Pemeriksaan detail modal: the vehicle's inspections and the personnel
+who inspected it. `dipilih` is the inspection whose row was clicked.
+{% endcomment %}
+<div x-data="{ tab: '{{ tab }}' }" class="space-y-4">
+    <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+            <h2 class="truncate text-lg font-semibold text-navy dark:text-slate-100">Pemeriksaan {{ vehicle.nopol }}</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">{{ vehicle.merek }} · {{ vehicle.get_group_kendaraan_display }}</p>
+        </div>
+        <button type="button" @click="modalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" aria-label="Tutup">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+        </button>
+    </div>
+
+    <nav class="flex gap-6 overflow-x-auto border-b border-slate-200 dark:border-slate-700 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <button type="button" @click="tab = 'riwayat'"
+                :class="tab === 'riwayat' ? 'border-gold text-navy dark:text-gold' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+                class="-mb-px whitespace-nowrap border-b-2 px-1 py-2 text-sm font-medium">
+            Riwayat Pemeriksaan <span class="ml-1 rounded-full bg-slate-100 px-1.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">{{ riwayat|length }}</span>
+        </button>
+        <button type="button" @click="tab = 'personil'"
+                :class="tab === 'personil' ? 'border-gold text-navy dark:text-gold' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+                class="-mb-px whitespace-nowrap border-b-2 px-1 py-2 text-sm font-medium">
+            Personil yang Memeriksa <span class="ml-1 rounded-full bg-slate-100 px-1.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">{{ personil|length }}</span>
+        </button>
+    </nav>
+
+    <div x-show="tab === 'riwayat'" class="max-h-[60vh] overflow-auto rounded-md border border-slate-200 dark:border-slate-700">
+        <table class="w-full text-left text-sm">
+            <thead class="sticky top-0 border-b border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                <tr>
+                    <th class="w-10 px-3 py-2 font-medium">No</th>
+                    <th class="px-3 py-2 font-medium">Tanggal</th>
+                    <th class="px-3 py-2 font-medium">Macam Pemeriksaan</th>
+                    <th class="px-3 py-2 font-medium">Pemeriksa</th>
+                    <th class="px-3 py-2 font-medium">Item Baik</th>
+                    <th class="px-3 py-2 font-medium">Item Perlu Perbaikan</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                {% for hasil in riwayat %}
+                <tr class="{% if hasil.pk == dipilih %}bg-gold/15{% endif %}">
+                    <td class="px-3 py-2 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 tabular-nums">
+                        {{ hasil.dibuat_pada|date:"d-m-Y H:i" }}
+                        {% if hasil.pk == dipilih %}<span class="ml-1 rounded bg-gold px-1.5 py-0.5 text-xs font-medium text-navy">Dipilih</span>{% endif %}
+                    </td>
+                    <td class="px-3 py-2">{{ hasil.get_macam_pemeriksaan_display }}</td>
+                    <td class="px-3 py-2">{{ hasil.pemeriksa.nama }} <span class="text-slate-500 dark:text-slate-400">({{ hasil.pemeriksa.pangkat }})</span></td>
+                    <td class="px-3 py-2 tabular-nums">{{ hasil.jumlah_baik }}</td>
+                    <td class="px-3 py-2 tabular-nums{% if hasil.jumlah_perlu %} font-medium text-red-600 dark:text-red-400{% endif %}">{{ hasil.jumlah_perlu }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="px-3 py-6 text-center text-slate-400 dark:text-slate-500">Belum ada pemeriksaan.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div x-show="tab === 'personil'" x-cloak class="max-h-[60vh] overflow-auto rounded-md border border-slate-200 dark:border-slate-700">
+        <table class="w-full text-left text-sm">
+            <thead class="sticky top-0 border-b border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                <tr>
+                    <th class="w-10 px-3 py-2 font-medium">No</th>
+                    <th class="px-3 py-2 font-medium">Foto</th>
+                    <th class="px-3 py-2 font-medium">NIP</th>
+                    <th class="px-3 py-2 font-medium">Nama</th>
+                    <th class="px-3 py-2 font-medium">Pangkat</th>
+                    <th class="px-3 py-2 font-medium">Jabatan</th>
+                    <th class="px-3 py-2 font-medium">Satuan</th>
+                    <th class="px-3 py-2 font-medium">Jumlah Pemeriksaan</th>
+                    <th class="px-3 py-2 font-medium">Terakhir Memeriksa</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                {% for orang in personil %}
+                <tr>
+                    <td class="px-3 py-2 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td>
+                    <td class="px-3 py-2">
+                        {% if orang.biodata.foto %}
+                        <a href="{{ orang.biodata.foto.url }}" target="_blank" rel="noopener">
+                            <img src="{{ orang.biodata.foto.url }}" alt="Foto {{ orang.biodata.nama }}" loading="lazy" class="h-10 w-10 rounded-full border border-slate-200 object-cover dark:border-slate-700">
+                        </a>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-2 tabular-nums">{{ orang.biodata.nip }}</td>
+                    <td class="px-3 py-2 font-medium text-navy dark:text-slate-100">{{ orang.biodata.nama }}</td>
+                    <td class="px-3 py-2">{{ orang.biodata.pangkat }}</td>
+                    <td class="px-3 py-2">{{ orang.biodata.jabatan }}</td>
+                    <td class="px-3 py-2">{{ orang.biodata.satuan.nama }}</td>
+                    <td class="px-3 py-2 tabular-nums">{{ orang.jumlah }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 tabular-nums">{{ orang.terakhir|date:"d-m-Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" class="px-3 py-6 text-center text-slate-400 dark:text-slate-500">Belum ada personil yang memeriksa.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
