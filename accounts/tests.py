@@ -1755,13 +1755,17 @@ class LaporanMenuTests(TestCase):
     def test_laporan_pemeriksaan_across_groups_and_filter(self):
         response = self.client.get(reverse("accounts:laporan_pemeriksaan"))
         self.assertContains(response, ">2</span> data")
-        for text in ("B 1 TRK", "B 2 MTR", "Golongan B", "Kendaraan Bermotor", "Budi (Kapten)"):
+        # One row per inspected vehicle; searching instead of a date filter.
+        for text in ("B 1 TRK", "B 2 MTR", "Golongan B", "Kendaraan Bermotor", 'id="q" name="q"'):
             self.assertContains(response, text)
-        self.assertContains(response, "<td class=\"px-4 py-2\">37</td>", html=False)
+        self.assertNotContains(response, 'id="dari"')
         response = self.client.get(reverse("accounts:laporan_pemeriksaan"), {"golongan": "bermotor"})
         self.assertContains(response, ">1</span> data")
         self.assertNotContains(response, "B 1 TRK")
-        response = self.client.get(reverse("accounts:laporan_pemeriksaan"), {"dari": "2000-01-01", "sampai": "2000-01-02"})
+        response = self.client.get(reverse("accounts:laporan_pemeriksaan"), {"q": "mtr"})
+        self.assertContains(response, "B 2 MTR")
+        self.assertNotContains(response, "B 1 TRK")
+        response = self.client.get(reverse("accounts:laporan_pemeriksaan"), {"q": "tidak-ada"})
         self.assertContains(response, "Tidak ada data untuk filter ini.")
 
     def test_laporan_perbaikan(self):
@@ -1791,7 +1795,7 @@ class LaporanMenuTests(TestCase):
         self.assertIn("Golongan B", ws["A2"].value)
         self.assertEqual(
             [c.value for c in ws[4]],
-            ["No", "No. Registrasi", "Merk/Type", "Golongan", "No. Chasis", "No. Mesin"],
+            ["No", "No. Registrasi", "Merk/Type", "No. Chasis", "No. Mesin", "Golongan"],
         )
         self.assertEqual([ws["A5"].value, ws["B5"].value, ws["C5"].value], [1, "B 1 TRK", "Hino"])
         self.assertNotContains(response, "Ditambahkan</th>")

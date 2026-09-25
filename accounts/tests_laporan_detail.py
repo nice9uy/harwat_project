@@ -41,7 +41,8 @@ class LaporanPemeriksaanDetailTests(TestCase):
     def test_report_rows_open_the_detail_modal(self):
         hasil = self._pemeriksaan(self._biodata("1", "Budi"))
         response = self.client.get(reverse("accounts:laporan_pemeriksaan"))
-        self.assertContains(response, f'hx-get="{self._url()}?pemeriksaan={hasil.pk}"')
+        self.assertContains(response, f'hx-get="{self._url()}"')
+        self.assertEqual(hasil.vehicle.nopol, response.context["halaman"][0][0][0])
         self.assertContains(response, 'id="laporan-modal-body"')
 
     def test_tabs_list_inspections_and_personnel_once_per_person(self):
@@ -78,14 +79,6 @@ class LaporanPemeriksaanDetailTests(TestCase):
         self.client.login(username="tim", password="rahasia-123")
         response = self.client.get(self._url())
         self.assertNotEqual(response.status_code, 200)
-
-    def test_report_dates_are_local_time(self):
-        from django.utils import timezone
-
-        hasil = self._pemeriksaan(self._biodata("1", "Budi"))
-        lokal = timezone.localtime(hasil.dibuat_pada).strftime("%d-%m-%Y %H:%M")
-        response = self.client.get(reverse("accounts:laporan_pemeriksaan"))
-        self.assertEqual(response.context["halaman"][0][0][0], lokal)
 
     def test_pdf_export_of_one_inspection(self):
         from accounts.models import PerbaikanGolonganB

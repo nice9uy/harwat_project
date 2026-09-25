@@ -126,37 +126,73 @@ def _render(
     })
 
 
+def _cari_kendaraan(qs, q):
+    if q:
+        qs = qs.filter(
+            Q(nopol__icontains=q) | Q(merek__icontains=q) | Q(no_chasis__icontains=q) | Q(no_mesin__icontains=q)
+        )
+    return qs
+
+
+def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file):
+    """A report with one row per vehicle (``kendaraan``: in display order), a
+    search field and no date filter; each row opens the ``detail`` modal."""
+    f = _filter(request)
+    tautan = [reverse(detail, args=[v.pk]) for v in kendaraan]
+    rows = [
+        (v.nopol, v.merek, v.no_chasis or "-", v.no_mesin or "-", v.get_group_kendaraan_display())
+        for v in kendaraan
+    ]
+    header = ["No. Registrasi", "Merk/Type", "No. Chasis", "No. Mesin", "Golongan"]
+    return _render(
+        request, "accounts/laporan_tabel.html", judul, header, rows, f, nama_file,
+        tautan=tautan, kolom_tanggal=0, kolom_utama=1, pakai_tanggal=False, pakai_cari=True,
+    )
+
+
+def _kendaraan_dengan_catatan(request, model_dari_cfg, relasi_kendaraan):
+    """Vehicles with at least one record (inspection or repair) in the chosen
+    group and matching the search, newest record first."""
+    f = _filter(request)
+    terakhir = {}  # vehicle id -> newest record time
+    for _, cfg in _golongan_dipilih(f):
+        qs = model_dari_cfg(cfg).objects.order_by().values(relasi_kendaraan).annotate(waktu=Max("dibuat_pada"))
+        for baris in qs:
+            vid = baris[relasi_kendaraan]
+            terakhir[vid] = max(baris["waktu"], terakhir.get(vid, baris["waktu"]))
+    qs = _cari_kendaraan(Vehicle.objects.filter(pk__in=list(terakhir)), request.GET.get("q", "").strip())
+    return sorted(qs, key=lambda v: (terakhir[v.pk], v.pk), reverse=True)
+
+
 @login_required
 def laporan_pemeriksaan(request):
+    """One row per inspected vehicle; the row's modal lists the inspections."""
+    kendaraan = _kendaraan_dengan_catatan(request, lambda cfg: cfg.pemeriksaan_model, "vehicle")
+    return _laporan_per_kendaraan(
+        request, "Laporan Pemeriksaan", kendaraan, "accounts:laporan_pemeriksaan_detail", "laporan-pemeriksaan.xlsx",
+    )
+
+
+@login_required
+def laporan_perbaikan(request):
+    """One row per repaired vehicle; the row's modal lists the repairs."""
+    kendaraan = _kendaraan_dengan_catatan(request, lambda cfg: cfg.perbaikan_model, "item__pemeriksaan__vehicle")
+    return _laporan_per_kendaraan(
+        request, "Laporan Perbaikan", kendaraan, "accounts:laporan_perbaikan_detail", "laporan-perbaikan.xlsx",
+    )
+
+
+@login_required
+def laporan_penambahan(request):
+    """Every vehicle, newest added first; the row's modal shows it and who added it."""
     f = _filter(request)
-    rows = []
-    for kode, cfg in _golongan_dipilih(f):
-        qs = (
-            cfg.pemeriksaan_model.objects.select_related("vehicle", "pemeriksa")
-            .annotate(
-                jumlah_item=Count("items"),
-                jumlah_perlu=Count("items", filter=~Q(items__kondisi__in=cfg.baik)),
-            )
-            .order_by()
-        )
-        for hasil in _rentang(qs, "dibuat_pada", f):
-            rows.append((
-                hasil.dibuat_pada,
-                f"{reverse('accounts:laporan_pemeriksaan_detail', args=[hasil.vehicle_id])}?pemeriksaan={hasil.pk}",
-                hasil.vehicle.nopol,
-                hasil.vehicle.merek,
-                Vehicle.GroupKendaraan(kode).label,
-                f"{hasil.pemeriksa.nama} ({hasil.pemeriksa.pangkat})",
-                hasil.jumlah_item - hasil.jumlah_perlu,
-                hasil.jumlah_perlu,
-            ))
-    rows.sort(key=lambda r: r[0], reverse=True)
-    tautan = [r[1] for r in rows]
-    rows = [(timezone.localtime(r[0]).strftime("%d-%m-%Y %H:%M"),) + r[2:] for r in rows]
-    header = ["Tanggal", "No. Registrasi", "Merk/Type", "Golongan", "Pemeriksa", "Item Baik", "Item Perlu Perbaikan"]
-    return _render(
-        request, "accounts/laporan_tabel.html", "Laporan Pemeriksaan", header, rows, f, "laporan-pemeriksaan.xlsx",
-        tautan=tautan,
+    qs = Vehicle.objects.order_by("-dibuat_pada", "-id")
+    if f["golongan"]:
+        qs = qs.filter(group_kendaraan=f["golongan"])
+    kendaraan = list(_cari_kendaraan(qs, request.GET.get("q", "").strip()))
+    return _laporan_per_kendaraan(
+        request, "Laporan Penambahan Kendaraan/Barang", kendaraan, "accounts:laporan_penambahan_detail",
+        "laporan-penambahan-kendaraan.xlsx",
     )
 
 
@@ -186,58 +222,6 @@ def laporan_pemeriksaan_detail(request, pk):
         "dipilih": _id_dipilih(request, "pemeriksaan"),
         "tab": "personil" if request.GET.get("tab") == "personil" else "riwayat",
     })
-
-
-@login_required
-def laporan_perbaikan(request):
-    """One row per vehicle repaired in the period (newest repair first); the
-    row's modal lists the repairs themselves. No date filter: all repairs count."""
-    f = {**_filter(request), "dari": None, "sampai": None}
-    terakhir = {}  # vehicle id -> newest repair time
-    for _, cfg in _golongan_dipilih(f):
-        qs = _rentang(cfg.perbaikan_model.objects.all(), "dibuat_pada", f)
-        for baris in qs.order_by().values("item__pemeriksaan__vehicle").annotate(waktu=Max("dibuat_pada")):
-            vid = baris["item__pemeriksaan__vehicle"]
-            terakhir[vid] = max(baris["waktu"], terakhir.get(vid, baris["waktu"]))
-    kendaraan = Vehicle.objects.filter(pk__in=list(terakhir))
-    q = request.GET.get("q", "").strip()
-    if q:
-        kendaraan = kendaraan.filter(
-            Q(nopol__icontains=q) | Q(merek__icontains=q) | Q(no_chasis__icontains=q) | Q(no_mesin__icontains=q)
-        )
-    kendaraan = kendaraan.in_bulk()
-    urut = sorted(kendaraan.values(), key=lambda v: (terakhir[v.pk], v.pk), reverse=True)
-    tautan = [reverse("accounts:laporan_perbaikan_detail", args=[v.pk]) for v in urut]
-    rows = [
-        (v.nopol, v.merek, v.no_chasis or "-", v.no_mesin or "-", v.get_group_kendaraan_display())
-        for v in urut
-    ]
-    header = ["No. Registrasi", "Merk/Type", "No. Chasis", "No. Mesin", "Golongan"]
-    return _render(
-        request, "accounts/laporan_tabel.html", "Laporan Perbaikan", header, rows, f, "laporan-perbaikan.xlsx",
-        tautan=tautan, kolom_tanggal=0, kolom_utama=1, pakai_tanggal=False, pakai_cari=True,
-    )
-
-
-@login_required
-def laporan_penambahan(request):
-    f = _filter(request)
-    qs = Vehicle.objects.order_by("-dibuat_pada", "-id")
-    if f["golongan"]:
-        qs = qs.filter(group_kendaraan=f["golongan"])
-    qs = list(_rentang(qs, "dibuat_pada", f))
-    tautan = [reverse("accounts:laporan_penambahan_detail", args=[v.pk]) for v in qs]
-    rows = [
-        (
-            v.nopol, v.merek, v.get_group_kendaraan_display(), v.no_chasis or "-", v.no_mesin or "-",
-        )
-        for v in qs
-    ]
-    header = ["No. Registrasi", "Merk/Type", "Golongan", "No. Chasis", "No. Mesin"]
-    return _render(
-        request, "accounts/laporan_tabel.html", "Laporan Penambahan Kendaraan/Barang", header, rows, f,
-        "laporan-penambahan-kendaraan.xlsx", tautan=tautan, kolom_tanggal=0, kolom_utama=1,
-    )
 
 
 def _per_orang(daftar, atribut):
