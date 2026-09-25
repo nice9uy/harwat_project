@@ -1,4 +1,5 @@
-// Alpine component: a text field with a filtered suggestion list that stores
+// Alpine component: a text field whose suggestion list opens once the user
+// types (not on focus) and that stores
 // the chosen option's value in a hidden input (used for Satuan / Kesatuan).
 // Options come from a <script type="application/json"> tag ({v, l} objects).
 document.addEventListener('alpine:init', function () {
@@ -22,7 +23,7 @@ document.addEventListener('alpine:init', function () {
                 return cocok.slice(0, 50);
             },
             ketik: function () {
-                this.buka = true;
+                this.buka = this.q.trim() !== '';
                 this.aktif = 0;
                 var q = this.q.trim().toLowerCase();
                 var persis = this.opsi.find(function (o) { return o.l.toLowerCase() === q; });
@@ -41,7 +42,11 @@ document.addEventListener('alpine:init', function () {
                 this.cekValid();
                 this.$refs.teks.focus();
             },
-            turun: function () { this.buka = true; this.aktif = Math.min(this.aktif + 1, this.hasil.length - 1); },
+            turun: function () {
+                if (!this.q.trim()) return;
+                this.buka = true;
+                this.aktif = Math.min(this.aktif + 1, this.hasil.length - 1);
+            },
             naik: function () { this.aktif = Math.max(this.aktif - 1, 0); },
             enter: function (e) {
                 if (this.buka && this.hasil[this.aktif]) { e.preventDefault(); this.pilih(this.hasil[this.aktif]); }

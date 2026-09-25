@@ -12,7 +12,7 @@ wajib (bool), label_data (e.g. "satuan"), placeholder.
     <input type="text" id="{{ id_teks }}" x-ref="teks" autocomplete="off" placeholder="{{ placeholder }}"
            role="combobox" aria-autocomplete="list" :aria-expanded="buka" aria-controls="{{ id_teks }}-daftar"
            {% if wajib %}required{% endif %}
-           x-model="q" @input="ketik()" @focus="buka = true"
+           x-model="q" @input="ketik()"
            @keydown.arrow-down.prevent="turun()" @keydown.arrow-up.prevent="naik()"
            @keydown.enter="enter($event)" @keydown.escape="buka = false"
            class="w-full rounded-md border border-slate-300 bg-white py-2 pl-3 pr-9 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500">
