@@ -49,6 +49,8 @@ class LoginViewTests(TestCase):
         self.assertContains(response, "bg-navy")
         self.assertContains(response, "img/login-gedung-kemhan.webp")
         self.assertContains(response, "img/login-gedung-kemhan.jpg")
+        # The intro panel is hidden on phones.
+        self.assertContains(response, '<section class="hidden space-y-6 text-white lg:block')
         for text in ("Sistem Online", "Silahkan Login", "Nama pengguna", "Kata sandi", "Ingat saya",
                      'placeholder="nama.pengguna"', "lihat = !lihat", "Intl.DateTimeFormat('id-ID'"):
             self.assertContains(response, text)
