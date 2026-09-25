@@ -1,5 +1,11 @@
-"""Full report of one inspection as a PDF: vehicle, inspection data,
-inspector, every checked part with its latest repair, and a signature block."""
+"""Full PDF reports for the Laporan modals, one record each:
+
+- an inspection: vehicle, inspection data, inspector, every checked part with
+  its latest repair, a summary and a signature block;
+- a repair: the part, its condition before and after, photos, the technician
+  and the part's repair history;
+- a vehicle added to the fleet: its data, photos, QR code and who added it.
+"""
 from io import BytesIO
 from xml.sax.saxutils import escape
 
@@ -14,9 +20,11 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
 from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from fleet.models import Vehicle
+from fleet.qr import qr_png_with_logo
 
 from . import golongan
 
@@ -62,8 +70,8 @@ def _data_pemeriksaan(hasil):
     ]
 
 
-def _tabel_kunci_nilai(pasangan, kolom=2):
-    """Label/value pairs laid out in ``kolom`` side-by-side columns."""
+def _tabel_kunci_nilai(pasangan, kolom=2, total=180 * mm):
+    """Label/value pairs laid out in ``kolom`` side-by-side columns, ``total`` wide."""
     baris = []
     per_kolom = -(-len(pasangan) // kolom)
     for i in range(per_kolom):
@@ -75,7 +83,7 @@ def _tabel_kunci_nilai(pasangan, kolom=2):
             else:
                 sel += ["", ""]
         baris.append(sel)
-    lebar = (180 * mm) / kolom
+    lebar = total / kolom
     tabel = Table(baris, colWidths=[lebar * 0.42, lebar * 0.58] * kolom)
     tabel.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -144,15 +152,14 @@ def _ringkasan(hasil, cfg):
     return _tabel_kunci_nilai(pasangan)
 
 
-def _tanda_tangan(hasil):
-    p = hasil.pemeriksa
-    lokal = timezone.localtime(hasil.dibuat_pada)
+def _tanda_tangan(orang, peran, keterangan):
+    """Signature block on the right: ``keterangan`` (e.g. the date), ``peran``, name, rank and NIP."""
     isi = [
-        [_p(f"Diperiksa pada {lokal:%d-%m-%Y}", TENGAH)],
-        [_p("Pemeriksa,", TENGAH)],
+        [_p(keterangan, TENGAH)],
+        [_p(f"{peran},", TENGAH)],
         [Spacer(1, 14 * mm)],
-        [Paragraph(f"<u><b>{escape(p.nama)}</b></u>", TENGAH)],
-        [_p(f"{p.pangkat} · NIP {p.nip}", TENGAH)],
+        [Paragraph(f"<u><b>{escape(orang.nama)}</b></u>", TENGAH)],
+        [_p(f"{orang.pangkat} · NIP {orang.nip}", TENGAH)],
     ]
     kotak = Table(isi, colWidths=[70 * mm])
     kotak.setStyle(TableStyle([("TOPPADDING", (0, 0), (-1, -1), 1), ("BOTTOMPADDING", (0, 0), (-1, -1), 1)]))
@@ -160,11 +167,59 @@ def _tanda_tangan(hasil):
     return KeepTogether([Spacer(1, 5 * mm), luar])
 
 
-def _kop(label_golongan):
+def _biodata(orang):
+    return _tabel_kunci_nilai([
+        ("NIP", orang.nip), ("Nama", orang.nama), ("Pangkat", orang.pangkat),
+        ("Jabatan", orang.jabatan), ("Satuan", orang.satuan.nama),
+    ])
+
+
+def _data_kendaraan(vehicle, label_golongan, tambahan, total=180 * mm):
+    return _tabel_kunci_nilai(total=total, pasangan=[
+        ("No. Registrasi", vehicle.nopol), ("Merk/Type", vehicle.merek),
+        ("No. Chasis", vehicle.no_chasis), ("No. Mesin", vehicle.no_mesin),
+        ("Golongan", label_golongan), *tambahan,
+    ])
+
+
+def _gambar(berkas, lebar, tinggi_maks):
+    """An uploaded image scaled to ``lebar`` (capped at ``tinggi_maks``), or None
+    when it is missing or unreadable."""
+    if not berkas:
+        return None
+    try:
+        with berkas.open("rb") as f:
+            data = BytesIO(f.read())
+        w, h = ImageReader(data).getSize()
+    except Exception:  # a file lost from storage must not break the whole report
+        return None
+    data.seek(0)
+    skala = min(lebar / w, tinggi_maks / h)
+    return Image(data, width=w * skala, height=h * skala)
+
+
+def _galeri(gambar, per_baris=2):
+    """Images (with captions) in a grid of ``per_baris`` columns."""
+    lebar = 180 * mm / per_baris
+    sel = []
+    for berkas, judul in gambar:
+        img = _gambar(berkas, lebar - 6 * mm, 65 * mm)
+        if img is not None:
+            sel.append([img, _p(judul, TENGAH)])
+    if not sel:
+        return _p("Tidak ada foto.")
+    baris = [sel[i:i + per_baris] for i in range(0, len(sel), per_baris)]
+    baris[-1] += [""] * (per_baris - len(baris[-1]))
+    tabel = Table(baris, colWidths=[lebar] * per_baris)
+    tabel.setStyle(TableStyle([("ALIGN", (0, 0), (-1, -1), "CENTER"), ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+    return tabel
+
+
+def _kop(judul, label_golongan):
     logo = settings.BASE_DIR / "static" / "img" / "kemhan_logo.png"
     teks = [
         Paragraph("KEMENTERIAN PERTAHANAN REPUBLIK INDONESIA", SUB),
-        Paragraph("LAPORAN PEMERIKSAAN KENDARAAN", JUDUL),
+        Paragraph(escape(judul), JUDUL),
         Paragraph(escape(label_golongan), SUB),
     ]
     sel_logo = Image(str(logo), width=16 * mm, height=16 * mm) if logo.exists() else ""
@@ -186,40 +241,127 @@ def _kaki(canvas, doc):
     canvas.restoreState()
 
 
+def _dokumen(isi, judul):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4, leftMargin=15 * mm, rightMargin=15 * mm, topMargin=12 * mm, bottomMargin=16 * mm,
+        title=judul, author="BMN Harwat",
+    )
+    doc.build(isi, onFirstPage=_kaki, onLaterPages=_kaki)
+    return buffer.getvalue()
+
+
+def _tanggal(waktu):
+    return f"{timezone.localtime(waktu):%d-%m-%Y %H:%M}" if waktu else "-"
+
+
 def buat_pdf(hasil, cfg, label_golongan):
-    """``label_golongan``: the group whose form was filled in (the vehicle's
-    group may have changed since)."""
+    """Inspection report. ``label_golongan``: the group whose form was filled
+    in (the vehicle's group may have changed since)."""
     vehicle = hasil.vehicle
-    p = hasil.pemeriksa
-    lokal = timezone.localtime(hasil.dibuat_pada)
     isi = [
-        _kop(label_golongan),
+        _kop("LAPORAN PEMERIKSAAN KENDARAAN", label_golongan),
         Paragraph("Data Kendaraan", BAGIAN),
-        _tabel_kunci_nilai([
-            ("No. Registrasi", vehicle.nopol), ("Merk/Type", vehicle.merek),
-            ("No. Chasis", vehicle.no_chasis), ("No. Mesin", vehicle.no_mesin),
-            ("Golongan", label_golongan), ("Tanggal Pemeriksaan", f"{lokal:%d-%m-%Y %H:%M}"),
-        ]),
+        _data_kendaraan(vehicle, label_golongan, [("Tanggal Pemeriksaan", _tanggal(hasil.dibuat_pada))]),
         Paragraph("Data Pemeriksaan", BAGIAN),
         _tabel_kunci_nilai(_data_pemeriksaan(hasil)),
         Paragraph("Personil yang Memeriksa", BAGIAN),
-        _tabel_kunci_nilai([
-            ("NIP", p.nip), ("Nama", p.nama), ("Pangkat", p.pangkat),
-            ("Jabatan", p.jabatan), ("Satuan", p.satuan.nama),
-        ]),
+        _biodata(hasil.pemeriksa),
         Paragraph("Hasil Pemeriksaan", BAGIAN),
         _tabel_item(hasil, cfg),
         Paragraph("Ringkasan", BAGIAN),
         _ringkasan(hasil, cfg),
-        _tanda_tangan(hasil),
+        _tanda_tangan(hasil.pemeriksa, "Pemeriksa", f"Diperiksa pada {timezone.localtime(hasil.dibuat_pada):%d-%m-%Y}"),
     ]
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(
-        buffer, pagesize=A4, leftMargin=15 * mm, rightMargin=15 * mm, topMargin=12 * mm, bottomMargin=16 * mm,
-        title=f"Laporan Pemeriksaan {vehicle.nopol}", author="BMN Harwat",
-    )
-    doc.build(isi, onFirstPage=_kaki, onLaterPages=_kaki)
-    return buffer.getvalue()
+    return _dokumen(isi, f"Laporan Pemeriksaan {vehicle.nopol}")
+
+
+def _tabel_riwayat_perbaikan(daftar, dipilih):
+    kepala = ["No", "Tanggal", "Kondisi Setelah", "Teknisi", "Keterangan"]
+    baris = [[Paragraph(k, KEPALA) for k in kepala]]
+    for nomor, p in enumerate(daftar, start=1):
+        baris.append([
+            _p(nomor, TENGAH), _p(_tanggal(p.dibuat_pada)), _kondisi(p.kondisi, p.get_kondisi_display()),
+            _p(f"{p.teknisi.nama} ({p.teknisi.pangkat})"), _p(p.keterangan),
+        ])
+    tabel = Table(baris, colWidths=[9 * mm, 28 * mm, 31 * mm, 45 * mm, 67 * mm], repeatRows=1)
+    gaya = [
+        ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("GRID", (0, 0), (-1, -1), 0.25, GARIS),
+    ]
+    gaya += [
+        ("BACKGROUND", (0, i), (-1, i), colors.HexColor("#FEF3C7"))
+        for i, p in enumerate(daftar, start=1) if p.pk == dipilih.pk
+    ]
+    tabel.setStyle(TableStyle(gaya))
+    return tabel
+
+
+def buat_pdf_perbaikan(perbaikan, label_golongan):
+    item = perbaikan.item
+    hasil = item.pemeriksaan
+    data = [
+        ("Komponen", f"{item.nomor}. {item.nama_alat}"),
+        ("Tanggal Pemeriksaan", _tanggal(hasil.dibuat_pada)),
+        ("Kondisi Saat Diperiksa", item.get_kondisi_display()),
+        ("Pemeriksa", f"{hasil.pemeriksa.nama} ({hasil.pemeriksa.pangkat})"),
+        ("Keterangan Pemeriksaan", item.keterangan),
+        ("Tanggal Perbaikan", _tanggal(perbaikan.dibuat_pada)),
+        ("Kondisi Setelah Perbaikan", perbaikan.get_kondisi_display()),
+    ]
+    if hasattr(perbaikan, "jumlah"):
+        data.append(("Jumlah", perbaikan.jumlah))
+    data.append(("Keterangan Perbaikan", perbaikan.keterangan))
+    isi = [
+        _kop("LAPORAN PERBAIKAN KENDARAAN", label_golongan),
+        Paragraph("Data Kendaraan", BAGIAN),
+        _data_kendaraan(hasil.vehicle, label_golongan, [("Tanggal Perbaikan", _tanggal(perbaikan.dibuat_pada))]),
+        Paragraph("Data Perbaikan", BAGIAN),
+        _tabel_kunci_nilai(data, kolom=1),
+        Paragraph("Foto", BAGIAN),
+        _galeri([(item.foto, "Saat diperiksa"), (perbaikan.foto, "Setelah perbaikan")]),
+        Paragraph("Personil yang Memperbaiki", BAGIAN),
+        _biodata(perbaikan.teknisi),
+        Paragraph("Riwayat Perbaikan Komponen Ini", BAGIAN),
+        _tabel_riwayat_perbaikan(list(item.perbaikan.all()), perbaikan),
+        _tanda_tangan(perbaikan.teknisi, "Teknisi", f"Diperbaiki pada {timezone.localtime(perbaikan.dibuat_pada):%d-%m-%Y}"),
+    ]
+    return _dokumen(isi, f"Laporan Perbaikan {hasil.vehicle.nopol}")
+
+
+def buat_pdf_penambahan(vehicle):
+    label = vehicle.get_group_kendaraan_display()
+    akun = vehicle.ditambahkan_oleh
+    qr = Image(BytesIO(qr_png_with_logo(vehicle.qr_text())), width=40 * mm, height=40 * mm)
+    data = _data_kendaraan(vehicle, label, [
+        ("Ditambahkan Pada", _tanggal(vehicle.dibuat_pada)),
+        ("Akun Penambah", (akun.get_full_name() or akun.username) if akun else "-"),
+    ], total=135 * mm)  # leaves room for the QR code
+    atas = Table([[data, qr]], colWidths=[135 * mm, 45 * mm])
+    atas.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("ALIGN", (1, 0), (1, 0), "CENTER")]))
+    isi = [
+        _kop("LAPORAN PENAMBAHAN KENDARAAN/BARANG", label),
+        Paragraph("Data Kendaraan/Barang", BAGIAN),
+        atas,
+        Paragraph("Foto Kendaraan/Barang", BAGIAN),
+        _galeri([(f.image, f"Foto {i}") for i, f in enumerate(vehicle.fotos.all(), start=1)]),
+        Paragraph("Personil yang Menambahkan", BAGIAN),
+        _biodata(vehicle.penambah) if vehicle.penambah else _p(
+            "Belum tercatat: kendaraan ini ditambahkan sebelum biodata penambah disimpan, atau lewat menu Armada."
+        ),
+    ]
+    if vehicle.penambah:
+        tanggal = f"Ditambahkan pada {timezone.localtime(vehicle.dibuat_pada):%d-%m-%Y}" if vehicle.dibuat_pada else ""
+        isi.append(_tanda_tangan(vehicle.penambah, "Penambah", tanggal))
+    return _dokumen(isi, f"Laporan Penambahan {vehicle.nopol}")
+
+
+def _pdf_response(request, konten, nama_file):
+    response = HttpResponse(konten, content_type="application/pdf")
+    disposisi = "attachment" if request.GET.get("unduh") else "inline"
+    response["Content-Disposition"] = f'{disposisi}; filename="{nama_file}"'
+    return response
 
 
 @login_required
@@ -235,9 +377,29 @@ def laporan_pemeriksaan_pdf(request, kode, pk):
     )
     lokal = timezone.localtime(hasil.dibuat_pada)
     nama_file = f"laporan-pemeriksaan-{slugify(hasil.vehicle.nopol)}-{lokal:%Y%m%d-%H%M}.pdf"
-    label = Vehicle.GroupKendaraan(kode).label
-    response = HttpResponse(buat_pdf(hasil, cfg, label), content_type="application/pdf")
-    disposisi = "attachment" if request.GET.get("unduh") else "inline"
-    response["Content-Disposition"] = f'{disposisi}; filename="{nama_file}"'
-    return response
+    return _pdf_response(request, buat_pdf(hasil, cfg, Vehicle.GroupKendaraan(kode).label), nama_file)
 
+
+@login_required
+def laporan_perbaikan_pdf(request, kode, pk):
+    cfg = golongan.GOLONGAN.get(kode)
+    if cfg is None:
+        raise Http404
+    perbaikan = get_object_or_404(
+        cfg.perbaikan_model.objects.select_related(
+            "teknisi__satuan", "item__pemeriksaan__vehicle", "item__pemeriksaan__pemeriksa",
+        ).prefetch_related("item__perbaikan__teknisi"),
+        pk=pk,
+    )
+    lokal = timezone.localtime(perbaikan.dibuat_pada)
+    nama_file = f"laporan-perbaikan-{slugify(perbaikan.item.pemeriksaan.vehicle.nopol)}-{lokal:%Y%m%d-%H%M}.pdf"
+    return _pdf_response(request, buat_pdf_perbaikan(perbaikan, Vehicle.GroupKendaraan(kode).label), nama_file)
+
+
+@login_required
+def laporan_penambahan_pdf(request, pk):
+    vehicle = get_object_or_404(
+        Vehicle.objects.select_related("ditambahkan_oleh", "penambah__satuan").prefetch_related("fotos"), pk=pk,
+    )
+    nama_file = f"laporan-penambahan-{slugify(vehicle.nopol)}.pdf"
+    return _pdf_response(request, buat_pdf_penambahan(vehicle), nama_file)

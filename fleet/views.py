@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
@@ -60,12 +61,24 @@ def _next_url(request):
 
 @login_required
 def vehicle_create(request):
+    from accounts.forms import BiodataForm  # accounts imports fleet models
+
     next_url = _next_url(request)
+    # ?penambah=1 (Form Tambah): the page's biodata comes along and is saved
+    # as the vehicle's penambah.
+    pakai_biodata = bool(request.GET.get("penambah"))
     if request.method == "POST":
         form = VehicleForm(request.POST, request.FILES)
         form.instance.group_kendaraan = _group(request)
+        form.instance.ditambahkan_oleh = request.user
+        biodata = BiodataForm(request.POST, request.FILES, prefix="penambah") if pakai_biodata else None
+        if biodata is not None and not biodata.is_valid():
+            form.add_error(None, "Biodata pemeriksa belum lengkap. Tutup form ini dan periksa kembali biodatanya.")
         if form.is_valid():
-            vehicle = form.save()
+            with transaction.atomic():
+                if biodata is not None:
+                    form.instance.penambah = biodata.save()
+                vehicle = form.save()
             if next_url:
                 messages.success(request, f"Kendaraan {vehicle.nopol} berhasil ditambahkan.")
             target = next_url or _list_url(vehicle.group_kendaraan)
@@ -77,6 +90,7 @@ def vehicle_create(request):
     template = "fleet/_vehicle_form_fields.html" if _is_htmx(request) else "fleet/vehicle_form.html"
     return render(request, template, {
         "form": form, "is_edit": False, "group": _group(request), "next_url": next_url or "",
+        "pakai_biodata": pakai_biodata,
     })
 
 

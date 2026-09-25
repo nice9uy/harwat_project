@@ -569,8 +569,12 @@ class FormTambahViewTests(TestCase):
         self.assertContains(response, "Tambah Kendaraan")
         self.assertContains(response, 'type="radio" name="golongan" value="B"')
         self.assertContains(response, 'Golongan "B"')
+        # Prefixed: they are posted together with the vehicle form, which has its own "foto".
         for field in ("nip", "nama", "pangkat", "jabatan", "satuan", "foto"):
-            self.assertContains(response, f'id="id_{field}"')
+            self.assertContains(response, f'id="id_penambah-{field}"')
+        self.assertContains(response, 'type="hidden" name="penambah-satuan"')
+        self.assertContains(response, 'id="form-tambah-biodata"')
+        self.assertContains(response, "&penambah=1&next=")
 
     def test_sidebar_brand_has_kemhan_logo(self):
         self.client.login(username="teknisi1", password="rahasia-123")

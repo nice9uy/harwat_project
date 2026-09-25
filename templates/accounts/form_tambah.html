@@ -2,7 +2,7 @@
 {% block title %}Form Tambah — BMN Harwat{% endblock %}
 {% block page_title %}Form Tambah{% endblock %}
 {% block content %}
-<form method="post" enctype="multipart/form-data"
+<form id="form-tambah-biodata" method="post" enctype="multipart/form-data"
       x-data="{
           step: 1,
           fotoPreview: null,
@@ -39,7 +39,7 @@
 
 {# Outside the page form: the vehicle form in it is a <form> of its own. #}
 <div x-data="{ modalOpen: false }"
-     @buka-tambah-kendaraan.window="modalOpen = true; htmx.ajax('GET', '{% url 'fleet:vehicle_create' %}?group=' + encodeURIComponent($event.detail) + '&next={{ request.path|urlencode }}', '#vehicle-modal-body')">
+     @buka-tambah-kendaraan.window="modalOpen = true; htmx.ajax('GET', '{% url 'fleet:vehicle_create' %}?group=' + encodeURIComponent($event.detail) + '&penambah=1&next={{ request.path|urlencode }}', '#vehicle-modal-body')">
     <div x-show="modalOpen"
          x-cloak
          @click.self="modalOpen = false"

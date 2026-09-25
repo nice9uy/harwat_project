@@ -13,6 +13,7 @@ class VehicleAdmin(admin.ModelAdmin):
     list_display = ["nopol", "group_kendaraan", "merek", "no_chasis", "no_mesin", "status"]
     list_filter = ["group_kendaraan", "status", "jenis"]
     search_fields = ["nopol", "merek", "no_chasis", "no_mesin"]
+    raw_id_fields = ["ditambahkan_oleh", "penambah"]
     inlines = [VehiclePhotoInline]
 
 

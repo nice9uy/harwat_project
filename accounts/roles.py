@@ -80,8 +80,13 @@ MENU_VIEWS = {
     "laporan_pemeriksaan": {
         "accounts:laporan_pemeriksaan", "accounts:laporan_pemeriksaan_detail", "accounts:laporan_pemeriksaan_pdf",
     },
-    "laporan_perbaikan": {"accounts:laporan_perbaikan"},
-    "laporan_penambahan": {"accounts:laporan_penambahan"},
+    "laporan_perbaikan": {
+        "accounts:laporan_perbaikan", "accounts:laporan_perbaikan_detail", "accounts:laporan_perbaikan_pdf",
+    },
+    "laporan_penambahan": {
+        "accounts:laporan_penambahan", "accounts:laporan_penambahan_detail", "accounts:laporan_penambahan_pdf",
+        "fleet:vehicle_qr",
+    },
     "pengaturan": {
         "accounts:pengaturan", "accounts:user_create", "accounts:user_delete", "accounts:user_edit",
         "accounts:satuan_create", "accounts:satuan_update", "accounts:satuan_delete",

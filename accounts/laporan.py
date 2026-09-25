@@ -166,22 +166,13 @@ def laporan_pemeriksaan_detail(request, pk):
             )
             .order_by("-dibuat_pada", "-id")
         )
-    # One row per person (by NIP): each inspection saves its own biodata, so the
-    # newest biodata is shown with how often and when they last inspected.
-    personil = {}
     for hasil in riwayat:
         hasil.jumlah_baik = hasil.jumlah_item - hasil.jumlah_perlu
-        orang = personil.setdefault(hasil.pemeriksa.nip, {"biodata": hasil.pemeriksa, "terakhir": hasil.dibuat_pada, "jumlah": 0})
-        orang["jumlah"] += 1
-    try:
-        dipilih = int(request.GET.get("pemeriksaan", ""))
-    except ValueError:
-        dipilih = None
     return render(request, "accounts/_laporan_pemeriksaan_detail.html", {
         "vehicle": vehicle,
         "riwayat": riwayat,
-        "personil": list(personil.values()),
-        "dipilih": dipilih,
+        "personil": _per_orang(riwayat, "pemeriksa"),
+        "dipilih": _id_dipilih(request, "pemeriksaan"),
         "tab": "personil" if request.GET.get("tab") == "personil" else "riwayat",
     })
 
@@ -196,6 +187,7 @@ def laporan_perbaikan(request):
             vehicle = p.item.pemeriksaan.vehicle
             rows.append((
                 p.dibuat_pada,
+                f"{reverse('accounts:laporan_perbaikan_detail', args=[vehicle.pk])}?perbaikan={p.pk}",
                 vehicle.nopol,
                 Vehicle.GroupKendaraan(kode).label,
                 f"{p.item.nomor}. {p.item.nama_alat}",
@@ -205,9 +197,13 @@ def laporan_perbaikan(request):
                 p.keterangan,
             ))
     rows.sort(key=lambda r: r[0], reverse=True)
-    rows = [(timezone.localtime(r[0]).strftime("%d-%m-%Y %H:%M"),) + r[1:] for r in rows]
+    tautan = [r[1] for r in rows]
+    rows = [(timezone.localtime(r[0]).strftime("%d-%m-%Y %H:%M"),) + r[2:] for r in rows]
     header = ["Tanggal", "No. Registrasi", "Golongan", "Komponen", "Kondisi Awal", "Kondisi Setelah", "Teknisi", "Keterangan"]
-    return _render(request, "accounts/laporan_tabel.html", "Laporan Perbaikan", header, rows, f, "laporan-perbaikan.xlsx")
+    return _render(
+        request, "accounts/laporan_tabel.html", "Laporan Perbaikan", header, rows, f, "laporan-perbaikan.xlsx",
+        tautan=tautan,
+    )
 
 
 @login_required
@@ -216,7 +212,8 @@ def laporan_penambahan(request):
     qs = Vehicle.objects.order_by("-dibuat_pada", "-id")
     if f["golongan"]:
         qs = qs.filter(group_kendaraan=f["golongan"])
-    qs = _rentang(qs, "dibuat_pada", f)
+    qs = list(_rentang(qs, "dibuat_pada", f))
+    tautan = [reverse("accounts:laporan_penambahan_detail", args=[v.pk]) for v in qs]
     rows = [
         (
             timezone.localtime(v.dibuat_pada).strftime("%d-%m-%Y %H:%M") if v.dibuat_pada else "-",
@@ -227,5 +224,65 @@ def laporan_penambahan(request):
     header = ["Ditambahkan", "No. Registrasi", "Merk/Type", "Golongan", "No. Chasis", "No. Mesin"]
     return _render(
         request, "accounts/laporan_tabel.html", "Laporan Penambahan Kendaraan/Barang", header, rows, f,
-        "laporan-penambahan-kendaraan.xlsx",
+        "laporan-penambahan-kendaraan.xlsx", tautan=tautan,
     )
+
+
+def _per_orang(daftar, atribut):
+    """One row per person (by NIP) from records whose ``atribut`` is a biodata:
+    each record saves its own biodata, so the newest one is shown with how
+    often and when that person last appears. ``daftar`` is newest first."""
+    orang = {}
+    for obj in daftar:
+        biodata = getattr(obj, atribut)
+        baris = orang.setdefault(biodata.nip, {"biodata": biodata, "terakhir": obj.dibuat_pada, "jumlah": 0})
+        baris["jumlah"] += 1
+    return list(orang.values())
+
+
+def _id_dipilih(request, param):
+    try:
+        return int(request.GET.get(param, ""))
+    except ValueError:
+        return None
+
+
+@login_required
+def laporan_perbaikan_detail(request, pk):
+    """Modal for a Laporan Perbaikan row: every repair of that vehicle (the
+    clicked one highlighted) and the personnel who repaired it."""
+    vehicle = get_object_or_404(Vehicle, pk=pk)
+    cfg = golongan.for_vehicle(vehicle)
+    riwayat = []
+    if cfg is not None:
+        riwayat = list(
+            cfg.perbaikan_model.objects.filter(item__pemeriksaan__vehicle=vehicle)
+            .select_related("item", "teknisi__satuan")
+            .order_by("-dibuat_pada", "-id")
+        )
+    return render(request, "accounts/_laporan_perbaikan_detail.html", {
+        "vehicle": vehicle,
+        "riwayat": riwayat,
+        "personil": _per_orang(riwayat, "teknisi"),
+        "dipilih": _id_dipilih(request, "perbaikan"),
+    })
+
+
+@login_required
+def laporan_penambahan_detail(request, pk):
+    """Modal for a Laporan Penambahan row: the vehicle's data, photos and QR
+    code, and who added it."""
+    vehicle = get_object_or_404(
+        Vehicle.objects.select_related("ditambahkan_oleh", "penambah__satuan").prefetch_related("fotos"), pk=pk,
+    )
+    # Same table as the other modals' personnel tab, with the account in the
+    # count column and the time added in the "last" column.
+    penambah_baris = [{
+        "biodata": vehicle.penambah,
+        "jumlah": vehicle.ditambahkan_oleh.username if vehicle.ditambahkan_oleh else "-",
+        "terakhir": vehicle.dibuat_pada,
+    }] if vehicle.penambah else []
+    return render(request, "accounts/_laporan_penambahan_detail.html", {
+        "vehicle": vehicle, "penambah_baris": penambah_baris,
+    })
+

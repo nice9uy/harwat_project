@@ -1,0 +1,6 @@
+{# One tab button of a Laporan modal; `tab` lives in the modal's x-data. Params: kunci, label, jumlah (optional badge). #}
+<button type="button" @click="tab = '{{ kunci }}'"
+        :class="tab === '{{ kunci }}' ? 'border-gold text-navy dark:text-gold' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+        class="-mb-px whitespace-nowrap border-b-2 px-1 py-2 text-sm font-medium">
+    {{ label }}{% if jumlah is not None %} <span class="ml-1 rounded-full bg-slate-100 px-1.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">{{ jumlah }}</span>{% endif %}
+</button>

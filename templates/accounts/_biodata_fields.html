@@ -20,7 +20,7 @@
     </div>
     <div>
         <label for="{{ form.satuan.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Satuan</label>
-        {% include "_autocomplete.html" with nama="satuan" id_teks=form.satuan.id_for_label id_opsi="opsi-satuan" opsi=form.satuan_opsi nilai=form.satuan.value wajib=True label_data="satuan" placeholder="Ketik nama satuan" %}
+        {% include "_autocomplete.html" with nama=form.satuan.html_name id_teks=form.satuan.id_for_label id_opsi="opsi-satuan" opsi=form.satuan_opsi nilai=form.satuan.value wajib=True label_data="satuan" placeholder="Ketik nama satuan" %}
         {% if form.satuan.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.satuan.errors.0 }}</p>{% endif %}
         {% if not form.satuan_opsi %}<p class="text-xs text-amber-600 dark:text-amber-400 mt-1">Belum ada data satuan. Tambahkan dulu di Pengaturan &rsaquo; Satuan.</p>{% endif %}
     </div>

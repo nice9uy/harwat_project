@@ -38,7 +38,17 @@ urlpatterns = [
         name="laporan_pemeriksaan_pdf",
     ),
     path("laporan-perbaikan/", laporan.laporan_perbaikan, name="laporan_perbaikan"),
+    path("laporan-perbaikan/kendaraan/<int:pk>/", laporan.laporan_perbaikan_detail, name="laporan_perbaikan_detail"),
+    path(
+        "laporan-perbaikan/<str:kode>/<int:pk>/pdf/", laporan_pdf.laporan_perbaikan_pdf,
+        name="laporan_perbaikan_pdf",
+    ),
     path("laporan-penambahan/", laporan.laporan_penambahan, name="laporan_penambahan"),
+    path(
+        "laporan-penambahan/kendaraan/<int:pk>/", laporan.laporan_penambahan_detail,
+        name="laporan_penambahan_detail",
+    ),
+    path("laporan-penambahan/<int:pk>/pdf/", laporan_pdf.laporan_penambahan_pdf, name="laporan_penambahan_pdf"),
     path("pengaturan/satuan/tambah/", views.satuan_form_view, name="satuan_create"),
     path("pengaturan/satuan/<int:pk>/ubah/", views.satuan_form_view, name="satuan_update"),
     path("pengaturan/satuan/<int:pk>/hapus/", views.satuan_delete, name="satuan_delete"),

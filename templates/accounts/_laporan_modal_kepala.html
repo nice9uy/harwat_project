@@ -1,0 +1,10 @@
+{# Title row of a Laporan modal. Params: judul, vehicle. #}
+<div class="flex items-start justify-between gap-3">
+    <div class="min-w-0">
+        <h2 class="truncate text-lg font-semibold text-navy dark:text-slate-100">{{ judul }} {{ vehicle.nopol }}</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400">{{ vehicle.merek }} · {{ vehicle.get_group_kendaraan_display }}</p>
+    </div>
+    <button type="button" @click="modalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" aria-label="Tutup">
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+    </button>
+</div>

@@ -190,7 +190,8 @@ def pemeriksaan_captcha_view(request):
 
 @login_required
 def form_tambah_view(request):
-    return render(request, "accounts/form_tambah.html", {"form": LaporanForm()})
+    # Prefixed: the vehicle form posted with it has a "foto" field of its own.
+    return render(request, "accounts/form_tambah.html", {"form": BiodataForm(prefix="penambah")})
 
 
 @login_required

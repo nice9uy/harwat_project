@@ -39,6 +39,16 @@ class Vehicle(models.Model):
     no_mesin = models.CharField(max_length=50, blank=True, verbose_name="No. Mesin")
     # Empty for vehicles added before this column existed.
     dibuat_pada = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Ditambahkan pada")
+    # Who added it: the account, and (via Form Tambah) the biodata entered
+    # there. Empty for vehicles added before these columns existed.
+    ditambahkan_oleh = models.ForeignKey(
+        "auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="kendaraan_ditambahkan",
+        verbose_name="Ditambahkan oleh",
+    )
+    penambah = models.ForeignKey(
+        "accounts.Laporan", on_delete=models.SET_NULL, null=True, blank=True, related_name="kendaraan_ditambahkan",
+        verbose_name="Biodata Penambah",
+    )
 
     class Meta:
         ordering = ["nopol"]
