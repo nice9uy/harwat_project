@@ -123,27 +123,4 @@ Golongan B vehicle is scanned. Kendaraan Bermotor has _pemeriksaan_bermotor.html
     {% for no, nama in alat_golongan_b %}
     {% include "accounts/_pemeriksaan_item.html" %}
     {% endfor %}
-
-    <section data-panel='"kesimpulan"'>
-        <button type="button" @click="open = open === 'kesimpulan' ? null : 'kesimpulan'"
-                :aria-expanded="open === 'kesimpulan'"
-                class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-navy dark:text-slate-100 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700">
-            Kesimpulan-Kesimpulan Hasil Pemeriksaan
-            <svg :class="open === 'kesimpulan' && 'rotate-180'" class="h-4 w-4 shrink-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
-        </button>
-        <div x-show="open === 'kesimpulan'" x-cloak class="px-4 py-4 space-y-4">
-            {% for field, label, pilihan, wajib in kesimpulan %}
-            <fieldset>
-                <legend class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ forloop.counter }}) {{ label }}{% if not wajib %} <span class="font-normal text-slate-500 dark:text-slate-400">(opsional)</span>{% endif %}</legend>
-                <div class="grid grid-cols-3 gap-2">
-                    {% for value, teks in pilihan %}
-                    <label class="flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 px-2 py-2 text-center text-sm text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-blue-600 has-checked:bg-blue-600 has-checked:text-white">
-                        <input type="radio" name="{{ field }}" value="{{ value }}"{% if wajib %} required{% endif %} class="sr-only">{{ teks }}
-                    </label>
-                    {% endfor %}
-                </div>
-            </fieldset>
-            {% endfor %}
-        </div>
-    </section>
 </div>

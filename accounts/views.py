@@ -155,7 +155,6 @@ def pemeriksaan_checklist_view(request, kode):
         "macam_pemeriksaan": pemeriksaan.MACAM_PEMERIKSAAN,
         "buku_jalan": pemeriksaan.BUKU_JALAN,
         "alat_golongan_b": pemeriksaan.ALAT_BERNOMOR,
-        "kesimpulan": pemeriksaan.KESIMPULAN,
         # Kendaraan Bermotor
         "buku_harian": pemeriksaan.BUKU_HARIAN,
         "alat_bermotor": pemeriksaan.KOMPONEN_BERMOTOR_BERNOMOR,

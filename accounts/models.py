@@ -84,26 +84,6 @@ class PemeriksaanGolonganB(models.Model):
 
     BAN_FIELDS = [f"ban_{i}" for i in range(1, 9)]
 
-    # Kesimpulan-kesimpulan hasil pemeriksaan (after part 40 on the form).
-    kegiatan_pemeriksaan = models.CharField(
-        max_length=20, choices=checklist.MEMUASKAN, verbose_name="Kegiatan Pemeriksaan",
-    )
-    pemakaian_tehnis = models.CharField(
-        max_length=20, choices=checklist.BAIK_SEDANG_BURUK, verbose_name="Pemakaian Tehnis",
-    )
-    pendapat_umum = models.CharField(
-        max_length=20, choices=checklist.MEMUASKAN, verbose_name="Pendapat Umum",
-    )
-    kegiatan_ditpal = models.CharField(
-        max_length=20, choices=checklist.MEMUASKAN, verbose_name="Kegiatan Ditpal",
-    )
-    pemeliharaan = models.CharField(
-        max_length=20, choices=checklist.BAIK_SEDANG_BURUK, verbose_name="Pemeliharaan",
-    )
-    kerusakan_disebabkan = models.CharField(
-        max_length=20, choices=checklist.PENYEBAB_KERUSAKAN, blank=True, verbose_name="Kerusakan Disebabkan",
-    )
-
     class Meta:
         verbose_name = "Pemeriksaan Golongan B"
         verbose_name_plural = "Pemeriksaan Golongan B"

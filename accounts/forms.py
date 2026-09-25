@@ -315,7 +315,6 @@ class PemeriksaanGolonganBForm(_ChecklistForm):
         fields = [
             "vehicle", "pembagian_kelas", "eselon_reparasi", "macam_pemeriksaan", "buku_jalan", "kesatuan",
             *PemeriksaanGolonganB.BAN_FIELDS,
-            *(field for field, _, _, _ in checklist.KESIMPULAN),
         ]
 
 

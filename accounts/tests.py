@@ -250,12 +250,6 @@ def _pemeriksaan_data(vehicle, **overrides):
         "kesatuan": _satuan("Yonif Mekanis 202/TM").pk,
         "ban_1": "90",
         "ban_8": "40",
-        "kegiatan_pemeriksaan": "memuaskan",
-        "pemakaian_tehnis": "baik",
-        "pendapat_umum": "kurang",
-        "kegiatan_ditpal": "memuaskan",
-        "pemeliharaan": "sedang",
-        "kerusakan_disebabkan": "",
     }
     for nomor in range(1, 41):
         data[f"alat_{nomor}_kondisi"] = "B"
@@ -321,12 +315,6 @@ class LaporanViewTests(TestCase):
         self.assertContains(response, 'type="hidden" name="kesatuan"')
         for i in range(1, 9):
             self.assertContains(response, f'name="ban_{i}" min="0" max="100"')
-        content = response.content.decode()
-        self.assertLess(content.index("40.</span> Cat"), content.index("Kesimpulan-Kesimpulan Hasil Pemeriksaan"))
-        for field in ("kegiatan_pemeriksaan", "pemakaian_tehnis", "pendapat_umum", "kegiatan_ditpal", "pemeliharaan"):
-            self.assertRegex(content, rf'name="{field}" value="[a-z_]+" required')
-        self.assertContains(response, 'name="kerusakan_disebabkan" value="kesalahan_pakai" class=')
-        self.assertContains(response, "Kesalahan pakai")
         for no, nama in ((1, "Motor"), (20, "Gear Belakang"), (21, "Rantai"), (40, "Cat")):
             self.assertContains(response, f"{no}.</span> {nama}")
             self.assertContains(response, f'name="alat_{no}_jml"')
@@ -668,11 +656,6 @@ class PemeriksaanGolonganBSaveTests(TestCase):
             ("2", "3", "tehnis", "ada", "Yonif Mekanis 202/TM"),
         )
         self.assertEqual((hasil.ban_1, hasil.ban_2, hasil.ban_8), (90, None, 40))
-        self.assertEqual(
-            (hasil.kegiatan_pemeriksaan, hasil.pemakaian_tehnis, hasil.pendapat_umum, hasil.kegiatan_ditpal,
-             hasil.pemeliharaan, hasil.kerusakan_disebabkan),
-            ("memuaskan", "baik", "kurang", "memuaskan", "sedang", ""),
-        )
         self.assertIn("Ban 1 90%, 8 40%", hasil.ringkasan())
         self.assertEqual(
             (hasil.pembagian_kelas, hasil.eselon_reparasi, hasil.macam_pemeriksaan, hasil.buku_jalan, hasil.kesatuan.nama),

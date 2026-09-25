@@ -4,20 +4,6 @@ PEMBAGIAN_KELAS = ["1", "2", "3", "4", "5", "6"]
 ESELON_REPARASI = ["1", "2", "3", "4"]
 MACAM_PEMERIKSAAN = [("tehnis", "Tehnis"), ("tiba_tiba", "Tiba-tiba")]
 BUKU_JALAN = [("ada", "Ada"), ("tidak", "Tidak")]
-# Kesimpulan-kesimpulan hasil pemeriksaan (Golongan B paper form).
-MEMUASKAN = [("memuaskan", "Memuaskan"), ("kurang", "Kurang"), ("tidak", "Tidak")]
-BAIK_SEDANG_BURUK = [("baik", "Baik"), ("sedang", "Sedang"), ("buruk", "Buruk")]
-PENYEBAB_KERUSAKAN = [("kekusutan", "Kekusutan"), ("tabrakan", "Tabrakan"), ("kesalahan_pakai", "Kesalahan pakai")]
-KESIMPULAN = [
-    # (field, label, choices, required)
-    ("kegiatan_pemeriksaan", "Kegiatan pemeriksaan oleh dan kesatuan", MEMUASKAN, True),
-    ("pemakaian_tehnis", "Pemakaian tehnis", BAIK_SEDANG_BURUK, True),
-    ("pendapat_umum", "Pendapat umum", MEMUASKAN, True),
-    ("kegiatan_ditpal", "Kegiatan Ditpal dalam memperhatikan laporan kesatuan", MEMUASKAN, True),
-    ("pemeliharaan", "Pemeliharaan", BAIK_SEDANG_BURUK, True),
-    ("kerusakan_disebabkan", "Kerusakan disebabkan", PENYEBAB_KERUSAKAN, False),
-]
-
 KONDISI = [("B", "Baik"), ("RR", "Rusak Ringan"), ("RB", "Rusak Berat")]
 
 # Numbered as on the paper form. On the paper sheet "Carburator" and "Busi"
