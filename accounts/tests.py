@@ -1771,6 +1771,9 @@ class LaporanMenuTests(TestCase):
             self.assertContains(response, text)
         self.assertNotContains(response, "Kondisi Awal")
         self.assertNotContains(response, 'id="dari"')
+        self.assertContains(response, 'id="q" name="q"')
+        self.assertContains(self.client.get(reverse("accounts:laporan_perbaikan"), {"q": "1 trk"}), "B 1 TRK")
+        self.assertNotContains(self.client.get(reverse("accounts:laporan_perbaikan"), {"q": "zzz"}), "B 1 TRK")
 
     def test_laporan_penambahan_and_excel(self):
         from io import BytesIO

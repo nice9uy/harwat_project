@@ -99,11 +99,12 @@ def _excel(judul, header, rows, f, nama_file):
 
 def _render(
     request, template, judul, header, rows, f, nama_file, tautan=None, kolom_tanggal=1, kolom_utama=2,
-    pakai_tanggal=True,
+    pakai_tanggal=True, pakai_cari=False,
 ):
     """``tautan``: optional per-row URL (same order as ``rows``) opened in the detail modal.
     ``kolom_tanggal`` / ``kolom_utama``: 1-based columns styled as the date and as
-    the row's key (No. Registrasi); 0 for none. ``pakai_tanggal``: show the date filter."""
+    the row's key (No. Registrasi); 0 for none. ``pakai_tanggal``: show the date filter;
+    ``pakai_cari``: show the search field (``?q=``)."""
     if request.GET.get("unduh") == "excel":
         return _excel(judul, header, rows, f, nama_file)
     halaman = halaman_dari(request, list(zip(rows, tautan or [None] * len(rows))))
@@ -120,6 +121,8 @@ def _render(
         "kolom_tanggal": kolom_tanggal,
         "kolom_utama": kolom_utama,
         "pakai_tanggal": pakai_tanggal,
+        "pakai_cari": pakai_cari,
+        "q": request.GET.get("q", "").strip(),
     })
 
 
@@ -196,7 +199,13 @@ def laporan_perbaikan(request):
         for baris in qs.order_by().values("item__pemeriksaan__vehicle").annotate(waktu=Max("dibuat_pada")):
             vid = baris["item__pemeriksaan__vehicle"]
             terakhir[vid] = max(baris["waktu"], terakhir.get(vid, baris["waktu"]))
-    kendaraan = Vehicle.objects.in_bulk(list(terakhir))
+    kendaraan = Vehicle.objects.filter(pk__in=list(terakhir))
+    q = request.GET.get("q", "").strip()
+    if q:
+        kendaraan = kendaraan.filter(
+            Q(nopol__icontains=q) | Q(merek__icontains=q) | Q(no_chasis__icontains=q) | Q(no_mesin__icontains=q)
+        )
+    kendaraan = kendaraan.in_bulk()
     urut = sorted(kendaraan.values(), key=lambda v: (terakhir[v.pk], v.pk), reverse=True)
     tautan = [reverse("accounts:laporan_perbaikan_detail", args=[v.pk]) for v in urut]
     rows = [
@@ -206,7 +215,7 @@ def laporan_perbaikan(request):
     header = ["No. Registrasi", "Merk/Type", "No. Chasis", "No. Mesin", "Golongan"]
     return _render(
         request, "accounts/laporan_tabel.html", "Laporan Perbaikan", header, rows, f, "laporan-perbaikan.xlsx",
-        tautan=tautan, kolom_tanggal=0, kolom_utama=1, pakai_tanggal=False,
+        tautan=tautan, kolom_tanggal=0, kolom_utama=1, pakai_tanggal=False, pakai_cari=True,
     )
 
 
