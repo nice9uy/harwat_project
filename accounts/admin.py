@@ -46,7 +46,7 @@ class PemeriksaanGolonganBAdmin(admin.ModelAdmin):
         "macam_pemeriksaan", "buku_jalan", "kesatuan", "dibuat_pada",
     ]
     list_filter = ["macam_pemeriksaan", "pembagian_kelas", "eselon_reparasi", "buku_jalan"]
-    list_select_related = ["vehicle", "pemeriksa"]
+    list_select_related = ["vehicle", "pemeriksa", "kesatuan"]
     search_fields = ["vehicle__nopol", "pemeriksa__nama", "pemeriksa__nip", "kesatuan__nama"]
     date_hierarchy = "dibuat_pada"
     inlines = [PemeriksaanGolonganBItemInline]

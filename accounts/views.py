@@ -227,8 +227,12 @@ def _riwayat_pemeriksaan(vehicle):
     cfg = golongan.for_vehicle(vehicle)
     if cfg is None:
         return [], None
+    # kesatuan (Golongan B) is shown in each inspection's summary.
+    related = ["pemeriksa"] + [
+        f.name for f in cfg.pemeriksaan_model._meta.get_fields() if f.name == "kesatuan"
+    ]
     riwayat = list(
-        getattr(vehicle, cfg.relasi).select_related("pemeriksa")
+        getattr(vehicle, cfg.relasi).select_related(*related)
         .annotate(**{
             f"jumlah_{kode}": Count("items", filter=Q(items__kondisi=kode)) for kode, _ in cfg.kondisi
         })
