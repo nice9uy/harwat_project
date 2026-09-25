@@ -56,14 +56,6 @@
         </table>
     </div>
 
-    {% if halaman.paginator.num_pages > 1 %}
-    <nav class="flex items-center justify-between gap-3 text-sm" aria-label="Halaman">
-        <span class="text-slate-500 dark:text-slate-400">Halaman {{ halaman.number }} dari {{ halaman.paginator.num_pages }}</span>
-        <div class="flex gap-2">
-            {% if halaman.has_previous %}<a href="?{% if query %}{{ query }}&amp;{% endif %}page={{ halaman.previous_page_number }}" class="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700">‹ Sebelumnya</a>{% endif %}
-            {% if halaman.has_next %}<a href="?{% if query %}{{ query }}&amp;{% endif %}page={{ halaman.next_page_number }}" class="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700">Berikutnya ›</a>{% endif %}
-        </div>
-    </nav>
-    {% endif %}
+    {% include "_pagination.html" with halaman=halaman %}
 </div>
 {% endblock %}

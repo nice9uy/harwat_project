@@ -1,13 +1,15 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 from django.views.decorators.http import require_POST
 
 from django.utils.text import slugify
+
+from accounts.paging import halaman
 
 from .forms import JadwalForm, ServisForm, VehicleForm
 from .models import Jadwal, Servis, Vehicle
@@ -40,9 +42,9 @@ def _list_url(group):
 @login_required
 def vehicle_list(request):
     group = _group(request)
-    vehicles = Vehicle.objects.filter(group_kendaraan=group).prefetch_related("fotos")
+    vehicles = Vehicle.objects.filter(group_kendaraan=group).prefetch_related("fotos").order_by("nopol", "id")
     return render(request, "fleet/vehicle_list.html", {
-        "vehicles": vehicles,
+        "vehicles": halaman(request, vehicles),
         "group": group,
         "groups": Vehicle.GroupKendaraan.choices,
     })
@@ -155,9 +157,6 @@ def vehicle_lookup(request):
     })
 
 
-PENCARIAN_MAKS = 50
-
-
 @login_required
 def vehicle_search(request):
     """Cari modal: vehicles of every group matching No. Registrasi, Merk/Type,
@@ -168,9 +167,9 @@ def vehicle_search(request):
         vehicles = vehicles.filter(
             Q(nopol__icontains=q) | Q(merek__icontains=q) | Q(no_chasis__icontains=q) | Q(no_mesin__icontains=q)
         )
-    total = vehicles.count()
-    context = {"vehicles": vehicles[:PENCARIAN_MAKS], "total": total, "q": q, "maks": PENCARIAN_MAKS}
-    template = "fleet/_vehicle_search_rows.html" if request.GET.get("hasil") else "fleet/_vehicle_search_modal.html"
+    # Page links reload only the results (?hasil=1), keeping the search text.
+    context = {"vehicles": halaman(request, vehicles, hasil=1), "q": q}
+    template = "fleet/_vehicle_search_hasil.html" if request.GET.get("hasil") else "fleet/_vehicle_search_modal.html"
     return render(request, template, context)
 
 
@@ -221,7 +220,7 @@ def _catatan_hapus(request, jenis, pk):
 @login_required
 def jadwal_list(request):
     return render(request, "fleet/jadwal_list.html", {
-        "jadwal_list": Jadwal.objects.select_related("vehicle"),
+        "jadwal_list": halaman(request, Jadwal.objects.select_related("vehicle")),
     })
 
 
@@ -239,8 +238,8 @@ def jadwal_hapus(request, pk):
 def servis_list(request):
     servis_list = Servis.objects.select_related("vehicle")
     return render(request, "fleet/servis_list.html", {
-        "servis_list": servis_list,
-        "total_biaya": sum(s.biaya or 0 for s in servis_list),
+        "servis_list": halaman(request, servis_list),
+        "total_biaya": servis_list.aggregate(total=Sum("biaya"))["total"] or 0,
     })
 
 

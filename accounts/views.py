@@ -22,6 +22,7 @@ from fleet.models import Vehicle
 from . import dashboard, golongan, pemeriksaan, roles
 from .forms import TEXT_INPUT_CLASSES, BiodataForm, SatuanForm, LaporanForm, LoginForm, UserCreateForm, UserEditForm
 from .models import Anggota, Satuan
+from .paging import halaman
 from .roles import keanggotaan_label
 
 
@@ -395,9 +396,10 @@ def pengaturan_view(request):
     users += tree
     for akun in users:
         akun.keanggotaan = keanggotaan_label(akun)
+    # Each tab pages on its own parameter; a page link also reopens its tab.
     return render(request, "accounts/pengaturan.html", {
-        "users": users,
-        "satuan_list": Satuan.objects.all(),
+        "users": halaman(request, users, param="hal_user", tab="user"),
+        "satuan_list": halaman(request, Satuan.objects.all(), param="hal_satuan", tab="satuan"),
         "tab": "satuan" if request.GET.get("tab") == "satuan" else "user",
     })
 

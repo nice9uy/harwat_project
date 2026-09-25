@@ -36,7 +36,7 @@
             <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
                 {% for obj in servis_list %}
                 <tr>
-                    <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td>
+                    <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ servis_list.start_index|add:forloop.counter0 }}</td>
                     <td class="py-2 px-4 whitespace-nowrap font-medium text-navy dark:text-slate-100">{{ obj.tanggal|date:"d M Y" }}</td>
                     <td class="py-2 px-4">{{ obj.vehicle.nopol }} <span class="text-slate-500 dark:text-slate-400">· {{ obj.vehicle.merek }}</span></td>
                     <td class="py-2 px-4">{{ obj.jenis_servis }}</td>
@@ -62,6 +62,7 @@
             </tbody>
         </table>
     </div>
+    {% include "_pagination.html" with halaman=servis_list %}
 
     <div x-show="modalOpen" x-cloak
          @click.self="modalOpen = false"

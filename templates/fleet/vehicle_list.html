@@ -59,7 +59,7 @@
             <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
                 {% for vehicle in vehicles %}
                 <tr>
-                    <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td>
+                    <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ vehicles.start_index|add:forloop.counter0 }}</td>
                     <td class="py-2 px-4 font-medium text-navy dark:text-slate-100">{{ vehicle.nopol }}</td>
                     <td class="py-2 px-4">{{ vehicle.merek }}</td>
                     <td class="py-2 px-4">{{ vehicle.no_chasis|default:"-" }}</td>
@@ -89,7 +89,7 @@
     <div class="md:hidden space-y-3">
         {% for vehicle in vehicles %}
         <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4">
-            <p class="font-medium text-navy dark:text-slate-100"><span class="text-slate-400 dark:text-slate-500 font-normal">{{ forloop.counter }}.</span> {{ vehicle.nopol }}</p>
+            <p class="font-medium text-navy dark:text-slate-100"><span class="text-slate-400 dark:text-slate-500 font-normal">{{ vehicles.start_index|add:forloop.counter0 }}.</span> {{ vehicle.nopol }}</p>
             <p class="text-sm text-slate-500 dark:text-slate-400">{{ vehicle.merek }}</p>
             <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
                 <dt class="text-slate-400 dark:text-slate-500">No. Chasis</dt>
@@ -111,6 +111,8 @@
         </div>
         {% endfor %}
     </div>
+
+    {% include "_pagination.html" with halaman=vehicles %}
 
     <div x-show="modalOpen"
          x-cloak

@@ -53,7 +53,7 @@
                 <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
                     {% for akun in users %}
                     <tr{% if akun.kedalaman %} x-show="!tutup[{{ akun.ketua_pk }}]"{% endif %}>
-                        <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td>
+                        <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ users.start_index|add:forloop.counter0 }}</td>
                         <td class="py-2 px-4 font-medium text-navy dark:text-slate-100">
                             {% if akun.kedalaman %}
                             <span class="inline-flex items-center gap-1.5 pl-5 font-normal">
@@ -128,6 +128,7 @@
                 </tbody>
             </table>
         </div>
+        {% include "_pagination.html" with halaman=users %}
     </div>
 
     <div x-show="tab === 'satuan'" x-cloak class="space-y-4">
@@ -157,7 +158,7 @@
                 <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
                     {% for satuan in satuan_list %}
                     <tr>
-                        <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td>
+                        <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ satuan_list.start_index|add:forloop.counter0 }}</td>
                         <td class="py-2 px-4 font-medium text-navy dark:text-slate-100">{{ satuan.nama }}</td>
                         <td class="py-2 px-4">{{ satuan.keterangan|default:"—" }}</td>
                         <td class="py-2 px-4">{{ satuan.dibuat_pada|date:"d M Y" }}</td>
@@ -190,6 +191,7 @@
                 </tbody>
             </table>
         </div>
+        {% include "_pagination.html" with halaman=satuan_list %}
     </div>
 
     <div x-show="modalOpen"

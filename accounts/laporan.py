@@ -7,7 +7,6 @@ from datetime import date
 from io import BytesIO
 
 from django.contrib.auth.decorators import login_required
-from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.shortcuts import render
@@ -19,9 +18,7 @@ from openpyxl.utils import get_column_letter
 from fleet.models import Vehicle
 
 from . import golongan
-
-PER_HALAMAN = 50
-
+from .paging import halaman as halaman_dari
 
 def _tanggal(raw):
     try:
@@ -102,7 +99,7 @@ def _excel(judul, header, rows, f, nama_file):
 def _render(request, template, judul, header, rows, f, nama_file):
     if request.GET.get("unduh") == "excel":
         return _excel(judul, header, rows, f, nama_file)
-    halaman = Paginator(rows, PER_HALAMAN).get_page(request.GET.get("page"))
+    halaman = halaman_dari(request, rows)
     query = request.GET.copy()
     query.pop("page", None)
     return render(request, template, {
