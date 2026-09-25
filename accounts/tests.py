@@ -1662,3 +1662,76 @@ class SatuanDipakaiTests(TestCase):
         response = self.client.post(reverse("accounts:satuan_delete", args=[kodim.pk]), follow=True)
         self.assertTrue(Satuan.objects.filter(pk=kodim.pk).exists())
         self.assertContains(response, "masih dipakai")
+
+
+class LaporanMenuTests(TestCase):
+    def setUp(self):
+        User.objects.create_superuser(username="root", password="rahasia-123")
+        self.client.login(username="root", password="rahasia-123")
+        self.pemeriksa = Laporan.objects.create(
+            nip="1", nama="Budi", pangkat="Kapten", jabatan="Teknisi", satuan=_satuan("ABC"), foto="x.gif",
+        )
+        self.truk = Vehicle.objects.create(nopol="B 1 TRK", merek="Hino")
+        self.motor = Vehicle.objects.create(nopol="B 2 MTR", merek="Honda", group_kendaraan="bermotor")
+        hasil = PemeriksaanGolonganB.objects.create(
+            pemeriksa=self.pemeriksa, vehicle=self.truk, pembagian_kelas="1", eselon_reparasi="1",
+            macam_pemeriksaan="tehnis", buku_jalan="ada",
+        )
+        for nomor in range(1, 41):
+            item = PemeriksaanGolonganBItem.objects.create(
+                pemeriksaan=hasil, nomor=nomor, nama_alat=f"Alat {nomor}", kondisi="RB" if nomor <= 3 else "B",
+            )
+            if nomor == 1:
+                PerbaikanGolonganB.objects.create(teknisi=self.pemeriksa, item=item, kondisi="B", keterangan="Diganti baru")
+        motor_hasil = PemeriksaanBermotor.objects.create(
+            pemeriksa=self.pemeriksa, vehicle=self.motor, buku_harian="ada", macam_pemeriksaan="tiba_tiba",
+        )
+        from accounts.models import PemeriksaanBermotorItem
+        for nomor in range(1, 64):
+            PemeriksaanBermotorItem.objects.create(
+                pemeriksaan=motor_hasil, nomor=nomor, nama_alat=f"K {nomor}", kondisi="HP" if nomor == 1 else "B",
+            )
+
+    def test_sidebar_has_the_three_reports(self):
+        response = self.client.get(reverse("accounts:dashboard"))
+        for name, label in (("accounts:laporan_pemeriksaan", "Laporan Pemeriksaan"),
+                            ("accounts:laporan_perbaikan", "Laporan Perbaikan"),
+                            ("accounts:laporan_penambahan", "Laporan Penambahan Kendaraan/Barang")):
+            self.assertContains(response, f'<a href="{reverse(name)}" class=')
+            self.assertContains(response, label)
+
+    def test_laporan_pemeriksaan_across_groups_and_filter(self):
+        response = self.client.get(reverse("accounts:laporan_pemeriksaan"))
+        self.assertContains(response, ">2</span> data")
+        for text in ("B 1 TRK", "B 2 MTR", "Golongan B", "Kendaraan Bermotor", "Budi (Kapten)"):
+            self.assertContains(response, text)
+        self.assertContains(response, "<td class=\"px-4 py-2\">37</td>", html=False)
+        response = self.client.get(reverse("accounts:laporan_pemeriksaan"), {"golongan": "bermotor"})
+        self.assertContains(response, ">1</span> data")
+        self.assertNotContains(response, "B 1 TRK")
+        response = self.client.get(reverse("accounts:laporan_pemeriksaan"), {"dari": "2000-01-01", "sampai": "2000-01-02"})
+        self.assertContains(response, "Tidak ada data untuk filter ini.")
+
+    def test_laporan_perbaikan(self):
+        response = self.client.get(reverse("accounts:laporan_perbaikan"))
+        for text in ("B 1 TRK", "1. Alat 1", "Rusak Berat", "Baik", "Diganti baru", ">1</span> data"):
+            self.assertContains(response, text)
+
+    def test_laporan_penambahan_and_csv(self):
+        response = self.client.get(reverse("accounts:laporan_penambahan"), {"golongan": "B"})
+        self.assertContains(response, "B 1 TRK")
+        self.assertNotContains(response, "B 2 MTR")
+        csv_response = self.client.get(reverse("accounts:laporan_penambahan"), {"golongan": "B", "unduh": "csv"})
+        self.assertEqual(csv_response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertIn("attachment", csv_response["Content-Disposition"])
+        isi = csv_response.content.decode("utf-8-sig")
+        self.assertIn("Ditambahkan;No. Registrasi;Merk/Type;Golongan;No. Chasis;No. Mesin", isi)
+        self.assertIn("B 1 TRK;Hino;Golongan B", isi)
+        self.assertNotIn("B 2 MTR", isi)
+
+    def test_tim_users_cannot_open_reports(self):
+        from django.contrib.auth.models import Group
+        user = User.objects.create_user(username="t", password="rahasia-123")
+        user.groups.add(Group.objects.get(name="Tim Pemeriksaan"))
+        self.client.login(username="t", password="rahasia-123")
+        self.assertRedirects(self.client.get(reverse("accounts:laporan_perbaikan")), reverse("accounts:pemeriksaan"))

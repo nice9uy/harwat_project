@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ judul }} — BMN Harwat{% endblock %}
+{% block page_title %}{{ judul }}{% endblock %}
+{% block content %}
+<div class="space-y-4">
+    <form method="get" class="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+        <div>
+            <label for="dari" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Dari tanggal</label>
+            <input type="date" id="dari" name="dari" value="{{ f.dari|date:'Y-m-d' }}"
+                   class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+        </div>
+        <div>
+            <label for="sampai" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Sampai tanggal</label>
+            <input type="date" id="sampai" name="sampai" value="{{ f.sampai|date:'Y-m-d' }}"
+                   class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+        </div>
+        <div>
+            <label for="golongan" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Golongan</label>
+            <select id="golongan" name="golongan"
+                    class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+                <option value="">Semua golongan</option>
+                {% for kode, label in golongan_pilihan %}<option value="{{ kode }}"{% if kode == f.golongan %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">Terapkan</button>
+        <a href="{{ request.path }}" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Reset</a>
+    </form>
+
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold tabular-nums text-navy dark:text-gold">{{ total }}</span> data</p>
+        <a href="?{% if query %}{{ query }}&amp;{% endif %}unduh=csv" download
+           class="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+            Unduh CSV
+        </a>
+    </div>
+
+    <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+        <table class="w-full text-left text-sm">
+            <thead class="border-b border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                <tr>
+                    <th class="w-12 px-4 py-2 font-medium">No</th>
+                    {% for kolom in header %}<th class="px-4 py-2 font-medium">{{ kolom }}</th>{% endfor %}
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                {% for baris in halaman %}
+                <tr>
+                    <td class="px-4 py-2 text-slate-500 dark:text-slate-400">{{ halaman.start_index|add:forloop.counter0 }}</td>
+                    {% for sel in baris %}<td class="px-4 py-2{% if forloop.first %} whitespace-nowrap tabular-nums{% endif %}{% if forloop.counter == 2 %} font-medium text-navy dark:text-slate-100{% endif %}">{{ sel|default:"—" }}</td>{% endfor %}
+                </tr>
+                {% empty %}
+                <tr><td colspan="{{ header|length|add:1 }}" class="px-4 py-6 text-center text-slate-400 dark:text-slate-500">Tidak ada data untuk filter ini.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if halaman.paginator.num_pages > 1 %}
+    <nav class="flex items-center justify-between gap-3 text-sm" aria-label="Halaman">
+        <span class="text-slate-500 dark:text-slate-400">Halaman {{ halaman.number }} dari {{ halaman.paginator.num_pages }}</span>
+        <div class="flex gap-2">
+            {% if halaman.has_previous %}<a href="?{% if query %}{{ query }}&amp;{% endif %}page={{ halaman.previous_page_number }}" class="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700">‹ Sebelumnya</a>{% endif %}
+            {% if halaman.has_next %}<a href="?{% if query %}{{ query }}&amp;{% endif %}page={{ halaman.next_page_number }}" class="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700">Berikutnya ›</a>{% endif %}
+        </div>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

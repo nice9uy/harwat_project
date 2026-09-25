@@ -79,6 +79,16 @@ class QueryCountTests(TestCase):
         self._tanpa_n_plus_1(reverse("operasional:jadwal_list"), tambah)
         self._tanpa_n_plus_1(reverse("operasional:servis_list"), tambah)
 
+    def test_laporan_pages(self):
+        (vehicle,) = self._kendaraan(1)
+        self._pemeriksaan(vehicle, rusak=2)
+
+        def tambah():
+            for v in self._kendaraan(3, start=300 + Vehicle.objects.count()):
+                self._pemeriksaan(v, rusak=2)
+        for name in ("accounts:laporan_pemeriksaan", "accounts:laporan_perbaikan", "accounts:laporan_penambahan"):
+            self._tanpa_n_plus_1(reverse(name), tambah)
+
     def test_armada_list_and_search(self):
         self._kendaraan(2)
         self._tanpa_n_plus_1(reverse("fleet:vehicle_list"), lambda: self._kendaraan(6, start=10))

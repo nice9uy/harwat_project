@@ -37,6 +37,8 @@ class Vehicle(models.Model):
     penanggung_jawab = models.CharField(max_length=150, blank=True, verbose_name="Penanggung Jawab")
     no_chasis = models.CharField(max_length=50, blank=True, verbose_name="No. Chasis")
     no_mesin = models.CharField(max_length=50, blank=True, verbose_name="No. Mesin")
+    # Empty for vehicles added before this column existed.
+    dibuat_pada = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Ditambahkan pada")
 
     class Meta:
         ordering = ["nopol"]
