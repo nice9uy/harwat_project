@@ -320,7 +320,8 @@ class LaporanViewTests(TestCase):
             self.assertContains(response, f'name="alat_{no}_jml"')
             # One accordion panel per part.
             self.assertContains(response, f'@click="open = open === {no} ? null : {no}"')
-            self.assertContains(response, f'type="file" id="alat_{no}_foto" name="alat_{no}_foto"')
+            for slot in range(1, 5):
+                self.assertContains(response, f'type="file" id="alat_{no}_foto_{slot}" name="alat_{no}_foto"')
             self.assertContains(response, f'<textarea id="alat_{no}_keterangan" name="alat_{no}_keterangan"')
             for kode in ("B", "RR", "RB"):
                 self.assertContains(response, f'name="alat_{no}_kondisi" value="{kode}"')

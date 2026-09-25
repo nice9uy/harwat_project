@@ -1,7 +1,6 @@
 import secrets
 import string
 
-from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login as auth_login, logout as auth_logout, update_session_auth_hash
@@ -20,7 +19,7 @@ from fleet.images import compress_photo
 from fleet.models import Vehicle
 
 from . import dashboard, golongan, pemeriksaan, roles
-from .forms import TEXT_INPUT_CLASSES, BiodataForm, SatuanForm, LaporanForm, LoginForm, UserCreateForm, UserEditForm
+from .forms import TEXT_INPUT_CLASSES, clean_foto, BiodataForm, SatuanForm, LaporanForm, LoginForm, UserCreateForm, UserEditForm
 from .models import Anggota, Satuan
 from .paging import halaman
 from .roles import keanggotaan_label
@@ -113,11 +112,9 @@ def laporan_view(request):
                 hasil.pemeriksa = pemeriksa
                 hasil.save()
                 for item in pemeriksaan_form.cleaned_items:
-                    foto = item.pop("foto")
+                    fotos = [compress_photo(f) for f in item.pop("fotos")]
                     golongan_cfg.item_model.objects.create(
-                        pemeriksaan=hasil,
-                        foto=compress_photo(foto) if foto else "",
-                        **item,
+                        pemeriksaan=hasil, **golongan_cfg.item_model.kolom_foto(fotos), **item,
                     )
             del request.session["laporan_captcha"]
             messages.success(request, f"Pemeriksaan {hasil.vehicle.nopol} berhasil disimpan.")
@@ -305,17 +302,12 @@ def _clean_perbaikan(data, files, daftar, kondisi, pakai_jumlah):
         jumlah_raw = data.get(prefix + "jml", "").strip() if pakai_jumlah else ""
         if jumlah_raw and not jumlah_raw.isdigit():
             errors.append(f"Jumlah perbaikan {label} harus angka 0 atau lebih.")
-        foto = files.get(prefix + "foto")
-        if foto:
-            try:
-                foto = forms.ImageField().clean(foto)
-            except forms.ValidationError:
-                errors.append(f"Foto perbaikan {label} bukan gambar yang valid.")
+        fotos = clean_foto(files, prefix + "foto", f"perbaikan {label}", errors)
         entry = {
             "item": item,
             "kondisi": kode,
             "keterangan": data.get(prefix + "keterangan", "").strip(),
-            "foto": foto or None,
+            "fotos": fotos,
         }
         if pakai_jumlah:
             entry["jumlah"] = int(jumlah_raw) if jumlah_raw.isdigit() else None
@@ -344,9 +336,9 @@ def perbaikan_view(request):
                 form.instance.akun = request.user
                 teknisi = form.save()
                 for entry in entries:
-                    foto = entry.pop("foto")
+                    fotos = [compress_photo(f) for f in entry.pop("fotos")]
                     cfg.perbaikan_model.objects.create(
-                        teknisi=teknisi, foto=compress_photo(foto) if foto else "", **entry,
+                        teknisi=teknisi, **cfg.perbaikan_model.kolom_foto(fotos), **entry,
                     )
             messages.success(request, f"Perbaikan {vehicle.nopol} berhasil disimpan ({len(entries)} item).")
             return redirect(f"{reverse('accounts:perbaikan')}?{urlencode({'nopol': vehicle.nopol})}")

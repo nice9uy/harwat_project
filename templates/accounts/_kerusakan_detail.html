@@ -15,10 +15,14 @@
     <dt class="text-slate-500 dark:text-slate-400">Keterangan</dt>
     <dd class="whitespace-pre-line">{{ item.keterangan|default:"-" }}</dd>
 </dl>
-{% if item.foto %}
-<a href="{{ item.foto.url }}" target="_blank" rel="noopener" class="block">
-    <img src="{{ item.foto.url }}" loading="lazy" alt="Foto kerusakan {{ item.nama_alat }}" class="max-h-64 w-full rounded-md border border-slate-200 dark:border-slate-700 object-contain bg-slate-100 dark:bg-slate-900">
-</a>
+{% if item.daftar_foto %}
+<div class="grid grid-cols-2 gap-2">
+    {% for foto in item.daftar_foto %}
+    <a href="{{ foto.url }}" target="_blank" rel="noopener" class="block">
+        <img src="{{ foto.url }}" loading="lazy" alt="Foto kerusakan {{ item.nama_alat }} {{ forloop.counter }}" class="aspect-[4/3] w-full rounded-md border border-slate-200 dark:border-slate-700 object-cover bg-slate-100 dark:bg-slate-900">
+    </a>
+    {% endfor %}
+</div>
 {% else %}
 <p class="text-slate-500 dark:text-slate-400">Tidak ada foto.</p>
 {% endif %}

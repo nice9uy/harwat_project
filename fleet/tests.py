@@ -463,10 +463,10 @@ class VehicleFotoUploadTests(TestCase):
         vehicle = Vehicle.objects.get()
         old_ids = set(vehicle.fotos.values_list("id", flat=True))
         response = self.client.post(reverse("fleet:vehicle_update", args=[vehicle.pk]), {
-            "nopol": "B 1234 AB", "merek": "Toyota Avanza", "foto": _photos(5),
+            "nopol": "B 1234 AB", "merek": "Toyota Avanza", "foto": _photos(4),
         })
         self.assertRedirects(response, reverse("fleet:vehicle_list"))
-        self.assertEqual(vehicle.fotos.count(), 5)
+        self.assertEqual(vehicle.fotos.count(), 4)
         self.assertFalse(old_ids & set(vehicle.fotos.values_list("id", flat=True)))
 
     def test_edit_with_too_few_new_fotos_keeps_old_ones(self):
@@ -620,8 +620,8 @@ class VehicleFotoSlotsTests(TestCase):
         content = response.content.decode()
         for nomor in range(1, 5):
             self.assertRegex(content, rf'id="foto_{nomor}" name="foto"[^>]*required')
-        self.assertContains(response, 'id="foto_tambahan" name="foto" accept="image/*" multiple')
-        self.assertContains(response, "(minimal 4)")
+        self.assertNotContains(response, 'id="foto_tambahan"')
+        self.assertContains(response, "(4 foto)")
 
     def test_edit_form_slots_are_optional(self):
         vehicle = Vehicle.objects.create(nopol="B 1 A", merek="X")
@@ -771,3 +771,19 @@ class JadwalServisTests(TestCase):
         user.groups.add(Group.objects.get(name="Tim Perbaikan"))
         self.client.login(username="t", password="rahasia-123")
         self.assertRedirects(self.client.get(reverse("operasional:servis_list")), reverse("accounts:perbaikan"))
+
+
+class VehicleFotoMaksimalTests(TestCase):
+    def test_more_than_four_photos_is_refused(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from fleet.forms import VehicleForm
+
+        gif = (b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00"
+               b",\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;")
+        from django.utils.datastructures import MultiValueDict
+
+        files = MultiValueDict({"foto": [SimpleUploadedFile(f"{i}.gif", gif, content_type="image/gif") for i in range(5)]})
+        form = VehicleForm({"nopol": "B 1 X", "merek": "Hino"}, files)
+        self.assertFalse(form.is_valid())
+        self.assertIn("maksimal 4", form.errors["foto"][0])

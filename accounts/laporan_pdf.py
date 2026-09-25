@@ -321,7 +321,10 @@ def buat_pdf_perbaikan(perbaikan, label_golongan):
         Paragraph("Data Perbaikan", BAGIAN),
         _tabel_kunci_nilai(data, kolom=1),
         Paragraph("Foto", BAGIAN),
-        _galeri([(item.foto, "Saat diperiksa"), (perbaikan.foto, "Setelah perbaikan")]),
+        _galeri(
+            [(f, f"Saat diperiksa {i}") for i, f in enumerate(item.daftar_foto, start=1)]
+            + [(f, f"Setelah perbaikan {i}") for i, f in enumerate(perbaikan.daftar_foto, start=1)]
+        ),
         Paragraph("Personil yang Memperbaiki", BAGIAN),
         _biodata(perbaikan.teknisi),
         Paragraph("Riwayat Perbaikan Komponen Ini", BAGIAN),

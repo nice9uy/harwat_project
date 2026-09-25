@@ -8,7 +8,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts import golongan
-from accounts.models import Satuan
+from accounts.models import FOTO_FIELDS, Satuan
 from fleet.models import Vehicle
 
 GIF = (
@@ -45,7 +45,11 @@ class FormPemeriksaanSesuaiDatabaseTests(TestCase):
                     item = {n[len(f"alat_{nomor}_"):] for n in nama if n.startswith(f"alat_{nomor}_")}
                     kolom_item = self._kolom(cfg.item_model)
                     peta = {"jml": "jumlah", "sat": "satuan", "riil": "jumlah_riil", "nyata": "jumlah_nyata"}
-                    self.assertEqual({peta.get(n, n) for n in item}, kolom_item, f"{kode} item {nomor}")
+                    kolom_input = {peta.get(n, n) for n in item}
+                    # The 4 photo slots share one name and fill foto, foto_2..foto_4.
+                    if "foto" in kolom_input:
+                        kolom_input |= set(FOTO_FIELDS)
+                    self.assertEqual(kolom_input, kolom_item, f"{kode} item {nomor}")
 
     def test_full_submit_round_trips_every_value(self):
         for kode, cfg in golongan.GOLONGAN.items():
@@ -75,7 +79,7 @@ class FormPemeriksaanSesuaiDatabaseTests(TestCase):
                         data[p + "jml"] = "3"
                     if cfg.pakai_satuan:
                         data.update({p + "sat": "bh", p + "riil": "2", p + "nyata": "1"})
-                data["alat_1_foto"] = SimpleUploadedFile("f.gif", GIF, content_type="image/gif")
+                data["alat_1_foto"] = [SimpleUploadedFile(f"f{i}.gif", GIF, content_type="image/gif") for i in range(4)]
                 self.client.get(reverse("accounts:pemeriksaan"))
                 response = self.client.post(reverse("accounts:pemeriksaan"), {
                     "nip": "1", "nama": "Uji", "pangkat": "Kapten", "jabatan": "T", "satuan": self.satuan.pk,
@@ -90,9 +94,25 @@ class FormPemeriksaanSesuaiDatabaseTests(TestCase):
                 self.assertEqual(hasil.items.count(), len(cfg.form.alat))
                 item = hasil.items.get(nomor=1)
                 self.assertEqual((item.kondisi, item.keterangan), (cfg.kondisi[-1][0], "ket 1"))
-                self.assertTrue(item.foto.name)
+                self.assertEqual(len(item.daftar_foto), 4)
                 if cfg.pakai_jumlah:
                     self.assertEqual(item.jumlah, 3)
                 if cfg.pakai_satuan:
                     self.assertEqual((item.satuan, item.jumlah_riil, item.jumlah_nyata), ("bh", 2, 1))
                 self.assertEqual(hasil.pemeriksa.satuan, self.satuan)
+
+
+class FotoMaksimalTests(TestCase):
+    def test_more_than_four_photos_per_part_is_an_error(self):
+        from django.utils.datastructures import MultiValueDict
+
+        from accounts.forms import clean_foto
+
+        files = MultiValueDict({"alat_1_foto": [SimpleUploadedFile(f"{i}.gif", GIF, content_type="image/gif") for i in range(5)]})
+        errors = []
+        self.assertEqual(clean_foto(files, "alat_1_foto", "1. Motor", errors), [])
+        self.assertIn("maksimal 4", errors[0])
+        errors = []
+        files.setlist("alat_1_foto", files.getlist("alat_1_foto")[:4])
+        self.assertEqual(len(clean_foto(files, "alat_1_foto", "1. Motor", errors)), 4)
+        self.assertEqual(errors, [])

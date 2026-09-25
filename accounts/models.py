@@ -12,6 +12,25 @@ class RevokedToken(models.Model):
     expires_at = models.DateTimeField(db_index=True)
 
 
+# Up to MAKS_FOTO photos per checked or repaired part, in these fields.
+FOTO_FIELDS = ["foto", "foto_2", "foto_3", "foto_4"]
+MAKS_FOTO = len(FOTO_FIELDS)
+
+
+class FotoMixin:
+    """For models with the FOTO_FIELDS photo columns."""
+
+    @property
+    def daftar_foto(self):
+        """The photos that are set, in order."""
+        return [f for f in (getattr(self, nama) for nama in FOTO_FIELDS) if f]
+
+    @staticmethod
+    def kolom_foto(files):
+        """``{field: file}`` for up to MAKS_FOTO files, to pass to create()."""
+        return dict(zip(FOTO_FIELDS, files))
+
+
 class Laporan(models.Model):
     nip = models.CharField(max_length=32, verbose_name="NIP")
     nama = models.CharField(max_length=150)
@@ -113,7 +132,7 @@ class PemeriksaanGolonganB(models.Model):
         return " · ".join(parts)
 
 
-class PemeriksaanGolonganBItem(models.Model):
+class PemeriksaanGolonganBItem(FotoMixin, models.Model):
     """One of the 40 checked parts (Motor … Cat) of a PemeriksaanGolonganB."""
 
     pemeriksaan = models.ForeignKey(PemeriksaanGolonganB, on_delete=models.CASCADE, related_name="items")
@@ -122,6 +141,9 @@ class PemeriksaanGolonganBItem(models.Model):
     jumlah = models.PositiveIntegerField(null=True, blank=True)
     kondisi = models.CharField(max_length=2, choices=checklist.KONDISI)
     foto = models.ImageField(upload_to="pemeriksaan/", blank=True)
+    foto_2 = models.ImageField(upload_to="pemeriksaan/", blank=True)
+    foto_3 = models.ImageField(upload_to="pemeriksaan/", blank=True)
+    foto_4 = models.ImageField(upload_to="pemeriksaan/", blank=True)
     keterangan = models.TextField(blank=True)
 
     class Meta:
@@ -136,7 +158,7 @@ class PemeriksaanGolonganBItem(models.Model):
         return f"{self.nomor}. {self.nama_alat}"
 
 
-class PerbaikanGolonganB(models.Model):
+class PerbaikanGolonganB(FotoMixin, models.Model):
     """A repair of one damaged part (RR/RB) found in a Golongan B inspection.
 
     The part drops off the to-repair list once its latest repair has
@@ -155,6 +177,9 @@ class PerbaikanGolonganB(models.Model):
     jumlah = models.PositiveIntegerField(null=True, blank=True)
     keterangan = models.TextField(blank=True)
     foto = models.ImageField(upload_to="perbaikan/", blank=True)
+    foto_2 = models.ImageField(upload_to="perbaikan/", blank=True)
+    foto_3 = models.ImageField(upload_to="perbaikan/", blank=True)
+    foto_4 = models.ImageField(upload_to="perbaikan/", blank=True)
     dibuat_pada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -234,7 +259,7 @@ class PemeriksaanBermotor(models.Model):
         return " · ".join(parts)
 
 
-class PemeriksaanBermotorItem(models.Model):
+class PemeriksaanBermotorItem(FotoMixin, models.Model):
     """One of the 63 checked components of a PemeriksaanBermotor."""
 
     pemeriksaan = models.ForeignKey(PemeriksaanBermotor, on_delete=models.CASCADE, related_name="items")
@@ -242,6 +267,9 @@ class PemeriksaanBermotorItem(models.Model):
     nama_alat = models.CharField(max_length=100, verbose_name="Nama Komponen")
     kondisi = models.CharField(max_length=2, choices=checklist.KONDISI_BERMOTOR)
     foto = models.ImageField(upload_to="pemeriksaan/", blank=True)
+    foto_2 = models.ImageField(upload_to="pemeriksaan/", blank=True)
+    foto_3 = models.ImageField(upload_to="pemeriksaan/", blank=True)
+    foto_4 = models.ImageField(upload_to="pemeriksaan/", blank=True)
     keterangan = models.TextField(blank=True)
 
     class Meta:
@@ -256,7 +284,7 @@ class PemeriksaanBermotorItem(models.Model):
         return f"{self.nomor}. {self.nama_alat}"
 
 
-class PerbaikanBermotor(models.Model):
+class PerbaikanBermotor(FotoMixin, models.Model):
     """A repair of one component that wasn't Baik in a Kendaraan Bermotor inspection."""
 
     teknisi = models.ForeignKey(
@@ -270,6 +298,9 @@ class PerbaikanBermotor(models.Model):
     kondisi = models.CharField(max_length=2, choices=checklist.KONDISI_BERMOTOR)
     keterangan = models.TextField(blank=True)
     foto = models.ImageField(upload_to="perbaikan/", blank=True)
+    foto_2 = models.ImageField(upload_to="perbaikan/", blank=True)
+    foto_3 = models.ImageField(upload_to="perbaikan/", blank=True)
+    foto_4 = models.ImageField(upload_to="perbaikan/", blank=True)
     dibuat_pada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -341,7 +372,7 @@ class PemeriksaanDiesel(models.Model):
         ])
 
 
-class PemeriksaanDieselItem(models.Model):
+class PemeriksaanDieselItem(FotoMixin, models.Model):
     """One checked part of a PemeriksaanDiesel: satuan, jumlah riil/nyata, kondisi."""
 
     pemeriksaan = models.ForeignKey(PemeriksaanDiesel, on_delete=models.CASCADE, related_name="items")
@@ -352,6 +383,9 @@ class PemeriksaanDieselItem(models.Model):
     jumlah_nyata = models.PositiveIntegerField(null=True, blank=True, verbose_name="Jumlah Nyata")
     kondisi = models.CharField(max_length=3, choices=checklist.KONDISI_DIESEL)
     foto = models.ImageField(upload_to="pemeriksaan/", blank=True)
+    foto_2 = models.ImageField(upload_to="pemeriksaan/", blank=True)
+    foto_3 = models.ImageField(upload_to="pemeriksaan/", blank=True)
+    foto_4 = models.ImageField(upload_to="pemeriksaan/", blank=True)
     keterangan = models.TextField(blank=True)
 
     class Meta:
@@ -366,7 +400,7 @@ class PemeriksaanDieselItem(models.Model):
         return f"{self.nomor}. {self.nama_alat}"
 
 
-class PerbaikanDiesel(models.Model):
+class PerbaikanDiesel(FotoMixin, models.Model):
     """A repair of one part of a Kendaraan Diesel inspection that needed it."""
 
     teknisi = models.ForeignKey(
@@ -380,6 +414,9 @@ class PerbaikanDiesel(models.Model):
     kondisi = models.CharField(max_length=3, choices=checklist.KONDISI_DIESEL)
     keterangan = models.TextField(blank=True)
     foto = models.ImageField(upload_to="perbaikan/", blank=True)
+    foto_2 = models.ImageField(upload_to="perbaikan/", blank=True)
+    foto_3 = models.ImageField(upload_to="perbaikan/", blank=True)
+    foto_4 = models.ImageField(upload_to="perbaikan/", blank=True)
     dibuat_pada = models.DateTimeField(auto_now_add=True)
 
     class Meta:

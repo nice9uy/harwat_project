@@ -6,7 +6,15 @@ from fleet.models import Vehicle
 
 from . import pemeriksaan as checklist
 from . import roles
-from .models import Anggota, Laporan, PemeriksaanBermotor, PemeriksaanDiesel, PemeriksaanGolonganB, Satuan
+from .models import (
+    MAKS_FOTO,
+    Anggota,
+    Laporan,
+    PemeriksaanBermotor,
+    PemeriksaanDiesel,
+    PemeriksaanGolonganB,
+    Satuan,
+)
 
 TEXT_INPUT_CLASSES = (
     "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm "
@@ -242,6 +250,22 @@ class LaporanForm(BiodataForm):
         return value
 
 
+def clean_foto(files, nama, label, errors):
+    """The photos posted under ``nama`` (several inputs share it): at most
+    MAKS_FOTO valid images. Problems go to ``errors`` using ``label``."""
+    daftar = [f for f in files.getlist(nama) if f]
+    if len(daftar) > MAKS_FOTO:
+        errors.append(f"Foto {label} maksimal {MAKS_FOTO} (terkirim {len(daftar)}).")
+        return []
+    bersih = []
+    for f in daftar:
+        try:
+            bersih.append(forms.ImageField().clean(f))
+        except forms.ValidationError:
+            errors.append(f"Foto {label} bukan gambar yang valid.")
+    return bersih
+
+
 class _ChecklistForm(forms.ModelForm):
     """Tab PEMERIKSAAN: scanned vehicle, header fields and the checklist.
 
@@ -282,17 +306,12 @@ class _ChecklistForm(forms.ModelForm):
                     errors.append(f"Jumlah {nomor}. {nama} harus angka 0 atau lebih.")
                 else:
                     jumlah = int(jumlah_raw)
-            foto = self.files.get(prefix + "foto")
-            if foto:
-                try:
-                    foto = forms.ImageField().clean(foto)
-                except forms.ValidationError:
-                    errors.append(f"Foto {nomor}. {nama} bukan gambar yang valid.")
+            fotos = clean_foto(self.files, prefix + "foto", f"{nomor}. {nama}", errors)
             item = {
                 "nomor": nomor,
                 "nama_alat": nama,
                 "kondisi": kondisi,
-                "foto": foto or None,
+                "fotos": fotos,
                 "keterangan": self.data.get(prefix + "keterangan", "").strip(),
             }
             if self.pakai_jumlah:

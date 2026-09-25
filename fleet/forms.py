@@ -4,6 +4,7 @@ from .images import compress_photo
 from .models import Jadwal, Servis, Vehicle, VehiclePhoto
 
 MIN_FOTO = 4
+MAKS_FOTO = 4
 
 TEXT_INPUT_CLASSES = (
     "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm "
@@ -40,9 +41,8 @@ class MultipleImageField(forms.ImageField):
 
 
 class VehicleForm(forms.ModelForm):
-    # On create: at least MIN_FOTO photos. On edit: leave empty to keep the
-    # current photos, or upload a new set (again at least MIN_FOTO) to
-    # replace all of them.
+    # On create: MIN_FOTO to MAKS_FOTO photos. On edit: leave empty to keep
+    # the current photos, or upload a new set (same limits) to replace them.
     foto = MultipleImageField(required=False, label="Foto Kendaraan")
 
     class Meta:
@@ -61,6 +61,8 @@ class VehicleForm(forms.ModelForm):
         keeping_existing = not files and self.instance.pk and self.instance.fotos.count() >= MIN_FOTO
         if not keeping_existing and len(files) < MIN_FOTO:
             raise forms.ValidationError(f"Unggah minimal {MIN_FOTO} foto kendaraan (baru {len(files)}).")
+        if len(files) > MAKS_FOTO:
+            raise forms.ValidationError(f"Foto kendaraan maksimal {MAKS_FOTO} (terkirim {len(files)}).")
         return files
 
     def save(self, commit=True):
