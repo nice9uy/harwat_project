@@ -55,7 +55,34 @@ class PemeriksaanGolonganB(models.Model):
         "Satuan", on_delete=models.PROTECT, null=True, blank=True,
         related_name="pemeriksaan_golongan_b", verbose_name="Kesatuan",
     )
+    # Keadaan Ban: condition of tyres 1-8 in percent, as on the paper form.
+    ban_1 = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(100)], verbose_name="Keadaan Ban 1 (%)",
+    )
+    ban_2 = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(100)], verbose_name="Keadaan Ban 2 (%)",
+    )
+    ban_3 = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(100)], verbose_name="Keadaan Ban 3 (%)",
+    )
+    ban_4 = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(100)], verbose_name="Keadaan Ban 4 (%)",
+    )
+    ban_5 = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(100)], verbose_name="Keadaan Ban 5 (%)",
+    )
+    ban_6 = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(100)], verbose_name="Keadaan Ban 6 (%)",
+    )
+    ban_7 = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(100)], verbose_name="Keadaan Ban 7 (%)",
+    )
+    ban_8 = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(100)], verbose_name="Keadaan Ban 8 (%)",
+    )
     dibuat_pada = models.DateTimeField(auto_now_add=True)
+
+    BAN_FIELDS = [f"ban_{i}" for i in range(1, 9)]
 
     class Meta:
         verbose_name = "Pemeriksaan Golongan B"
@@ -74,6 +101,9 @@ class PemeriksaanGolonganB(models.Model):
         ]
         if self.kesatuan:
             parts.append(self.kesatuan.nama)
+        ban = [f"{i} {getattr(self, f)}%" for i, f in enumerate(self.BAN_FIELDS, start=1) if getattr(self, f) is not None]
+        if ban:
+            parts.append("Ban " + ", ".join(ban))
         return " · ".join(parts)
 
 

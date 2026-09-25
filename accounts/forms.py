@@ -312,7 +312,10 @@ class PemeriksaanGolonganBForm(_ChecklistForm):
 
     class Meta:
         model = PemeriksaanGolonganB
-        fields = ["vehicle", "pembagian_kelas", "eselon_reparasi", "macam_pemeriksaan", "buku_jalan", "kesatuan"]
+        fields = [
+            "vehicle", "pembagian_kelas", "eselon_reparasi", "macam_pemeriksaan", "buku_jalan", "kesatuan",
+            *PemeriksaanGolonganB.BAN_FIELDS,
+        ]
 
 
 class PemeriksaanBermotorForm(_ChecklistForm):

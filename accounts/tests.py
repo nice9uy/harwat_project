@@ -248,6 +248,8 @@ def _pemeriksaan_data(vehicle, **overrides):
         "macam_pemeriksaan": "tehnis",
         "buku_jalan": "ada",
         "kesatuan": _satuan("Yonif Mekanis 202/TM").pk,
+        "ban_1": "90",
+        "ban_8": "40",
     }
     for nomor in range(1, 41):
         data[f"alat_{nomor}_kondisi"] = "B"
@@ -311,6 +313,8 @@ class LaporanViewTests(TestCase):
         self.assertContains(response, 'name="buku_jalan" value="ada"')
         self.assertContains(response, 'name="buku_jalan" value="tidak"')
         self.assertContains(response, 'type="hidden" name="kesatuan"')
+        for i in range(1, 9):
+            self.assertContains(response, f'name="ban_{i}" min="0" max="100"')
         for no, nama in ((1, "Motor"), (20, "Gear Belakang"), (21, "Rantai"), (40, "Cat")):
             self.assertContains(response, f"{no}.</span> {nama}")
             self.assertContains(response, f'name="alat_{no}_jml"')
@@ -647,6 +651,12 @@ class PemeriksaanGolonganBSaveTests(TestCase):
         hasil = PemeriksaanGolonganB.objects.get()
         self.assertEqual(hasil.vehicle, self.vehicle)
         self.assertEqual(hasil.pemeriksa, Laporan.objects.get())
+        self.assertEqual(
+            (hasil.pembagian_kelas, hasil.eselon_reparasi, hasil.macam_pemeriksaan, hasil.buku_jalan, hasil.kesatuan.nama),
+            ("2", "3", "tehnis", "ada", "Yonif Mekanis 202/TM"),
+        )
+        self.assertEqual((hasil.ban_1, hasil.ban_2, hasil.ban_8), (90, None, 40))
+        self.assertIn("Ban 1 90%, 8 40%", hasil.ringkasan())
         self.assertEqual(
             (hasil.pembagian_kelas, hasil.eselon_reparasi, hasil.macam_pemeriksaan, hasil.buku_jalan, hasil.kesatuan.nama),
             ("2", "3", "tehnis", "ada", "Yonif Mekanis 202/TM"),
