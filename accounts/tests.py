@@ -40,10 +40,13 @@ class LoginViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Masuk")
 
-    def test_login_page_is_the_dark_split_layout(self):
-        # Always dark (fixed design), no theme toggle on this page.
+    def test_login_page_split_layout_in_app_theme(self):
+        # Follows the app theme: defaults to dark, remembers the choice, has the toggle.
         response = self.client.get(reverse("accounts:login"))
         self.assertContains(response, '<html lang="id" class="dark">')
+        self.assertContains(response, "localStorage.getItem('theme')")
+        self.assertContains(response, 'aria-label="Ganti tema"')
+        self.assertContains(response, "bg-navy")
         for text in ("Sistem Online", "Silahkan Login", "Nama pengguna", "Kata sandi", "Ingat saya",
                      'placeholder="nama.pengguna"', "lihat = !lihat", "Intl.DateTimeFormat('id-ID'"):
             self.assertContains(response, text)

@@ -30,11 +30,8 @@ class LoginForm(AuthenticationForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Dark fields with room for the icon on the left (login page design).
-        field = (
-            "w-full rounded-lg border border-white/10 bg-black/60 py-3 pl-11 pr-11 text-base text-white "
-            "placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
-        )
+        # App input style, with room for the icons on the login page.
+        field = TEXT_INPUT_CLASSES.replace("px-3 py-2", "py-2.5 pl-10 pr-10")
         self.fields["username"].widget.attrs.update({
             "class": field,
             "placeholder": "nama.pengguna",
@@ -48,7 +45,7 @@ class LoginForm(AuthenticationForm):
             ":type": "lihat ? 'text' : 'password'",
         })
         self.fields["remember_me"].widget.attrs.update({
-            "class": "h-5 w-5 rounded border-white/20 bg-black/60 accent-sky-500 focus:ring-sky-400",
+            "class": "h-4 w-4 rounded border-slate-300 accent-navy focus:ring-gold dark:border-slate-600 dark:bg-slate-900",
         })
 
 
