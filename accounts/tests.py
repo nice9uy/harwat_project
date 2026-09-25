@@ -1810,3 +1810,13 @@ class DashboardGrafikTests(TestCase):
     def test_refresh_partial_has_no_chart_queries(self):
         response = self.client.get(reverse("accounts:dashboard_partial"))
         self.assertNotContains(response, "Kendaraan per Golongan")
+
+
+
+class StaticScriptVersionTests(TestCase):
+    def test_app_scripts_carry_a_version(self):
+        User.objects.create_user(username="u", password="rahasia-123")
+        self.client.login(username="u", password="rahasia-123")
+        content = self.client.get(reverse("accounts:dashboard")).content.decode()
+        for nama in ("js/qr-scan.js", "js/autocomplete.js"):
+            self.assertRegex(content, rf"{nama}\?v=\d+")

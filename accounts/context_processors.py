@@ -19,6 +19,13 @@ def css_version(request):
     """
     path = finders.find("dist/output.css")
     try:
-        return {"css_version": int(os.path.getmtime(path))}
+        versi = {"css_version": int(os.path.getmtime(path))}
     except (TypeError, OSError):
-        return {"css_version": ""}
+        versi = {"css_version": ""}
+    # Same for the app's own scripts (static/js/*.js), which change with features.
+    js = [finders.find(f"js/{nama}") for nama in ("qr-scan.js", "autocomplete.js")]
+    try:
+        versi["js_version"] = max(int(os.path.getmtime(p)) for p in js if p)
+    except (ValueError, OSError):
+        versi["js_version"] = ""
+    return versi

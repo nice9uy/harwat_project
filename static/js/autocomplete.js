@@ -19,8 +19,8 @@ document.addEventListener('alpine:init', function () {
             },
             get hasil() {
                 var q = this.q.trim().toLowerCase();
-                var cocok = q ? this.opsi.filter(function (o) { return o.l.toLowerCase().indexOf(q) !== -1; }) : this.opsi;
-                return cocok.slice(0, 50);
+                if (!q) return [];
+                return this.opsi.filter(function (o) { return o.l.toLowerCase().indexOf(q) !== -1; }).slice(0, 50);
             },
             ketik: function () {
                 this.buka = this.q.trim() !== '';

@@ -8,8 +8,8 @@
     {% include "_theme_init.html" %}
     <link rel="stylesheet" href="{% static 'dist/output.css' %}?v={{ css_version }}">
     <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
-    <script src="{% static 'js/qr-scan.js' %}" defer></script>
-    <script src="{% static 'js/autocomplete.js' %}" defer></script>
+    <script src="{% static 'js/qr-scan.js' %}?v={{ js_version }}" defer></script>
+    <script src="{% static 'js/autocomplete.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'vendor/alpinejs.min.js' %}" defer></script>
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100" x-data="{ sidebarOpen: false, logoutOpen: false }">

@@ -7,7 +7,8 @@ wajib (bool), label_data (e.g. "satuan"), placeholder.
 {{ opsi|json_script:id_opsi }}
 <div class="relative"
      x-data="autocomplete('{{ id_opsi }}', '{{ nilai|default_if_none:''|escapejs }}', {{ wajib|yesno:'true,false' }}, '{{ label_data|escapejs }}')"
-     @click.outside="buka = false">
+     @click.outside="buka = false"
+     @focusout="if (!$el.contains($event.relatedTarget)) buka = false">
     <input type="hidden" name="{{ nama }}" :value="nilai" value="{{ nilai|default_if_none:'' }}">
     <input type="text" id="{{ id_teks }}" x-ref="teks" autocomplete="off" placeholder="{{ placeholder }}"
            role="combobox" aria-autocomplete="list" :aria-expanded="buka" aria-controls="{{ id_teks }}-daftar"
