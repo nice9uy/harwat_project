@@ -21,7 +21,7 @@ wajib (bool), label_data (e.g. "satuan"), placeholder.
             class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-navy dark:hover:text-gold">
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
     </button>
-    <ul id="{{ id_teks }}-daftar" role="listbox" x-show="buka" x-cloak
+    <ul id="{{ id_teks }}-daftar" role="listbox" x-show="buka && q.trim()" x-cloak
         class="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-slate-200 bg-white py-1 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">
         <template x-for="(o, i) in hasil" :key="o.v">
             <li role="option" :aria-selected="String(o.v) === nilai"
