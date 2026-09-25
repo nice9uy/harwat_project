@@ -9,8 +9,8 @@ from django.views.decorators.http import require_POST
 
 from django.utils.text import slugify
 
-from .forms import VehicleForm
-from .models import Vehicle
+from .forms import JadwalForm, ServisForm, VehicleForm
+from .models import Jadwal, Servis, Vehicle
 from .qr import qr_png_with_logo
 
 
@@ -106,8 +106,8 @@ def vehicle_delete(request, pk):
     vehicle = get_object_or_404(Vehicle, pk=pk)
     from accounts.golongan import GOLONGAN  # accounts depends on fleet, not the other way round
 
-    if any(getattr(vehicle, cfg.relasi).exists() for cfg in GOLONGAN.values()):
-        messages.error(request, f"Kendaraan {vehicle.nopol} tidak bisa dihapus karena sudah punya data pemeriksaan.")
+    if any(getattr(vehicle, cfg.relasi).exists() for cfg in GOLONGAN.values()) or vehicle.servis.exists():
+        messages.error(request, f"Kendaraan {vehicle.nopol} tidak bisa dihapus karena sudah punya data pemeriksaan atau servis.")
         return redirect(_list_url(vehicle.group_kendaraan))
     # Rows cascade, but the image files would otherwise stay on disk.
     for foto in vehicle.fotos.all():
@@ -172,3 +172,83 @@ def vehicle_search(request):
     context = {"vehicles": vehicles[:PENCARIAN_MAKS], "total": total, "q": q, "maks": PENCARIAN_MAKS}
     template = "fleet/_vehicle_search_rows.html" if request.GET.get("hasil") else "fleet/_vehicle_search_modal.html"
     return render(request, template, context)
+
+
+# --- Jadwal and Servis: a table per menu, add / edit / delete in a modal ---
+
+CATATAN = {
+    "jadwal": {"model": Jadwal, "form": JadwalForm, "judul": "Jadwal"},
+    "servis": {"model": Servis, "form": ServisForm, "judul": "Servis"},
+}
+
+
+def _ke_daftar(request, jenis):
+    url = reverse(f"operasional:{jenis}_list")
+    if _is_htmx(request):
+        return _htmx_redirect(url)
+    return redirect(url)
+
+
+def _catatan_form(request, jenis, pk=None):
+    cfg = CATATAN[jenis]
+    obj = get_object_or_404(cfg["model"], pk=pk) if pk else None
+    if request.method == "POST":
+        form = cfg["form"](request.POST, instance=obj)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"{cfg['judul']} berhasil disimpan.")
+            return _ke_daftar(request, jenis)
+    else:
+        form = cfg["form"](instance=obj, initial={"vehicle": request.GET.get("kendaraan")} if not obj else None)
+    return render(request, "fleet/_catatan_form.html", {
+        "form": form,
+        "obj": obj,
+        "judul": cfg["judul"],
+        "post_url": request.get_full_path(),
+    })
+
+
+def _catatan_hapus(request, jenis, pk):
+    cfg = CATATAN[jenis]
+    obj = get_object_or_404(cfg["model"], pk=pk)
+    if request.method == "POST":
+        obj.delete()
+        messages.success(request, f"{cfg['judul']} berhasil dihapus.")
+        return _ke_daftar(request, jenis)
+    return render(request, "fleet/_catatan_hapus.html", {"obj": obj, "judul": cfg["judul"], "post_url": request.path})
+
+
+@login_required
+def jadwal_list(request):
+    return render(request, "fleet/jadwal_list.html", {
+        "jadwal_list": Jadwal.objects.select_related("vehicle"),
+    })
+
+
+@login_required
+def jadwal_form(request, pk=None):
+    return _catatan_form(request, "jadwal", pk)
+
+
+@login_required
+def jadwal_hapus(request, pk):
+    return _catatan_hapus(request, "jadwal", pk)
+
+
+@login_required
+def servis_list(request):
+    servis_list = Servis.objects.select_related("vehicle")
+    return render(request, "fleet/servis_list.html", {
+        "servis_list": servis_list,
+        "total_biaya": sum(s.biaya or 0 for s in servis_list),
+    })
+
+
+@login_required
+def servis_form(request, pk=None):
+    return _catatan_form(request, "servis", pk)
+
+
+@login_required
+def servis_hapus(request, pk):
+    return _catatan_hapus(request, "servis", pk)

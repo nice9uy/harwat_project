@@ -59,8 +59,14 @@ MENU_VIEWS = {
         "fleet:vehicle_delete", "fleet:vehicle_delete_confirm", "fleet:vehicle_photos",
         "fleet:vehicle_qr_modal", "fleet:vehicle_search", "accounts:history_kendaraan_modal",
     },
-    "jadwal": set(),
-    "servis": set(),
+    "jadwal": {
+        "operasional:jadwal_list", "operasional:jadwal_create", "operasional:jadwal_update",
+        "operasional:jadwal_delete",
+    },
+    "servis": {
+        "operasional:servis_list", "operasional:servis_create", "operasional:servis_update",
+        "operasional:servis_delete",
+    },
     "pemeriksaan": {
         "accounts:pemeriksaan", "accounts:pemeriksaan_captcha", "accounts:pemeriksaan_checklist",
         "fleet:vehicle_lookup",

@@ -1,7 +1,7 @@
 from django import forms
 
 from .images import compress_photo
-from .models import Vehicle, VehiclePhoto
+from .models import Jadwal, Servis, Vehicle, VehiclePhoto
 
 MIN_FOTO = 4
 
@@ -73,3 +73,41 @@ class VehicleForm(forms.ModelForm):
             for f in files:
                 VehiclePhoto.objects.create(vehicle=vehicle, image=compress_photo(f))
         return vehicle
+
+
+class _CatatanKendaraanForm(forms.ModelForm):
+    """Shared styling for the Jadwal and Servis modal forms."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["vehicle"].queryset = Vehicle.objects.order_by("nopol")
+        self.fields["vehicle"].label_from_instance = lambda v: f"{v.nopol} — {v.merek}"
+        self.fields["vehicle"].empty_label = "Pilih kendaraan"
+        for field in self.fields.values():
+            field.widget.attrs["class"] = TEXT_INPUT_CLASSES
+
+
+class JadwalForm(_CatatanKendaraanForm):
+    class Meta:
+        model = Jadwal
+        fields = ["vehicle", "tanggal", "kegiatan", "status", "keterangan"]
+        widgets = {
+            "tanggal": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "keterangan": forms.Textarea(attrs={"rows": 3}),
+        }
+
+
+class ServisForm(_CatatanKendaraanForm):
+    class Meta:
+        model = Servis
+        fields = ["vehicle", "tanggal", "jenis_servis", "bengkel", "biaya", "keterangan"]
+        widgets = {
+            "tanggal": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "biaya": forms.NumberInput(attrs={"min": 0, "step": 1000, "inputmode": "numeric", "placeholder": "0"}),
+            "keterangan": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["jenis_servis"].widget.attrs["placeholder"] = "Ganti oli mesin"
+        self.fields["bengkel"].widget.attrs["placeholder"] = "Bengkel Yonif 202"

@@ -708,3 +708,66 @@ class VehicleSearchHistoryModalTests(TestCase):
                      "x-data=\"{ tab: 'profile' }\"", "CH-1", "Belum ada riwayat perbaikan",
                      f'hx-get="{reverse("fleet:vehicle_search")}"'):
             self.assertContains(response, text)
+
+
+class JadwalServisTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.client.login(username="teknisi1", password="rahasia-123")
+        self.vehicle = Vehicle.objects.create(nopol="B 9021 XY", merek="Hino Dutro")
+
+    def test_sidebar_links_to_both_pages(self):
+        response = self.client.get(reverse("operasional:jadwal_list"))
+        self.assertContains(response, f'<a href="{reverse("operasional:jadwal_list")}" class=')
+        self.assertContains(response, f'<a href="{reverse("operasional:servis_list")}" class=')
+
+    def test_jadwal_table_crud_and_overdue_badge(self):
+        from datetime import date, timedelta
+        from fleet.models import Jadwal
+        kemarin = (date.today() - timedelta(days=1)).isoformat()
+        response = self.client.post(reverse("operasional:jadwal_create"), {
+            "vehicle": self.vehicle.pk, "tanggal": kemarin, "kegiatan": "servis", "status": "terjadwal", "keterangan": "Ganti oli",
+        }, HTTP_HX_REQUEST="true")
+        self.assertEqual(response["HX-Redirect"], reverse("operasional:jadwal_list"))
+        page = self.client.get(reverse("operasional:jadwal_list"))
+        for text in ("Tanggal", "Kendaraan", "Kegiatan", "Status", "B 9021 XY", "Servis", "Ganti oli"):
+            self.assertContains(page, text)
+        self.assertContains(page, ">Terlambat</span>")
+        jadwal = Jadwal.objects.get()
+        self.client.post(reverse("operasional:jadwal_update", args=[jadwal.pk]), {
+            "vehicle": self.vehicle.pk, "tanggal": kemarin, "kegiatan": "servis", "status": "selesai",
+        })
+        page = self.client.get(reverse("operasional:jadwal_list"))
+        self.assertNotContains(page, ">Terlambat</span>")
+        self.assertContains(page, ">Selesai</span>")
+        self.assertContains(self.client.get(reverse("operasional:jadwal_delete", args=[jadwal.pk])), "Yakin ingin menghapus")
+        self.client.post(reverse("operasional:jadwal_delete", args=[jadwal.pk]))
+        self.assertFalse(Jadwal.objects.exists())
+
+    def test_servis_table_shows_rupiah_and_total(self):
+        for biaya in ("1250000", "250000"):
+            self.client.post(reverse("operasional:servis_create"), {
+                "vehicle": self.vehicle.pk, "tanggal": "2026-09-01", "jenis_servis": "Ganti oli", "bengkel": "Bengkel 202", "biaya": biaya,
+            })
+        page = self.client.get(reverse("operasional:servis_list"))
+        for text in ("Jenis Servis", "Bengkel / Tempat", "Rp 1.250.000", "Rp 250.000", "Total biaya servis", "Rp 1.500.000"):
+            self.assertContains(page, text)
+
+    def test_required_fields(self):
+        response = self.client.post(reverse("operasional:servis_create"), {"vehicle": self.vehicle.pk})
+        self.assertEqual(response.status_code, 200)
+        from fleet.models import Servis
+        self.assertFalse(Servis.objects.exists())
+
+    def test_vehicle_with_servis_history_cannot_be_deleted(self):
+        from fleet.models import Servis
+        Servis.objects.create(vehicle=self.vehicle, tanggal="2026-09-01", jenis_servis="Tune up")
+        self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.pk]))
+        self.assertTrue(Vehicle.objects.filter(pk=self.vehicle.pk).exists())
+
+    def test_tim_users_have_no_access(self):
+        from django.contrib.auth.models import Group
+        user = User.objects.create_user(username="t", password="rahasia-123")
+        user.groups.add(Group.objects.get(name="Tim Perbaikan"))
+        self.client.login(username="t", password="rahasia-123")
+        self.assertRedirects(self.client.get(reverse("operasional:servis_list")), reverse("accounts:perbaikan"))

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Vehicle, VehiclePhoto
+from .models import Jadwal, Servis, Vehicle, VehiclePhoto
 
 
 class VehiclePhotoInline(admin.TabularInline):
@@ -21,3 +21,20 @@ class VehiclePhotoAdmin(admin.ModelAdmin):
     list_display = ["id", "vehicle", "image"]
     list_select_related = ["vehicle"]
     search_fields = ["vehicle__nopol"]
+
+
+@admin.register(Jadwal)
+class JadwalAdmin(admin.ModelAdmin):
+    list_display = ["tanggal", "vehicle", "kegiatan", "status", "keterangan"]
+    list_filter = ["kegiatan", "status"]
+    list_select_related = ["vehicle"]
+    search_fields = ["vehicle__nopol", "keterangan"]
+    date_hierarchy = "tanggal"
+
+
+@admin.register(Servis)
+class ServisAdmin(admin.ModelAdmin):
+    list_display = ["tanggal", "vehicle", "jenis_servis", "bengkel", "biaya"]
+    list_select_related = ["vehicle"]
+    search_fields = ["vehicle__nopol", "jenis_servis", "bengkel", "keterangan"]
+    date_hierarchy = "tanggal"

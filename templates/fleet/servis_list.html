@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load fleet_tags %}
+{% block title %}Servis — BMN Harwat{% endblock %}
+{% block page_title %}Servis{% endblock %}
+{% block content %}
+<div x-data="{ modalOpen: false }" class="space-y-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <p class="text-sm text-slate-500 dark:text-slate-400">Catatan servis kendaraan: tanggal, jenis servis, bengkel dan biaya.</p>
+        <button type="button"
+                @click="modalOpen = true"
+                hx-get="{% url 'operasional:servis_create' %}"
+                hx-target="#catatan-modal-body"
+                hx-swap="innerHTML"
+                class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
+            + Tambah Servis
+        </button>
+    </div>
+    {% if servis_list %}
+    <p class="text-sm text-slate-600 dark:text-slate-300">Total biaya servis: <span class="font-semibold tabular-nums text-navy dark:text-gold">{{ total_biaya|rupiah }}</span></p>
+    {% endif %}
+
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead class="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                <tr>
+                    <th class="py-2 px-4 font-medium w-12">No</th>
+                    <th class="py-2 px-4 font-medium">Tanggal</th>
+                    <th class="py-2 px-4 font-medium">Kendaraan</th>
+                    <th class="py-2 px-4 font-medium">Jenis Servis</th>
+                    <th class="py-2 px-4 font-medium">Bengkel / Tempat</th>
+                    <th class="py-2 px-4 font-medium"><span class="block text-right">Biaya</span></th>
+                    <th class="py-2 px-4 font-medium">Keterangan</th>
+                    <th class="py-2 px-4 font-medium">Aksi</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                {% for obj in servis_list %}
+                <tr>
+                    <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td>
+                    <td class="py-2 px-4 whitespace-nowrap font-medium text-navy dark:text-slate-100">{{ obj.tanggal|date:"d M Y" }}</td>
+                    <td class="py-2 px-4">{{ obj.vehicle.nopol }} <span class="text-slate-500 dark:text-slate-400">· {{ obj.vehicle.merek }}</span></td>
+                    <td class="py-2 px-4">{{ obj.jenis_servis }}</td>
+                    <td class="py-2 px-4">{{ obj.bengkel|default:"—" }}</td>
+                    <td class="py-2 px-4 whitespace-nowrap text-right tabular-nums">{{ obj.biaya|rupiah }}</td>
+                    <td class="py-2 px-4">{{ obj.keterangan|default:"—"|truncatechars:80 }}</td>
+                    <td class="py-2 px-4">
+                        <div class="flex items-center gap-2">
+                            <button type="button" @click="modalOpen = true"
+                                    hx-get="{% url 'operasional:servis_update' obj.pk %}" hx-target="#catatan-modal-body" hx-swap="innerHTML"
+                                    class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700">Edit</button>
+                            <button type="button" @click="modalOpen = true"
+                                    hx-get="{% url 'operasional:servis_delete' obj.pk %}" hx-target="#catatan-modal-body" hx-swap="innerHTML"
+                                    class="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">Hapus</button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="py-6 px-4 text-center text-slate-400 dark:text-slate-500">Belum ada data servis.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div x-show="modalOpen" x-cloak
+         @click.self="modalOpen = false"
+         @keydown.escape.window="modalOpen = false"
+         class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/50 px-4 py-8 sm:py-4">
+        <div class="w-full max-w-lg bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl my-auto">
+            <div id="catatan-modal-body"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}

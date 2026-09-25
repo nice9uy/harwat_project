@@ -67,3 +67,61 @@ class VehiclePhoto(models.Model):
 
     def __str__(self):
         return f"Foto {self.vehicle.nopol} #{self.pk}"
+
+
+
+class Jadwal(models.Model):
+    """A planned activity for a vehicle (inspection, service, repair, ...)."""
+
+    class Kegiatan(models.TextChoices):
+        PEMERIKSAAN = "pemeriksaan", "Pemeriksaan"
+        SERVIS = "servis", "Servis"
+        PERBAIKAN = "perbaikan", "Perbaikan"
+        LAINNYA = "lainnya", "Lainnya"
+
+    class Status(models.TextChoices):
+        TERJADWAL = "terjadwal", "Terjadwal"
+        SELESAI = "selesai", "Selesai"
+        DIBATALKAN = "dibatalkan", "Dibatalkan"
+
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name="jadwal", verbose_name="Kendaraan")
+    tanggal = models.DateField()
+    kegiatan = models.CharField(max_length=20, choices=Kegiatan.choices)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.TERJADWAL)
+    keterangan = models.TextField(blank=True)
+    dibuat_pada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Jadwal"
+        verbose_name_plural = "Jadwal"
+        ordering = ["tanggal", "id"]
+
+    def __str__(self):
+        return f"{self.vehicle.nopol} — {self.get_kegiatan_display()} {self.tanggal:%d-%m-%Y}"
+
+    @property
+    def terlambat(self):
+        from django.utils import timezone
+
+        return self.status == self.Status.TERJADWAL and self.tanggal < timezone.localdate()
+
+
+class Servis(models.Model):
+    """A service carried out on a vehicle (oil change, tune-up, ...)."""
+
+    # PROTECT: service history must not vanish with the vehicle.
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT, related_name="servis", verbose_name="Kendaraan")
+    tanggal = models.DateField()
+    jenis_servis = models.CharField(max_length=150, verbose_name="Jenis Servis")
+    bengkel = models.CharField(max_length=150, blank=True, verbose_name="Bengkel / Tempat")
+    biaya = models.PositiveBigIntegerField(null=True, blank=True, verbose_name="Biaya (Rp)")
+    keterangan = models.TextField(blank=True)
+    dibuat_pada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Servis"
+        verbose_name_plural = "Servis"
+        ordering = ["-tanggal", "-id"]
+
+    def __str__(self):
+        return f"{self.vehicle.nopol} — {self.jenis_servis} {self.tanggal:%d-%m-%Y}"

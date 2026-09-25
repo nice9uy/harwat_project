@@ -23,6 +23,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('accounts.urls')),
     path('armada/', include('fleet.urls')),
+    path('', include('fleet.urls_operasional')),
 ]
 
 if settings.DEBUG:
