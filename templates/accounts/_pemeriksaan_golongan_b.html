@@ -54,11 +54,7 @@ Golongan B vehicle is scanned. Kendaraan Bermotor has _pemeriksaan_bermotor.html
             </fieldset>
             <div>
                 <label for="kesatuan" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kesatuan</label>
-                <select id="kesatuan" name="kesatuan"
-                        class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
-                    <option value="">Pilih kesatuan (opsional)</option>
-                    {% for satuan in satuan_list %}<option value="{{ satuan.pk }}">{{ satuan.nama }}</option>{% endfor %}
-                </select>
+                {% include "_autocomplete.html" with nama="kesatuan" id_teks="kesatuan" id_opsi="opsi-kesatuan" opsi=satuan_opsi nilai="" wajib=False label_data="kesatuan" placeholder="Ketik nama kesatuan (opsional)" %}
             </div>
         </div>
     </section>

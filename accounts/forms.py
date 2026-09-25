@@ -217,8 +217,12 @@ class BiodataForm(forms.ModelForm):
         self.fields["pangkat"].widget.attrs["placeholder"] = "Kapten (TNI) / Penata Muda - III-a (PNS)"
         self.fields["jabatan"].widget.attrs["placeholder"] = "Teknisi"
         # Satuan comes from the Satuan table (Pengaturan > Satuan).
-        self.fields["satuan"].empty_label = "Pilih satuan"
         self.fields["satuan"].queryset = Satuan.objects.order_by("nama")
+
+    @property
+    def satuan_opsi(self):
+        """Satuan choices for the autocomplete field."""
+        return [{"v": s.pk, "l": s.nama} for s in self.fields["satuan"].queryset]
 
 
 class LaporanForm(BiodataForm):

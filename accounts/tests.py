@@ -310,7 +310,7 @@ class LaporanViewTests(TestCase):
         self.assertContains(response, 'name="macam_pemeriksaan" value="tiba_tiba"')
         self.assertContains(response, 'name="buku_jalan" value="ada"')
         self.assertContains(response, 'name="buku_jalan" value="tidak"')
-        self.assertContains(response, '<select id="kesatuan" name="kesatuan"')
+        self.assertContains(response, 'type="hidden" name="kesatuan"')
         for no, nama in ((1, "Motor"), (20, "Gear Belakang"), (21, "Rantai"), (40, "Cat")):
             self.assertContains(response, f"{no}.</span> {nama}")
             self.assertContains(response, f'name="alat_{no}_jml"')
@@ -1666,10 +1666,11 @@ class SatuanDipakaiTests(TestCase):
     def test_biodata_satuan_is_a_choice_from_the_satuan_table(self):
         kodim = _satuan("Kodim 0507")
         response = self.client.get(reverse("accounts:pemeriksaan"))
-        self.assertContains(response, '<select name="satuan"')
-        self.assertContains(response, f'<option value="{kodim.pk}">Kodim 0507</option>', html=True)
+        self.assertContains(response, 'x-data="autocomplete(\'opsi-satuan\'')
+        self.assertContains(response, 'type="hidden" name="satuan"')
+        self.assertContains(response, f'{{"v": {kodim.pk}, "l": "Kodim 0507"}}')
         for name in ("accounts:form_tambah", "accounts:perbaikan"):
-            self.assertContains(self.client.get(reverse(name)), f'<option value="{kodim.pk}">Kodim 0507</option>', html=True)
+            self.assertContains(self.client.get(reverse(name)), f'{{"v": {kodim.pk}, "l": "Kodim 0507"}}')
 
     def test_hint_when_no_satuan_yet(self):
         self.assertContains(self.client.get(reverse("accounts:pemeriksaan")), "Belum ada data satuan.")
@@ -1677,7 +1678,8 @@ class SatuanDipakaiTests(TestCase):
     def test_kesatuan_choices_in_golongan_b_checklist(self):
         yonif = _satuan("Yonif 202")
         response = self.client.get(reverse("accounts:pemeriksaan_checklist", args=["B"]))
-        self.assertContains(response, f'<option value="{yonif.pk}">Yonif 202</option>', html=True)
+        self.assertContains(response, 'type="hidden" name="kesatuan"')
+        self.assertContains(response, f'{{"v": {yonif.pk}, "l": "Yonif 202"}}')
 
     def test_satuan_in_use_cannot_be_deleted(self):
         from accounts.models import Laporan, Satuan

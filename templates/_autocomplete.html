@@ -1,0 +1,36 @@
+{% comment %}
+Autocomplete field (static/js/autocomplete.js). Params: nama (posted field name),
+id_teks (id of the visible input), id_opsi (id of the options JSON tag),
+opsi (list of {"v", "l"}), nilai (selected value),
+wajib (bool), label_data (e.g. "satuan"), placeholder.
+{% endcomment %}
+{{ opsi|json_script:id_opsi }}
+<div class="relative"
+     x-data="autocomplete('{{ id_opsi }}', '{{ nilai|default_if_none:''|escapejs }}', {{ wajib|yesno:'true,false' }}, '{{ label_data|escapejs }}')"
+     @click.outside="buka = false">
+    <input type="hidden" name="{{ nama }}" :value="nilai" value="{{ nilai|default_if_none:'' }}">
+    <input type="text" id="{{ id_teks }}" x-ref="teks" autocomplete="off" placeholder="{{ placeholder }}"
+           role="combobox" aria-autocomplete="list" :aria-expanded="buka" aria-controls="{{ id_teks }}-daftar"
+           {% if wajib %}required{% endif %}
+           x-model="q" @input="ketik()" @focus="buka = true"
+           @keydown.arrow-down.prevent="turun()" @keydown.arrow-up.prevent="naik()"
+           @keydown.enter="enter($event)" @keydown.escape="buka = false"
+           class="w-full rounded-md border border-slate-300 bg-white py-2 pl-3 pr-9 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500">
+    <button type="button" x-show="q" x-cloak @click="kosongkan()" aria-label="Kosongkan"
+            class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-navy dark:hover:text-gold">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+    </button>
+    <ul id="{{ id_teks }}-daftar" role="listbox" x-show="buka" x-cloak
+        class="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-slate-200 bg-white py-1 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">
+        <template x-for="(o, i) in hasil" :key="o.v">
+            <li role="option" :aria-selected="String(o.v) === nilai"
+                @mousedown.prevent="pilih(o)" @mouseenter="aktif = i"
+                :class="i === aktif ? 'bg-slate-100 dark:bg-slate-700' : ''"
+                class="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-slate-800 dark:text-slate-100">
+                <span x-text="o.l"></span>
+                <svg x-show="String(o.v) === nilai" class="h-4 w-4 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+            </li>
+        </template>
+        <li x-show="!hasil.length" class="px-3 py-2 text-slate-500 dark:text-slate-400">Tidak ada yang cocok.</li>
+    </ul>
+</div>

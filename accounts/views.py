@@ -158,7 +158,7 @@ def pemeriksaan_checklist_view(request, kode):
         # Kendaraan Bermotor
         "buku_harian": pemeriksaan.BUKU_HARIAN,
         "alat_bermotor": pemeriksaan.KOMPONEN_BERMOTOR_BERNOMOR,
-        "satuan_list": Satuan.objects.order_by("nama"),
+        "satuan_opsi": [{"v": s.pk, "l": s.nama} for s in Satuan.objects.order_by("nama")],
         # Kendaraan Diesel
         "diesel_bab": pemeriksaan.DIESEL_BAB,
         "ya_tidak": pemeriksaan.YA_TIDAK,
