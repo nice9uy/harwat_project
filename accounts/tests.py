@@ -569,6 +569,9 @@ class FormTambahViewTests(TestCase):
         self.assertContains(response, "Tambah Kendaraan")
         self.assertContains(response, 'type="radio" name="golongan" value="B"')
         self.assertContains(response, 'Golongan "B"')
+        for kode, label in (("bermotor", "Kendaraan Bermotor"), ("diesel", "Kendaraan Diesel")):
+            self.assertContains(response, f'type="radio" name="golongan" value="{kode}"')
+            self.assertContains(response, label)
         # Prefixed: they are posted together with the vehicle form, which has its own "foto".
         for field in ("nip", "nama", "pangkat", "jabatan", "satuan", "foto"):
             self.assertContains(response, f'id="id_penambah-{field}"')

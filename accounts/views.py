@@ -191,7 +191,10 @@ def pemeriksaan_captcha_view(request):
 @login_required
 def form_tambah_view(request):
     # Prefixed: the vehicle form posted with it has a "foto" field of its own.
-    return render(request, "accounts/form_tambah.html", {"form": BiodataForm(prefix="penambah")})
+    return render(request, "accounts/form_tambah.html", {
+        "form": BiodataForm(prefix="penambah"),
+        "golongan_pilihan": Vehicle.GroupKendaraan.choices,
+    })
 
 
 @login_required
