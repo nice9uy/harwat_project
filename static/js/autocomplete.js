@@ -51,9 +51,14 @@ document.addEventListener('alpine:init', function () {
             enter: function (e) {
                 if (this.buka && this.hasil[this.aktif]) { e.preventDefault(); this.pilih(this.hasil[this.aktif]); }
             },
+            // Typed text that matches no option: only registered ones may be chosen.
+            get pesanBelumTerdaftar() {
+                return namaData.charAt(0).toUpperCase() + namaData.slice(1) + ' "' + this.q.trim() +
+                    '" belum terdaftar. Pilih dari daftar, atau tambahkan dulu di Pengaturan › Satuan.';
+            },
             cekValid: function () {
                 var pesan = '';
-                if (!this.nilai && this.q.trim()) pesan = 'Pilih ' + namaData + ' dari daftar.';
+                if (!this.nilai && this.q.trim()) pesan = this.pesanBelumTerdaftar;
                 else if (!this.nilai && wajib) pesan = 'Pilih ' + namaData + '.';
                 this.$refs.teks.setCustomValidity(pesan);
             },

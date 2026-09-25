@@ -1692,6 +1692,11 @@ class SatuanDipakaiTests(TestCase):
         for name in ("accounts:form_tambah", "accounts:perbaikan"):
             self.assertContains(self.client.get(reverse(name)), f'{{"v": {kodim.pk}, "l": "Kodim 0507"}}')
 
+    def test_unregistered_satuan_is_explained_under_the_field(self):
+        response = self.client.get(reverse("accounts:pemeriksaan"))
+        self.assertContains(response, 'x-text="pesanBelumTerdaftar"')
+        self.assertContains(response, "satuan ini belum terdaftar.")
+
     def test_hint_when_no_satuan_yet(self):
         self.assertContains(self.client.get(reverse("accounts:pemeriksaan")), "Belum ada data satuan.")
 
