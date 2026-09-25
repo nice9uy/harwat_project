@@ -22,9 +22,9 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-import segno
 
 from fleet.models import Vehicle
+from fleet.qr import qr_png_with_logo
 
 from . import golongan
 
@@ -239,14 +239,6 @@ def _personil_qr(nama_bagian, orang):
     ])
 
 
-def _qr_png(teks):
-    """A plain QR code: this much text with a logo in the middle (error level H)
-    gets too dense to scan off paper, so level M and no logo."""
-    buffer = BytesIO()
-    segno.make(teks, error="m", micro=False).save(buffer, kind="png", scale=8, border=1)
-    return buffer.getvalue()
-
-
 def _kop(judul, label_golongan, qr_teks=None):
     """Letterhead; with ``qr_teks`` a QR code of the report's key data sits on the right."""
     logo = settings.BASE_DIR / "static" / "img" / "kemhan_logo.png"
@@ -256,8 +248,10 @@ def _kop(judul, label_golongan, qr_teks=None):
         Paragraph(escape(label_golongan), SUB),
     ]
     sel_logo = Image(str(logo), width=16 * mm, height=16 * mm) if logo.exists() else ""
-    sel_qr = Image(BytesIO(_qr_png(qr_teks)), width=30 * mm, height=30 * mm) if qr_teks else ""
-    kop = Table([[sel_logo, teks, sel_qr]], colWidths=[20 * mm, 128 * mm, 32 * mm])
+    # Logo in the middle (error level H): printed large enough that this much
+    # text stays scannable.
+    sel_qr = Image(BytesIO(qr_png_with_logo(qr_teks)), width=36 * mm, height=36 * mm) if qr_teks else ""
+    kop = Table([[sel_logo, teks, sel_qr]], colWidths=[20 * mm, 122 * mm, 38 * mm])
     kop.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("ALIGN", (2, 0), (2, 0), "RIGHT"),
