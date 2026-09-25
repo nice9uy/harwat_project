@@ -13,14 +13,14 @@
 <body class="relative min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100">
     {# App theme: navy + gold, light or dark like the rest of the app. #}
     <div aria-hidden="true" class="pointer-events-none fixed inset-0 opacity-60 dark:opacity-40 [background-image:radial-gradient(rgba(100,116,139,0.25)_1px,transparent_1px)] [background-size:22px_22px]"></div>
+    <img src="{% static 'img/kemhan_logo.png' %}" alt="Logo Kementerian Pertahanan" class="absolute left-4 top-4 z-10 h-14 w-14 sm:left-6 sm:top-6 sm:h-16 sm:w-16">
     <div class="absolute right-4 top-4 z-10">{% include "_theme_toggle.html" %}</div>
 
-    <main class="relative mx-auto grid min-h-screen max-w-7xl items-center gap-10 px-6 py-10 lg:grid-cols-[1.1fr_1fr] lg:gap-16 lg:px-12">
+    <main class="relative mx-auto grid min-h-screen max-w-7xl items-center gap-10 px-6 pb-10 pt-24 lg:grid-cols-[1.1fr_1fr] lg:gap-16 lg:px-12 lg:py-10">
         {# Left: introduction #}
         <section class="relative space-y-6 overflow-hidden rounded-3xl bg-navy p-8 text-white shadow-xl sm:p-10">
             <div aria-hidden="true" class="absolute inset-x-10 bottom-0 h-px bg-gradient-to-r from-transparent via-gold/70 to-transparent"></div>
             <div class="flex items-center gap-3">
-                <img src="{% static 'img/kemhan_logo.png' %}" alt="Logo Kementerian Pertahanan" class="h-14 w-14">
                 <span class="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-sm text-emerald-300">
                     <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
                     Sistem Online
