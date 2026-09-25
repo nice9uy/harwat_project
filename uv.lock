@@ -33,6 +33,7 @@ dependencies = [
     { name = "django-treebeard" },
     { name = "openpyxl" },
     { name = "pillow" },
+    { name = "pyexcel" },
     { name = "segno" },
 ]
 
@@ -42,6 +43,7 @@ requires-dist = [
     { name = "django-treebeard", specifier = ">=7.0.2" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pillow", specifier = ">=12.3.0" },
+    { name = "pyexcel", specifier = ">=0.7.6" },
     { name = "segno", specifier = ">=1.6.6" },
 ]
 
@@ -167,6 +169,15 @@ wheels = [
 ]
 
 [[package]]
+name = "lml"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2e/33/8043c7050233e889df10365d32838b276fc51464cc70f9abbb97c92771d6/lml-0.2.0.tar.gz", hash = "sha256:8dd5afb4367a593d1cdb2144a05874cd9938f5266bebb0c9e1413200423c0d74", size = 41633, upload-time = "2025-03-16T11:56:44.381Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c8/da/c649f3d09155660bcc5bf4f7fb59effae968e4ffd872cdd738f0b6932400/lml-0.2.0-py2.py3-none-any.whl", hash = "sha256:20c80728189e46e8d986f5d0cdf6d83c493471fc25b1c31a8cb3fa96e80b58f8", size = 10846, upload-time = "2025-03-16T11:56:42.709Z" },
+]
+
+[[package]]
 name = "msgspec"
 version = "0.21.1"
 source = { registry = "https://pypi.org/simple" }
@@ -253,6 +264,32 @@ wheels = [
 ]
 
 [[package]]
+name = "pyexcel"
+version = "0.7.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "lml" },
+    { name = "pyexcel-io" },
+    { name = "texttable" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c8/38/e7eaba4e355a8766a7d1704b95200c8de7527bc3f559e40036812ac264b2/pyexcel-0.7.6.tar.gz", hash = "sha256:489483d8c7675a4d04d0a55a1b5dd0925771e2660fa68105ca342e492f459d1b", size = 817608, upload-time = "2026-06-29T21:40:08.874Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0f/ac/9534000969f95a8ac77eee5b0731887c975fc66886deb0b993b5a9e6993e/pyexcel-0.7.6-py2.py3-none-any.whl", hash = "sha256:1610d86f7a47bfa802a454d8caa4c42b3f1dc8bcbe8ff794027b5c7a024300e1", size = 89636, upload-time = "2026-06-29T21:40:07.326Z" },
+]
+
+[[package]]
+name = "pyexcel-io"
+version = "0.6.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "lml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5a/8a/cae2571ba6719be2e176c256e2be063d74a3766138cc06eaa891c857f887/pyexcel_io-0.6.8.tar.gz", hash = "sha256:c8831a7542b3da0bf5849afaecabd8e7524a1761ee88270ed24b5bc53649f533", size = 75798, upload-time = "2026-06-28T21:06:39.315Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/aa/9f/d2f00bdc8e6ab177df3ac51e3c53796e8aa9b8ab4921da15c1fd46f22564/pyexcel_io-0.6.8-py2.py3-none-any.whl", hash = "sha256:074bf490a749cbe1c47e127aabab68223028f3abfd0fcad0de9b1bfe5a1e7f9d", size = 44083, upload-time = "2026-06-28T21:06:37.954Z" },
+]
+
+[[package]]
 name = "pyjwt"
 version = "2.14.0"
 source = { registry = "https://pypi.org/simple" }
@@ -303,6 +340,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/5f/d3/3f06a1006f2261d1342aefb3c71eed02f5d4ca5bdbecd86ebc12ad38306e/sqlparse-0.6.0.tar.gz", hash = "sha256:113c35c75365ab9cc9c7231d68c6428fb11c085fc8e9eb1ad659b7ddbf6cd2b9", size = 178477, upload-time = "2026-08-13T19:16:06.396Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d9/50/f00935da0ec7cbf325f8dc4f772ae46fbc7b672dd62876e73f0a94adda57/sqlparse-0.6.0-py3-none-any.whl", hash = "sha256:b861c0288ce2fa56209a9a6412d2e066ac664b3873b89c26c9d8415e8e32996f", size = 50070, upload-time = "2026-08-13T19:16:04.062Z" },
+]
+
+[[package]]
+name = "texttable"
+version = "1.7.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/1c/dc/0aff23d6036a4d3bf4f1d8c8204c5c79c4437e25e0ae94ffe4bbb55ee3c2/texttable-1.7.0.tar.gz", hash = "sha256:2d2068fb55115807d3ac77a4ca68fa48803e84ebb0ee2340f858107a36522638", size = 12831, upload-time = "2023-10-03T09:48:12.272Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/24/99/4772b8e00a136f3e01236de33b0efda31ee7077203ba5967fcc76da94d65/texttable-1.7.0-py2.py3-none-any.whl", hash = "sha256:72227d592c82b3d7f672731ae73e4d1f88cd8e2ef5b075a7a7f01a23a3743917", size = 10768, upload-time = "2023-10-03T09:48:10.434Z" },
 ]
 
 [[package]]
