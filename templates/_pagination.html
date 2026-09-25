@@ -1,19 +1,21 @@
 {% comment %}
 Pagination bar for a page from accounts.paging.halaman(). Params: halaman,
 hx_target (optional: load pages with htmx into that element instead of navigating).
-Shows the row range always, and the page links only when there is more than one page.
+Always shown, even for a single page, so every table has the same paging bar.
 {% endcomment %}
-{% if halaman.paginator.count %}
 <div class="flex flex-wrap items-center justify-between gap-3 px-1 py-3 text-sm">
-    <p class="text-slate-500 dark:text-slate-400">Menampilkan {{ halaman.start_index }}–{{ halaman.end_index }} dari {{ halaman.paginator.count }} data</p>
-    {% if halaman.paginator.num_pages > 1 %}
+    <p class="text-slate-500 dark:text-slate-400">{% if halaman.paginator.count %}Menampilkan {{ halaman.start_index }}–{{ halaman.end_index }} dari {{ halaman.paginator.count }} data{% else %}0 data{% endif %}</p>
     <nav class="flex flex-wrap items-center gap-1" aria-label="Halaman">
         {% if halaman.has_previous %}
+        <a href="{{ request.path }}?{{ halaman.query_dasar }}{{ halaman.param }}=1"
+           {% if hx_target %}hx-get="{{ request.path }}?{{ halaman.query_dasar }}{{ halaman.param }}=1" hx-target="{{ hx_target }}" hx-swap="innerHTML" hx-push-url="false"{% endif %}
+           class="rounded-md border border-slate-300 px-2.5 py-1 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700" aria-label="Halaman pertama">« First</a>
         <a href="{{ request.path }}?{{ halaman.query_dasar }}{{ halaman.param }}={{ halaman.previous_page_number }}"
            {% if hx_target %}hx-get="{{ request.path }}?{{ halaman.query_dasar }}{{ halaman.param }}={{ halaman.previous_page_number }}" hx-target="{{ hx_target }}" hx-swap="innerHTML" hx-push-url="false"{% endif %}
-           class="rounded-md border border-slate-300 px-2.5 py-1 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700" aria-label="Sebelumnya">‹</a>
+           class="rounded-md border border-slate-300 px-2.5 py-1 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700" aria-label="Sebelumnya">‹ Prev</a>
         {% else %}
-        <span class="rounded-md border border-slate-200 px-2.5 py-1 text-slate-300 dark:border-slate-700 dark:text-slate-600">‹</span>
+        <span class="rounded-md border border-slate-200 px-2.5 py-1 text-slate-300 dark:border-slate-700 dark:text-slate-600">« First</span>
+        <span class="rounded-md border border-slate-200 px-2.5 py-1 text-slate-300 dark:border-slate-700 dark:text-slate-600">‹ Prev</span>
         {% endif %}
         {% for nomor in halaman.rentang %}
             {% if nomor == halaman.number %}
@@ -29,11 +31,13 @@ Shows the row range always, and the page links only when there is more than one 
         {% if halaman.has_next %}
         <a href="{{ request.path }}?{{ halaman.query_dasar }}{{ halaman.param }}={{ halaman.next_page_number }}"
            {% if hx_target %}hx-get="{{ request.path }}?{{ halaman.query_dasar }}{{ halaman.param }}={{ halaman.next_page_number }}" hx-target="{{ hx_target }}" hx-swap="innerHTML" hx-push-url="false"{% endif %}
-           class="rounded-md border border-slate-300 px-2.5 py-1 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700" aria-label="Berikutnya">›</a>
+           class="rounded-md border border-slate-300 px-2.5 py-1 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700" aria-label="Berikutnya">Next ›</a>
+        <a href="{{ request.path }}?{{ halaman.query_dasar }}{{ halaman.param }}={{ halaman.paginator.num_pages }}"
+           {% if hx_target %}hx-get="{{ request.path }}?{{ halaman.query_dasar }}{{ halaman.param }}={{ halaman.paginator.num_pages }}" hx-target="{{ hx_target }}" hx-swap="innerHTML" hx-push-url="false"{% endif %}
+           class="rounded-md border border-slate-300 px-2.5 py-1 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700" aria-label="Halaman terakhir">Last »</a>
         {% else %}
-        <span class="rounded-md border border-slate-200 px-2.5 py-1 text-slate-300 dark:border-slate-700 dark:text-slate-600">›</span>
+        <span class="rounded-md border border-slate-200 px-2.5 py-1 text-slate-300 dark:border-slate-700 dark:text-slate-600">Next ›</span>
+        <span class="rounded-md border border-slate-200 px-2.5 py-1 text-slate-300 dark:border-slate-700 dark:text-slate-600">Last »</span>
         {% endif %}
     </nav>
-    {% endif %}
 </div>
-{% endif %}
