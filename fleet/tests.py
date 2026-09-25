@@ -189,7 +189,7 @@ class VehicleCreateViewTests(TestCase):
         })
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Vehicle.objects.count(), 0)
-        self.assertContains(response, "This field is required.")
+        self.assertContains(response, "Bidang ini tidak boleh kosong.")
 
     def test_htmx_get_returns_form_partial_without_full_page(self):
         response = self.client.get(reverse("fleet:vehicle_create"), HTTP_HX_REQUEST="true")
@@ -231,7 +231,7 @@ class VehicleCreateViewTests(TestCase):
         })
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Vehicle.objects.count(), 1)
-        self.assertContains(response, "already exists")
+        self.assertContains(response, "telah ada")
 
 
 @override_settings(MEDIA_ROOT=MEDIA_ROOT)

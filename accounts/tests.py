@@ -78,7 +78,7 @@ class LoginViewTests(TestCase):
             {"username": "teknisi1", "password": "salah"},
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Please enter a correct")
+        self.assertContains(response, "Masukkan nama pengguna")
 
     def test_already_authenticated_user_redirects_to_dashboard(self):
         self.client.login(username="teknisi1", password="rahasia-123")
@@ -431,22 +431,45 @@ class DashboardViewTests(TestCase):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("accounts:dashboard"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Ringkasan Armada")
-        self.assertContains(response, "Jadwal Perawatan Mendatang")
-        self.assertContains(response, "Alert Overdue")
-        self.assertContains(response, "Aktivitas Terbaru")
+        for text in ("Ringkasan", "Kegiatan Terbaru", "Jadwal Terlambat", "Jadwal Mendatang"):
+            self.assertContains(response, text)
 
     def test_dashboard_has_theme_toggle(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("accounts:dashboard"))
         self.assertContains(response, 'aria-label="Ganti tema"')
 
-    def test_dashboard_shows_mock_fleet_counts(self):
+    def test_dashboard_has_no_mock_data(self):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("accounts:dashboard"))
-        self.assertContains(response, "Truk Angkut B 9021 XY")
-        self.assertContains(response, "Servis berkala lewat 12 hari")
-        self.assertContains(response, "Budi Santoso")
+        for mock in ("Truk Angkut B 9021 XY", "Servis berkala lewat 12 hari", "Siti Amalia"):
+            self.assertNotContains(response, mock)
+        self.assertContains(response, "Belum ada kegiatan.")
+
+    def test_dashboard_feed_lists_latest_activities(self):
+        from datetime import date, timedelta
+        from fleet.models import Jadwal, Servis
+        truk = Vehicle.objects.create(nopol="B 1 TRK", merek="Hino")
+        pemeriksa = Laporan.objects.create(
+            nip="1", nama="Budi", pangkat="Kapten", jabatan="T", satuan=_satuan("ABC"), foto="x.gif",
+        )
+        hasil = PemeriksaanGolonganB.objects.create(
+            pemeriksa=pemeriksa, vehicle=truk, pembagian_kelas="1", eselon_reparasi="1",
+            macam_pemeriksaan="tehnis", buku_jalan="ada",
+        )
+        item = PemeriksaanGolonganBItem.objects.create(pemeriksaan=hasil, nomor=1, nama_alat="Motor", kondisi="RB")
+        PerbaikanGolonganB.objects.create(teknisi=pemeriksa, item=item, kondisi="B")
+        Servis.objects.create(vehicle=truk, tanggal=date.today(), jenis_servis="Ganti oli", bengkel="Bengkel 202")
+        Jadwal.objects.create(vehicle=truk, tanggal=date.today() - timedelta(days=2), kegiatan="servis")
+        self.client.login(username="teknisi1", password="rahasia-123")
+        response = self.client.get(reverse("accounts:dashboard"))
+        for text in ("Budi</span> memeriksa B 1 TRK (Golongan B)", "1 item perlu perbaikan",
+                     "Budi</span> memperbaiki Motor pada B 1 TRK", "Kendaraan B 1 TRK (Hino) ditambahkan",
+                     "Servis Ganti oli untuk B 1 TRK dicatat", "Jadwal servis B 1 TRK dibuat", "lalu</time>"):
+            self.assertContains(response, text)
+        self.assertEqual(len(response.context["jadwal_terlambat"]), 1)
+        self.assertEqual(response.context["pemeriksaan_30_hari"], 1)
+        self.assertEqual(response.context["perbaikan_30_hari"], 1)
 
     def test_dashboard_shows_real_fleet_summary_counts(self):
         Vehicle.objects.create(
@@ -502,7 +525,8 @@ class DashboardPartialViewTests(TestCase):
         response = self.client.get(reverse("accounts:dashboard_partial"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["fleet_summary"]["total"], 1)
-        self.assertContains(response, "Ringkasan Armada")
+        self.assertContains(response, "Kegiatan Terbaru")
+        self.assertContains(response, "Kendaraan B 9021 XY (Hino Dutro) ditambahkan")
         self.assertNotContains(response, "<!DOCTYPE")
 
 

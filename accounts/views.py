@@ -18,9 +18,8 @@ from django.views.decorators.http import require_POST
 
 from fleet.images import compress_photo
 from fleet.models import Vehicle
-from fleet.services import get_fleet_summary
 
-from . import golongan, pemeriksaan, roles
+from . import dashboard, golongan, pemeriksaan, roles
 from .forms import TEXT_INPUT_CLASSES, BiodataForm, SatuanForm, LaporanForm, LoginForm, UserCreateForm, UserEditForm
 from .models import Anggota, Satuan
 from .roles import keanggotaan_label
@@ -69,23 +68,7 @@ def logout_view(request):
 
 
 def _dashboard_context():
-    return {
-        "fleet_summary": get_fleet_summary(),
-        "upcoming_maintenance": [
-            {"vehicle": "Truk Angkut B 9021 XY", "service_type": "Ganti oli & filter", "date": "2026-09-28", "status": "Terjadwal"},
-            {"vehicle": "Jeep Patroli B 4412 KM", "service_type": "Servis rem", "date": "2026-09-30", "status": "Terjadwal"},
-            {"vehicle": "Ambulans B 1187 AD", "service_type": "Servis berkala 20.000 km", "date": "2026-10-03", "status": "Terjadwal"},
-        ],
-        "overdue_alerts": [
-            {"vehicle": "Truk Logistik B 7734 QW", "issue": "Servis berkala lewat 12 hari", "severity": "Tinggi"},
-            {"vehicle": "Motor Kurir B 2290 PL", "issue": "Ganti ban lewat jadwal", "severity": "Sedang"},
-        ],
-        "recent_activity": [
-            {"actor": "Budi Santoso", "action": "menyelesaikan servis rutin Truk B 9021 XY", "when": "2 jam lalu"},
-            {"actor": "Siti Amalia", "action": "menambahkan catatan servis Jeep B 4412 KM", "when": "5 jam lalu"},
-            {"actor": "Rudi Hartono", "action": "melaporkan kendaraan baru Ambulans B 1187 AD", "when": "1 hari lalu"},
-        ],
-    }
+    return dashboard.konteks()
 
 
 @login_required
