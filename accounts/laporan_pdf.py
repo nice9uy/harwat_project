@@ -199,12 +199,12 @@ def _gambar(berkas, lebar, tinggi_maks):
     return Image(data, width=w * skala, height=h * skala)
 
 
-def _galeri(gambar, per_baris=2):
-    """Images (with captions) in a grid of ``per_baris`` columns."""
+def _galeri(gambar, per_baris=2, tinggi_maks=65 * mm):
+    """Images (with captions) in a grid of ``per_baris`` columns, each at most ``tinggi_maks`` tall."""
     lebar = 180 * mm / per_baris
     sel = []
     for berkas, judul in gambar:
-        img = _gambar(berkas, lebar - 6 * mm, 65 * mm)
+        img = _gambar(berkas, lebar - 6 * mm, tinggi_maks)
         if img is not None:
             sel.append([img, _p(judul, TENGAH)])
     if not sel:
@@ -390,7 +390,8 @@ def buat_pdf_penambahan(vehicle):
         Paragraph("Data Kendaraan/Barang", BAGIAN),
         data,
         Paragraph("Foto Kendaraan/Barang", BAGIAN),
-        _galeri([(f.image, f"Foto {i}") for i, f in enumerate(vehicle.fotos.all(), start=1)]),
+        # One row of four small photos keeps the report on a single page.
+        _galeri([(f.image, f"Foto {i}") for i, f in enumerate(vehicle.fotos.all(), start=1)], 4, 45 * mm),
         Paragraph("Personil yang Menambahkan", BAGIAN),
         _biodata(vehicle.penambah) if vehicle.penambah else _p(
             "Belum tercatat: kendaraan ini ditambahkan sebelum biodata penambah disimpan, atau lewat menu Armada."
