@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}BMN Harwat{% endblock %}</title>
     {% include "_theme_init.html" %}
+    {% comment %}
+    htmx "settles" an element that keeps its id across a boosted page swap by
+    re-applying the new page's class/style after Alpine has already set them,
+    wiping Alpine's x-show display:none (e.g. an empty autocomplete list).
+    {% endcomment %}
+    <meta name="htmx-config" content='{"attributesToSettle": []}'>
     <link rel="stylesheet" href="{% static 'dist/output.css' %}?v={{ css_version }}">
     <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
     <script src="{% static 'js/qr-scan.js' %}?v={{ js_version }}" defer></script>
