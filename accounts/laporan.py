@@ -1,16 +1,20 @@
 """Laporan menus: inspections, repairs and vehicles added, across all vehicle groups.
 
 Each report filters by date range and vehicle group, shows a paged table and
-offers the same rows as a CSV download (?unduh=csv).
+offers the same rows as an Excel download (?unduh=excel).
 """
-import csv
 from datetime import date
+from io import BytesIO
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.shortcuts import render
+from django.utils import timezone
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
 
 from fleet.models import Vehicle
 
@@ -48,19 +52,56 @@ def _golongan_dipilih(f):
     return [(kode, cfg) for kode, cfg in golongan.GOLONGAN.items() if not f["golongan"] or kode == f["golongan"]]
 
 
-def _csv(nama_file, header, rows):
-    response = HttpResponse(content_type="text/csv; charset=utf-8")
+def _keterangan_filter(f):
+    bagian = []
+    if f["dari"] or f["sampai"]:
+        dari = f["dari"].strftime("%d-%m-%Y") if f["dari"] else "awal"
+        sampai = f["sampai"].strftime("%d-%m-%Y") if f["sampai"] else "sekarang"
+        bagian.append(f"Periode {dari} s/d {sampai}")
+    bagian.append(Vehicle.GroupKendaraan(f["golongan"]).label if f["golongan"] else "Semua golongan")
+    return " · ".join(bagian)
+
+
+def _excel(judul, header, rows, f, nama_file):
+    """The report as an .xlsx sheet: title, filter line, styled header, data."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = judul[:31].replace("/", "-")
+    ws.append([judul])
+    ws.append([f"{_keterangan_filter(f)} · dicetak {timezone.localtime():%d-%m-%Y %H:%M}"])
+    ws.append([])
+    ws.append(["No"] + header)
+    for nomor, baris in enumerate(rows, start=1):
+        ws.append([nomor] + list(baris))
+
+    ws["A1"].font = Font(bold=True, size=14, color="0B1F3A")
+    ws["A2"].font = Font(italic=True, color="5B6579")
+    header_row = 4
+    for cell in ws[header_row]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="0B1F3A")
+        cell.alignment = Alignment(vertical="center", wrap_text=True)
+    ws.freeze_panes = ws.cell(row=header_row + 1, column=1)
+    ws.auto_filter.ref = f"A{header_row}:{get_column_letter(len(header) + 1)}{header_row + len(rows)}"
+    for kolom in range(1, len(header) + 2):
+        panjang = max(
+            len(str(ws.cell(row=r, column=kolom).value or "")) for r in range(header_row, header_row + len(rows) + 1)
+        )
+        ws.column_dimensions[get_column_letter(kolom)].width = min(max(panjang + 2, 6), 50)
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
     response["Content-Disposition"] = f'attachment; filename="{nama_file}"'
-    response.write("﻿")  # BOM so Excel reads the UTF-8 file correctly
-    writer = csv.writer(response, delimiter=";")
-    writer.writerow(header)
-    writer.writerows(rows)
     return response
 
 
-def _render(request, template, judul, header, rows, f, nama_csv):
-    if request.GET.get("unduh") == "csv":
-        return _csv(nama_csv, header, rows)
+def _render(request, template, judul, header, rows, f, nama_file):
+    if request.GET.get("unduh") == "excel":
+        return _excel(judul, header, rows, f, nama_file)
     halaman = Paginator(rows, PER_HALAMAN).get_page(request.GET.get("page"))
     query = request.GET.copy()
     query.pop("page", None)
@@ -101,7 +142,7 @@ def laporan_pemeriksaan(request):
     rows.sort(key=lambda r: r[0], reverse=True)
     rows = [(r[0].strftime("%d-%m-%Y %H:%M"),) + r[1:] for r in rows]
     header = ["Tanggal", "No. Registrasi", "Merk/Type", "Golongan", "Pemeriksa", "Item Baik", "Item Perlu Perbaikan"]
-    return _render(request, "accounts/laporan_tabel.html", "Laporan Pemeriksaan", header, rows, f, "laporan-pemeriksaan.csv")
+    return _render(request, "accounts/laporan_tabel.html", "Laporan Pemeriksaan", header, rows, f, "laporan-pemeriksaan.xlsx")
 
 
 @login_required
@@ -125,7 +166,7 @@ def laporan_perbaikan(request):
     rows.sort(key=lambda r: r[0], reverse=True)
     rows = [(r[0].strftime("%d-%m-%Y %H:%M"),) + r[1:] for r in rows]
     header = ["Tanggal", "No. Registrasi", "Golongan", "Komponen", "Kondisi Awal", "Kondisi Setelah", "Teknisi", "Keterangan"]
-    return _render(request, "accounts/laporan_tabel.html", "Laporan Perbaikan", header, rows, f, "laporan-perbaikan.csv")
+    return _render(request, "accounts/laporan_tabel.html", "Laporan Perbaikan", header, rows, f, "laporan-perbaikan.xlsx")
 
 
 @login_required
@@ -145,5 +186,5 @@ def laporan_penambahan(request):
     header = ["Ditambahkan", "No. Registrasi", "Merk/Type", "Golongan", "No. Chasis", "No. Mesin"]
     return _render(
         request, "accounts/laporan_tabel.html", "Laporan Penambahan Kendaraan/Barang", header, rows, f,
-        "laporan-penambahan-kendaraan.csv",
+        "laporan-penambahan-kendaraan.xlsx",
     )

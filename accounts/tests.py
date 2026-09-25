@@ -1717,17 +1717,26 @@ class LaporanMenuTests(TestCase):
         for text in ("B 1 TRK", "1. Alat 1", "Rusak Berat", "Baik", "Diganti baru", ">1</span> data"):
             self.assertContains(response, text)
 
-    def test_laporan_penambahan_and_csv(self):
+    def test_laporan_penambahan_and_excel(self):
+        from io import BytesIO
+
+        from openpyxl import load_workbook
         response = self.client.get(reverse("accounts:laporan_penambahan"), {"golongan": "B"})
         self.assertContains(response, "B 1 TRK")
         self.assertNotContains(response, "B 2 MTR")
-        csv_response = self.client.get(reverse("accounts:laporan_penambahan"), {"golongan": "B", "unduh": "csv"})
-        self.assertEqual(csv_response["Content-Type"], "text/csv; charset=utf-8")
-        self.assertIn("attachment", csv_response["Content-Disposition"])
-        isi = csv_response.content.decode("utf-8-sig")
-        self.assertIn("Ditambahkan;No. Registrasi;Merk/Type;Golongan;No. Chasis;No. Mesin", isi)
-        self.assertIn("B 1 TRK;Hino;Golongan B", isi)
-        self.assertNotIn("B 2 MTR", isi)
+        self.assertContains(response, "Unduh Excel")
+        excel = self.client.get(reverse("accounts:laporan_penambahan"), {"golongan": "B", "unduh": "excel"})
+        self.assertEqual(excel["Content-Type"], "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        self.assertIn('filename="laporan-penambahan-kendaraan.xlsx"', excel["Content-Disposition"])
+        ws = load_workbook(BytesIO(excel.content)).active
+        self.assertEqual(ws["A1"].value, "Laporan Penambahan Kendaraan/Barang")
+        self.assertIn("Golongan B", ws["A2"].value)
+        self.assertEqual(
+            [c.value for c in ws[4]],
+            ["No", "Ditambahkan", "No. Registrasi", "Merk/Type", "Golongan", "No. Chasis", "No. Mesin"],
+        )
+        self.assertEqual([ws["A5"].value, ws["C5"].value, ws["D5"].value], [1, "B 1 TRK", "Hino"])
+        self.assertEqual(ws.max_row, 5)
 
     def test_tim_users_cannot_open_reports(self):
         from django.contrib.auth.models import Group
