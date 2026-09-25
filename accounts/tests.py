@@ -1776,9 +1776,10 @@ class LaporanMenuTests(TestCase):
         self.assertIn("Golongan B", ws["A2"].value)
         self.assertEqual(
             [c.value for c in ws[4]],
-            ["No", "Ditambahkan", "No. Registrasi", "Merk/Type", "Golongan", "No. Chasis", "No. Mesin"],
+            ["No", "No. Registrasi", "Merk/Type", "Golongan", "No. Chasis", "No. Mesin"],
         )
-        self.assertEqual([ws["A5"].value, ws["C5"].value, ws["D5"].value], [1, "B 1 TRK", "Hino"])
+        self.assertEqual([ws["A5"].value, ws["B5"].value, ws["C5"].value], [1, "B 1 TRK", "Hino"])
+        self.assertNotContains(response, "Ditambahkan</th>")
         self.assertEqual(ws.max_row, 5)
 
     def test_tim_users_cannot_open_reports(self):

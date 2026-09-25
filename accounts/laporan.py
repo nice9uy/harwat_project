@@ -97,8 +97,10 @@ def _excel(judul, header, rows, f, nama_file):
     return response
 
 
-def _render(request, template, judul, header, rows, f, nama_file, tautan=None):
-    """``tautan``: optional per-row URL (same order as ``rows``) opened in the detail modal."""
+def _render(request, template, judul, header, rows, f, nama_file, tautan=None, kolom_tanggal=1, kolom_utama=2):
+    """``tautan``: optional per-row URL (same order as ``rows``) opened in the detail modal.
+    ``kolom_tanggal`` / ``kolom_utama``: 1-based columns styled as the date and as
+    the row's key (No. Registrasi); 0 for none."""
     if request.GET.get("unduh") == "excel":
         return _excel(judul, header, rows, f, nama_file)
     halaman = halaman_dari(request, list(zip(rows, tautan or [None] * len(rows))))
@@ -112,6 +114,8 @@ def _render(request, template, judul, header, rows, f, nama_file, tautan=None):
         "f": f,
         "golongan_pilihan": Vehicle.GroupKendaraan.choices,
         "query": query.urlencode(),
+        "kolom_tanggal": kolom_tanggal,
+        "kolom_utama": kolom_utama,
     })
 
 
@@ -216,15 +220,14 @@ def laporan_penambahan(request):
     tautan = [reverse("accounts:laporan_penambahan_detail", args=[v.pk]) for v in qs]
     rows = [
         (
-            timezone.localtime(v.dibuat_pada).strftime("%d-%m-%Y %H:%M") if v.dibuat_pada else "-",
             v.nopol, v.merek, v.get_group_kendaraan_display(), v.no_chasis or "-", v.no_mesin or "-",
         )
         for v in qs
     ]
-    header = ["Ditambahkan", "No. Registrasi", "Merk/Type", "Golongan", "No. Chasis", "No. Mesin"]
+    header = ["No. Registrasi", "Merk/Type", "Golongan", "No. Chasis", "No. Mesin"]
     return _render(
         request, "accounts/laporan_tabel.html", "Laporan Penambahan Kendaraan/Barang", header, rows, f,
-        "laporan-penambahan-kendaraan.xlsx", tautan=tautan,
+        "laporan-penambahan-kendaraan.xlsx", tautan=tautan, kolom_tanggal=0, kolom_utama=1,
     )
 
 
