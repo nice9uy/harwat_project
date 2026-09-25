@@ -8,7 +8,17 @@ from . import roles
 def menu(request):
     """Sidebar menus the current user may see (``menu_boleh``)."""
     user = getattr(request, "user", None)
-    return {"menu_boleh": roles.allowed_menus(user) if user is not None else frozenset()}
+    match = getattr(request, "resolver_match", None)
+    view_name = match.view_name if match else ""
+    # The page's own menu, for the icon before the page title (first in
+    # MENU_VIEWS order when a view serves several menus).
+    menu_aktif = next((m for m in roles.MENU_VIEWS if view_name in roles.MENU_VIEWS[m]), "")
+    if view_name == "accounts:ganti_password":
+        menu_aktif = "ganti_password"
+    return {
+        "menu_boleh": roles.allowed_menus(user) if user is not None else frozenset(),
+        "menu_aktif": menu_aktif,
+    }
 
 
 def css_version(request):
