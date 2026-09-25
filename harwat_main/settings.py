@@ -53,6 +53,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'accounts.middleware.MenuAccessMiddleware',
+    'accounts.middleware.SuperuserOnlyAdminMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
