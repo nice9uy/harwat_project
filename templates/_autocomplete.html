@@ -32,6 +32,6 @@ wajib (bool), label_data (e.g. "satuan"), placeholder.
                 <svg x-show="String(o.v) === nilai" class="h-4 w-4 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
             </li>
         </template>
-        <li x-show="!hasil.length" class="px-3 py-2 text-slate-500 dark:text-slate-400">Tidak ada yang cocok.</li>
+        <li x-show="q.trim() && !hasil.length" class="px-3 py-2 text-slate-500 dark:text-slate-400">Tidak ada yang cocok.</li>
     </ul>
 </div>
