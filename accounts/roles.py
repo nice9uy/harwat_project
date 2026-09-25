@@ -77,7 +77,9 @@ MENU_VIEWS = {
         "accounts:history", "accounts:history_kendaraan", "accounts:history_kendaraan_modal", "fleet:vehicle_qr",
     },
     "perbaikan": {"accounts:perbaikan", "accounts:perbaikan_kendaraan"},
-    "laporan_pemeriksaan": {"accounts:laporan_pemeriksaan", "accounts:laporan_pemeriksaan_detail"},
+    "laporan_pemeriksaan": {
+        "accounts:laporan_pemeriksaan", "accounts:laporan_pemeriksaan_detail", "accounts:laporan_pemeriksaan_pdf",
+    },
     "laporan_perbaikan": {"accounts:laporan_perbaikan"},
     "laporan_penambahan": {"accounts:laporan_penambahan"},
     "pengaturan": {

@@ -86,3 +86,40 @@ class LaporanPemeriksaanDetailTests(TestCase):
         lokal = timezone.localtime(hasil.dibuat_pada).strftime("%d-%m-%Y %H:%M")
         response = self.client.get(reverse("accounts:laporan_pemeriksaan"))
         self.assertEqual(response.context["halaman"][0][0][0], lokal)
+
+    def test_pdf_export_of_one_inspection(self):
+        from accounts.models import PerbaikanGolonganB
+
+        pemeriksa = self._biodata("1", "Budi")
+        hasil = self._pemeriksaan(pemeriksa, rusak=2)
+        PerbaikanGolonganB.objects.create(teknisi=pemeriksa, item=hasil.items.get(nomor=1), kondisi="B")
+        url = reverse("accounts:laporan_pemeriksaan_pdf", args=["B", hasil.pk])
+        modal = self.client.get(self._url())
+        self.assertContains(modal, f'href="{url}"')
+        response = self.client.get(url)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF"))
+        self.assertIn("inline", response["Content-Disposition"])
+        self.assertIn("attachment", self.client.get(url, {"unduh": 1})["Content-Disposition"])
+        self.assertEqual(self.client.get(reverse("accounts:laporan_pemeriksaan_pdf", args=["x", hasil.pk])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("accounts:laporan_pemeriksaan_pdf", args=["diesel", hasil.pk])).status_code, 404)
+
+    def test_pdf_for_every_group(self):
+        from accounts.models import PemeriksaanBermotor, PemeriksaanBermotorItem, PemeriksaanDiesel, PemeriksaanDieselItem
+
+        pemeriksa = self._biodata("1", "Budi")
+        bermotor = PemeriksaanBermotor.objects.create(
+            pemeriksa=pemeriksa, vehicle=self.vehicle, buku_harian="ada", macam_pemeriksaan="tehnis",
+        )
+        PemeriksaanBermotorItem.objects.create(pemeriksaan=bermotor, nomor=1, nama_alat="Mesin", kondisi="HP")
+        diesel = PemeriksaanDiesel.objects.create(
+            pemeriksa=pemeriksa, vehicle=self.vehicle, km_berfungsi="ya", jam_mesin_berfungsi="ya",
+            buku_pemeliharaan="ada", kondisi_ranmor="jalan", macam_pemeriksaan="tehnis",
+        )
+        PemeriksaanDieselItem.objects.create(
+            pemeriksaan=diesel, nomor=1, nama_alat="Radiator", satuan="bh", jumlah_riil=1, jumlah_nyata=1, kondisi="ADA",
+        )
+        for kode, hasil in (("bermotor", bermotor), ("diesel", diesel)):
+            response = self.client.get(reverse("accounts:laporan_pemeriksaan_pdf", args=[kode, hasil.pk]))
+            self.assertEqual(response.status_code, 200, kode)
+            self.assertTrue(response.content.startswith(b"%PDF"), kode)

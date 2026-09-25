@@ -1,7 +1,7 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
-from . import laporan, views
+from . import laporan, laporan_pdf, views
 
 app_name = "accounts"
 
@@ -32,6 +32,10 @@ urlpatterns = [
     path(
         "laporan-pemeriksaan/kendaraan/<int:pk>/", laporan.laporan_pemeriksaan_detail,
         name="laporan_pemeriksaan_detail",
+    ),
+    path(
+        "laporan-pemeriksaan/<str:kode>/<int:pk>/pdf/", laporan_pdf.laporan_pemeriksaan_pdf,
+        name="laporan_pemeriksaan_pdf",
     ),
     path("laporan-perbaikan/", laporan.laporan_perbaikan, name="laporan_perbaikan"),
     path("laporan-penambahan/", laporan.laporan_penambahan, name="laporan_penambahan"),
