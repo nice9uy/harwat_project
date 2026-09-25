@@ -1766,8 +1766,11 @@ class LaporanMenuTests(TestCase):
 
     def test_laporan_perbaikan(self):
         response = self.client.get(reverse("accounts:laporan_perbaikan"))
-        for text in ("B 1 TRK", "1. Alat 1", "Rusak Berat", "Baik", "Diganti baru", ">1</span> data"):
+        # One row per repaired vehicle; the repairs themselves are in its modal.
+        for text in ("B 1 TRK", "No. Chasis", "No. Mesin", "Golongan", ">1</span> data"):
             self.assertContains(response, text)
+        self.assertNotContains(response, "Kondisi Awal")
+        self.assertNotContains(response, 'id="dari"')
 
     def test_laporan_penambahan_and_excel(self):
         from io import BytesIO

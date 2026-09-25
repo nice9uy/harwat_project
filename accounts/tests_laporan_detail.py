@@ -160,7 +160,8 @@ class LaporanPerbaikanDanPenambahanTests(TestCase):
         self._perbaikan(self._biodata("2", "Ani"))
         detail = reverse("accounts:laporan_perbaikan_detail", args=[self.vehicle.pk])
         laporan = self.client.get(reverse("accounts:laporan_perbaikan"))
-        self.assertContains(laporan, f'hx-get="{detail}?perbaikan={kedua.pk}"')
+        self.assertContains(laporan, f'hx-get="{detail}"')
+        self.assertEqual(len(laporan.context["halaman"].object_list), 1)  # one row per vehicle
         modal = self.client.get(detail, {"perbaikan": pertama.pk})
         self.assertContains(modal, "Riwayat Perbaikan")
         self.assertContains(modal, "Personil yang Memperbaiki")

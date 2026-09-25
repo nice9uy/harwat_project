@@ -7,7 +7,7 @@ from datetime import date
 from io import BytesIO
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q
+from django.db.models import Count, Max, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
@@ -97,10 +97,13 @@ def _excel(judul, header, rows, f, nama_file):
     return response
 
 
-def _render(request, template, judul, header, rows, f, nama_file, tautan=None, kolom_tanggal=1, kolom_utama=2):
+def _render(
+    request, template, judul, header, rows, f, nama_file, tautan=None, kolom_tanggal=1, kolom_utama=2,
+    pakai_tanggal=True,
+):
     """``tautan``: optional per-row URL (same order as ``rows``) opened in the detail modal.
     ``kolom_tanggal`` / ``kolom_utama``: 1-based columns styled as the date and as
-    the row's key (No. Registrasi); 0 for none."""
+    the row's key (No. Registrasi); 0 for none. ``pakai_tanggal``: show the date filter."""
     if request.GET.get("unduh") == "excel":
         return _excel(judul, header, rows, f, nama_file)
     halaman = halaman_dari(request, list(zip(rows, tautan or [None] * len(rows))))
@@ -116,6 +119,7 @@ def _render(request, template, judul, header, rows, f, nama_file, tautan=None, k
         "query": query.urlencode(),
         "kolom_tanggal": kolom_tanggal,
         "kolom_utama": kolom_utama,
+        "pakai_tanggal": pakai_tanggal,
     })
 
 
@@ -183,30 +187,26 @@ def laporan_pemeriksaan_detail(request, pk):
 
 @login_required
 def laporan_perbaikan(request):
-    f = _filter(request)
-    rows = []
-    for kode, cfg in _golongan_dipilih(f):
-        qs = cfg.perbaikan_model.objects.select_related("item__pemeriksaan__vehicle", "teknisi").order_by()
-        for p in _rentang(qs, "dibuat_pada", f):
-            vehicle = p.item.pemeriksaan.vehicle
-            rows.append((
-                p.dibuat_pada,
-                f"{reverse('accounts:laporan_perbaikan_detail', args=[vehicle.pk])}?perbaikan={p.pk}",
-                vehicle.nopol,
-                Vehicle.GroupKendaraan(kode).label,
-                f"{p.item.nomor}. {p.item.nama_alat}",
-                p.item.get_kondisi_display(),
-                p.get_kondisi_display(),
-                f"{p.teknisi.nama} ({p.teknisi.pangkat})",
-                p.keterangan,
-            ))
-    rows.sort(key=lambda r: r[0], reverse=True)
-    tautan = [r[1] for r in rows]
-    rows = [(timezone.localtime(r[0]).strftime("%d-%m-%Y %H:%M"),) + r[2:] for r in rows]
-    header = ["Tanggal", "No. Registrasi", "Golongan", "Komponen", "Kondisi Awal", "Kondisi Setelah", "Teknisi", "Keterangan"]
+    """One row per vehicle repaired in the period (newest repair first); the
+    row's modal lists the repairs themselves. No date filter: all repairs count."""
+    f = {**_filter(request), "dari": None, "sampai": None}
+    terakhir = {}  # vehicle id -> newest repair time
+    for _, cfg in _golongan_dipilih(f):
+        qs = _rentang(cfg.perbaikan_model.objects.all(), "dibuat_pada", f)
+        for baris in qs.order_by().values("item__pemeriksaan__vehicle").annotate(waktu=Max("dibuat_pada")):
+            vid = baris["item__pemeriksaan__vehicle"]
+            terakhir[vid] = max(baris["waktu"], terakhir.get(vid, baris["waktu"]))
+    kendaraan = Vehicle.objects.in_bulk(list(terakhir))
+    urut = sorted(kendaraan.values(), key=lambda v: (terakhir[v.pk], v.pk), reverse=True)
+    tautan = [reverse("accounts:laporan_perbaikan_detail", args=[v.pk]) for v in urut]
+    rows = [
+        (v.nopol, v.merek, v.no_chasis or "-", v.no_mesin or "-", v.get_group_kendaraan_display())
+        for v in urut
+    ]
+    header = ["No. Registrasi", "Merk/Type", "No. Chasis", "No. Mesin", "Golongan"]
     return _render(
         request, "accounts/laporan_tabel.html", "Laporan Perbaikan", header, rows, f, "laporan-perbaikan.xlsx",
-        tautan=tautan,
+        tautan=tautan, kolom_tanggal=0, kolom_utama=1, pakai_tanggal=False,
     )
 
 
