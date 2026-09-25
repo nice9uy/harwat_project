@@ -1,9 +1,12 @@
 {% for vehicle in vehicles %}
-<tr>
+<tr hx-get="{% url 'accounts:history_kendaraan_modal' %}?nopol={{ vehicle.nopol|urlencode }}"
+    hx-target="#vehicle-modal-body"
+    hx-swap="innerHTML"
+    tabindex="0" role="button" title="Lihat history {{ vehicle.nopol }}"
+    @keydown.enter="$el.click()"
+    class="cursor-pointer hover:bg-slate-100 focus:bg-slate-100 focus:outline-none dark:hover:bg-slate-700/60 dark:focus:bg-slate-700/60">
     <td class="py-2 px-3 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td>
-    <td class="py-2 px-3 font-medium text-navy dark:text-slate-100">
-        <a href="{% url 'fleet:vehicle_list' %}?group={{ vehicle.group_kendaraan }}" class="hover:text-gold hover:underline">{{ vehicle.nopol }}</a>
-    </td>
+    <td class="py-2 px-3 font-medium text-navy dark:text-slate-100">{{ vehicle.nopol }}</td>
     <td class="py-2 px-3">{{ vehicle.merek }}</td>
     <td class="py-2 px-3">{{ vehicle.no_chasis|default:"-" }}</td>
     <td class="py-2 px-3">{{ vehicle.no_mesin|default:"-" }}</td>

@@ -689,3 +689,22 @@ class KendaraanDieselTabTests(TestCase):
         })
         self.assertRedirects(response, reverse("fleet:vehicle_list") + "?group=diesel")
         self.assertEqual(Vehicle.objects.get(nopol="B 4444 DD").group_kendaraan, "diesel")
+
+
+class VehicleSearchHistoryModalTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.client.login(username="teknisi1", password="rahasia-123")
+        self.vehicle = Vehicle.objects.create(nopol="B 1111 AA", merek="Hino Dutro", no_chasis="CH-1")
+
+    def test_rows_open_the_history_modal(self):
+        response = self.client.get(reverse("fleet:vehicle_search"))
+        self.assertContains(response, f'hx-get="{reverse("accounts:history_kendaraan_modal")}?nopol=B%201111%20AA"')
+        self.assertContains(response, "Klik baris kendaraan")
+
+    def test_history_modal_has_the_history_tabs(self):
+        response = self.client.get(reverse("accounts:history_kendaraan_modal"), {"nopol": "B 1111 AA"})
+        for text in ("History B 1111 AA", "PROFILE", "STATUS KENDARAAN", "RIWAYAT PEMERIKSAAN", "RIWAYAT PERBAIKAN",
+                     "x-data=\"{ tab: 'profile' }\"", "CH-1", "Belum ada riwayat perbaikan",
+                     f'hx-get="{reverse("fleet:vehicle_search")}"'):
+            self.assertContains(response, text)

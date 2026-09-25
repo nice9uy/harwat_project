@@ -260,10 +260,8 @@ def _perlu_perbaikan(vehicle, terakhir):
     return daftar
 
 
-@login_required
-def history_kendaraan_view(request):
-    """Inspection and repair history of the vehicle whose QR code was scanned."""
-    vehicle = _vehicle_from_scan(request)
+def _history_context(vehicle):
+    """Context of the History tabs (profile, status, inspections, repairs) for a vehicle."""
     riwayat, terakhir = _riwayat_pemeriksaan(vehicle) if vehicle else ([], None)
     riwayat_perbaikan = []
     cfg = golongan.for_vehicle(vehicle)
@@ -271,7 +269,7 @@ def history_kendaraan_view(request):
         riwayat_perbaikan = cfg.perbaikan_model.objects.filter(
             item__pemeriksaan__vehicle=vehicle
         ).select_related("item", "teknisi")
-    return render(request, "accounts/_history_kendaraan.html", {
+    return {
         "vehicle": vehicle,
         "riwayat": riwayat,
         "terakhir": terakhir,
@@ -280,7 +278,19 @@ def history_kendaraan_view(request):
         "riwayat_perbaikan": riwayat_perbaikan,
         "pakai_jumlah": cfg.pakai_jumlah if cfg else False,
         "pakai_satuan": cfg.pakai_satuan if cfg else False,
-    })
+    }
+
+
+@login_required
+def history_kendaraan_view(request):
+    """Inspection and repair history of the vehicle whose QR code was scanned."""
+    return render(request, "accounts/_history_kendaraan.html", _history_context(_vehicle_from_scan(request)))
+
+
+@login_required
+def history_kendaraan_modal_view(request):
+    """The History tabs for one vehicle, opened from a row of the Armada Cari modal."""
+    return render(request, "accounts/_history_modal.html", _history_context(_vehicle_from_scan(request)))
 
 
 def _clean_perbaikan(data, files, daftar, kondisi, pakai_jumlah):

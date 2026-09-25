@@ -57,7 +57,7 @@ MENU_VIEWS = {
     "armada": {
         "fleet:vehicle_list", "fleet:vehicle_create", "fleet:vehicle_update",
         "fleet:vehicle_delete", "fleet:vehicle_delete_confirm", "fleet:vehicle_photos",
-        "fleet:vehicle_qr_modal", "fleet:vehicle_search",
+        "fleet:vehicle_qr_modal", "fleet:vehicle_search", "accounts:history_kendaraan_modal",
     },
     "jadwal": set(),
     "servis": set(),
@@ -67,7 +67,9 @@ MENU_VIEWS = {
     },
     # Form Tambah adds the vehicle through the Armada create modal.
     "form_tambah": {"accounts:form_tambah", "fleet:vehicle_create"},
-    "history": {"accounts:history", "accounts:history_kendaraan", "fleet:vehicle_qr"},
+    "history": {
+        "accounts:history", "accounts:history_kendaraan", "accounts:history_kendaraan_modal", "fleet:vehicle_qr",
+    },
     "perbaikan": {"accounts:perbaikan", "accounts:perbaikan_kendaraan"},
     "pengaturan": {
         "accounts:pengaturan", "accounts:user_create", "accounts:user_delete", "accounts:user_edit",

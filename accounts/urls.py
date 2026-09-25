@@ -20,6 +20,7 @@ urlpatterns = [
     path("form-tambah/", views.form_tambah_view, name="form_tambah"),
     path("history/", views.history_view, name="history"),
     path("history/kendaraan/", views.history_kendaraan_view, name="history_kendaraan"),
+    path("history/kendaraan/modal/", views.history_kendaraan_modal_view, name="history_kendaraan_modal"),
     path("perbaikan/", views.perbaikan_view, name="perbaikan"),
     path("perbaikan/kendaraan/", views.perbaikan_kendaraan_view, name="perbaikan_kendaraan"),
     path("pengaturan/", views.pengaturan_view, name="pengaturan"),
