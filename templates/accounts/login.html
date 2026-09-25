@@ -10,9 +10,11 @@
     <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
     <script src="{% static 'vendor/alpinejs.min.js' %}" defer></script>
 </head>
-<body class="relative min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100">
+<body class="relative min-h-screen overflow-x-hidden bg-navy text-slate-900 dark:text-slate-100">
     {# App theme: navy + gold, light or dark like the rest of the app. #}
-    <div aria-hidden="true" class="pointer-events-none fixed inset-0 opacity-60 dark:opacity-40 [background-image:radial-gradient(rgba(100,116,139,0.25)_1px,transparent_1px)] [background-size:22px_22px]"></div>
+    {# Backdrop: military vehicles (tank, 6x6 APC, truck) at night, drawn as an SVG. #}
+    <img src="{% static 'img/login-alutsista.svg' %}" alt="" aria-hidden="true" class="pointer-events-none fixed inset-0 h-full w-full object-cover object-bottom">
+    <div aria-hidden="true" class="pointer-events-none fixed inset-0 bg-slate-900/10 dark:bg-slate-950/30"></div>
     <img src="{% static 'img/kemhan_logo.png' %}" alt="Logo Kementerian Pertahanan" class="absolute left-4 top-4 z-10 h-14 w-14 sm:left-6 sm:top-6 sm:h-16 sm:w-16">
     <div class="absolute right-4 top-4 z-10">{% include "_theme_toggle.html" %}</div>
 

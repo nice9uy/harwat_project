@@ -47,6 +47,7 @@ class LoginViewTests(TestCase):
         self.assertContains(response, "localStorage.getItem('theme')")
         self.assertContains(response, 'aria-label="Ganti tema"')
         self.assertContains(response, "bg-navy")
+        self.assertContains(response, "img/login-alutsista.svg")
         for text in ("Sistem Online", "Silahkan Login", "Nama pengguna", "Kata sandi", "Ingat saya",
                      'placeholder="nama.pengguna"', "lihat = !lihat", "Intl.DateTimeFormat('id-ID'"):
             self.assertContains(response, text)
