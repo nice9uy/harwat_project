@@ -22,9 +22,9 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+import segno
 
 from fleet.models import Vehicle
-from fleet.qr import qr_png_with_logo
 
 from . import golongan
 
@@ -175,8 +175,8 @@ def _biodata(orang):
     ])
 
 
-def _data_kendaraan(vehicle, label_golongan, tambahan, total=180 * mm):
-    return _tabel_kunci_nilai(total=total, pasangan=[
+def _data_kendaraan(vehicle, label_golongan, tambahan):
+    return _tabel_kunci_nilai([
         ("No. Registrasi", vehicle.nopol), ("Merk/Type", vehicle.merek),
         ("No. Chasis", vehicle.no_chasis), ("No. Mesin", vehicle.no_mesin),
         ("Golongan", label_golongan), *tambahan,
@@ -216,7 +216,39 @@ def _galeri(gambar, per_baris=2):
     return tabel
 
 
-def _kop(judul, label_golongan):
+def _teks_qr(judul, bagian):
+    """QR content: the report title, then each section's "label: value" lines."""
+    baris = [judul]
+    for nama, pasangan in bagian:
+        baris.append(f"[{nama}]")
+        baris += [f"{label}: {nilai if nilai not in (None, '') else '-'}" for label, nilai in pasangan]
+    return "\n".join(baris)
+
+
+def _data_kendaraan_qr(vehicle, label_golongan):
+    return ("Kendaraan", [
+        ("No. Registrasi", vehicle.nopol), ("Merk/Type", vehicle.merek), ("No. Chasis", vehicle.no_chasis),
+        ("No. Mesin", vehicle.no_mesin), ("Golongan", label_golongan),
+    ])
+
+
+def _personil_qr(nama_bagian, orang):
+    return (nama_bagian, [
+        ("NIP", orang.nip), ("Nama", orang.nama), ("Pangkat", orang.pangkat),
+        ("Jabatan", orang.jabatan), ("Satuan", orang.satuan.nama),
+    ])
+
+
+def _qr_png(teks):
+    """A plain QR code: this much text with a logo in the middle (error level H)
+    gets too dense to scan off paper, so level M and no logo."""
+    buffer = BytesIO()
+    segno.make(teks, error="m", micro=False).save(buffer, kind="png", scale=8, border=1)
+    return buffer.getvalue()
+
+
+def _kop(judul, label_golongan, qr_teks=None):
+    """Letterhead; with ``qr_teks`` a QR code of the report's key data sits on the right."""
     logo = settings.BASE_DIR / "static" / "img" / "kemhan_logo.png"
     teks = [
         Paragraph("KEMENTERIAN PERTAHANAN REPUBLIK INDONESIA", SUB),
@@ -224,9 +256,11 @@ def _kop(judul, label_golongan):
         Paragraph(escape(label_golongan), SUB),
     ]
     sel_logo = Image(str(logo), width=16 * mm, height=16 * mm) if logo.exists() else ""
-    kop = Table([[sel_logo, teks]], colWidths=[20 * mm, 160 * mm])
+    sel_qr = Image(BytesIO(_qr_png(qr_teks)), width=30 * mm, height=30 * mm) if qr_teks else ""
+    kop = Table([[sel_logo, teks, sel_qr]], colWidths=[20 * mm, 128 * mm, 32 * mm])
     kop.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (2, 0), (2, 0), "RIGHT"),
         ("LINEBELOW", (0, 0), (-1, 0), 1.5, NAVY),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
     ]))
@@ -261,7 +295,11 @@ def buat_pdf(hasil, cfg, label_golongan):
     in (the vehicle's group may have changed since)."""
     vehicle = hasil.vehicle
     isi = [
-        _kop("LAPORAN PEMERIKSAAN KENDARAAN", label_golongan),
+        _kop("LAPORAN PEMERIKSAAN KENDARAAN", label_golongan, _teks_qr("Laporan Pemeriksaan Kendaraan", [
+            _data_kendaraan_qr(vehicle, label_golongan),
+            ("Pemeriksaan", [("Tanggal", _tanggal(hasil.dibuat_pada))]),
+            _personil_qr("Personil yang Memeriksa", hasil.pemeriksa),
+        ])),
         Paragraph("Data Kendaraan", BAGIAN),
         _data_kendaraan(vehicle, label_golongan, [("Tanggal Pemeriksaan", _tanggal(hasil.dibuat_pada))]),
         Paragraph("Data Pemeriksaan", BAGIAN),
@@ -315,7 +353,14 @@ def buat_pdf_perbaikan(perbaikan, label_golongan):
         data.append(("Jumlah", perbaikan.jumlah))
     data.append(("Keterangan Perbaikan", perbaikan.keterangan))
     isi = [
-        _kop("LAPORAN PERBAIKAN KENDARAAN", label_golongan),
+        _kop("LAPORAN PERBAIKAN KENDARAAN", label_golongan, _teks_qr("Laporan Perbaikan Kendaraan", [
+            _data_kendaraan_qr(hasil.vehicle, label_golongan),
+            ("Perbaikan", [
+                ("Komponen", f"{item.nomor}. {item.nama_alat}"), ("Tanggal", _tanggal(perbaikan.dibuat_pada)),
+                ("Kondisi", f"{item.get_kondisi_display()} -> {perbaikan.get_kondisi_display()}"),
+            ]),
+            _personil_qr("Personil yang Memperbaiki", perbaikan.teknisi),
+        ])),
         Paragraph("Data Kendaraan", BAGIAN),
         _data_kendaraan(hasil.vehicle, label_golongan, [("Tanggal Perbaikan", _tanggal(perbaikan.dibuat_pada))]),
         Paragraph("Data Perbaikan", BAGIAN),
@@ -337,17 +382,19 @@ def buat_pdf_perbaikan(perbaikan, label_golongan):
 def buat_pdf_penambahan(vehicle):
     label = vehicle.get_group_kendaraan_display()
     akun = vehicle.ditambahkan_oleh
-    qr = Image(BytesIO(qr_png_with_logo(vehicle.qr_text())), width=40 * mm, height=40 * mm)
+    # The letterhead's QR code carries the vehicle (and adder) data.
     data = _data_kendaraan(vehicle, label, [
         ("Ditambahkan Pada", _tanggal(vehicle.dibuat_pada)),
         ("Akun Penambah", (akun.get_full_name() or akun.username) if akun else "-"),
-    ], total=135 * mm)  # leaves room for the QR code
-    atas = Table([[data, qr]], colWidths=[135 * mm, 45 * mm])
-    atas.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("ALIGN", (1, 0), (1, 0), "CENTER")]))
+    ])
     isi = [
-        _kop("LAPORAN PENAMBAHAN KENDARAAN/BARANG", label),
+        _kop("LAPORAN PENAMBAHAN KENDARAAN/BARANG", label, _teks_qr("Laporan Penambahan Kendaraan/Barang", [
+            _data_kendaraan_qr(vehicle, label),
+            ("Penambahan", [("Tanggal", _tanggal(vehicle.dibuat_pada))]),
+            *([_personil_qr("Personil yang Menambahkan", vehicle.penambah)] if vehicle.penambah else []),
+        ])),
         Paragraph("Data Kendaraan/Barang", BAGIAN),
-        atas,
+        data,
         Paragraph("Foto Kendaraan/Barang", BAGIAN),
         _galeri([(f.image, f"Foto {i}") for i, f in enumerate(vehicle.fotos.all(), start=1)]),
         Paragraph("Personil yang Menambahkan", BAGIAN),
@@ -432,7 +479,14 @@ def buat_pdf_tim(k):
     ketua = k["ketua"]
     nama_ketua = ketua.get_full_name() or ketua.username
     isi = [
-        _kop("LAPORAN TIM", k["keterangan_filter"]),
+        _kop("LAPORAN TIM", k["keterangan_filter"], _teks_qr("Laporan Tim", [
+            ("Tim", [
+                ("Ketua Tim", nama_ketua), ("Periode", k["keterangan_filter"]),
+                ("Pemeriksaan", k["total"]["pemeriksaan"]), ("Perbaikan", k["total"]["perbaikan"]),
+                ("Penambahan Kendaraan", k["total"]["penambahan"]),
+            ]),
+            ("Personil", [(u.keanggotaan, u.get_full_name() or u.username) for u in k["anggota"]]),
+        ])),
         Paragraph("Ringkasan", BAGIAN),
         _tabel_kunci_nilai([
             ("Ketua Tim", nama_ketua), ("Jumlah Anggota", k["jumlah_anggota"]),

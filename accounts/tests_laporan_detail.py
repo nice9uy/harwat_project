@@ -242,3 +242,20 @@ class LaporanPerbaikanDanPenambahanTests(TestCase):
         from accounts import roles
 
         self.assertIn("fleet:vehicle_qr", roles.MENU_VIEWS["laporan_penambahan"])
+
+
+class QrLaporanTests(TestCase):
+    def test_qr_text_has_vehicle_and_personnel(self):
+        from accounts.laporan_pdf import _data_kendaraan_qr, _personil_qr, _teks_qr
+
+        satuan = Satuan.objects.create(nama="Yonif 202")
+        vehicle = Vehicle.objects.create(nopol="B 1 X", merek="Hino", no_chasis="C1")
+        teknisi = Laporan.objects.create(
+            nip="123", nama="Budi", pangkat="Kapten", jabatan="Teknisi", satuan=satuan, foto="x.gif",
+        )
+        teks = _teks_qr("Laporan Perbaikan Kendaraan", [
+            _data_kendaraan_qr(vehicle, "Golongan B"), _personil_qr("Personil yang Memperbaiki", teknisi),
+        ])
+        for baris in ("Laporan Perbaikan Kendaraan", "No. Registrasi: B 1 X", "No. Mesin: -",
+                      "[Personil yang Memperbaiki]", "NIP: 123", "Nama: Budi", "Satuan: Yonif 202"):
+            self.assertIn(baris, teks.split("\n"))
