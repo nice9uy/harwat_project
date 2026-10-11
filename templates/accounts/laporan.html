@@ -5,16 +5,24 @@
 {% block content %}
 <form method="post" enctype="multipart/form-data"
       x-data="{
-          step: 1,
-          modalOpen: {% if form.captcha.errors %}true{% else %}false{% endif %},
+          modalOpen: {% if captcha_error %}true{% else %}false{% endif %},
           fotoPreview: null,
           captchaCode: '{{ captcha_code|escapejs }}',
-          captchaError: '',
+          captchaError: '{{ captcha_error|escapejs }}',
           sending: false,
+          draftTimer: null,
+          draftSaved: null,
+          draftSaving: false,
+          draftResumed: false,
+          draftReady: false,
+          draftDirty: false,
+          // Other inspectors with this vehicle open (see cekPemeriksaLain()).
+          pemeriksaLain: [],
+          lainTimer: null,
           async kirim() {
-              // Check the captcha first so a typo doesn't reload the page and
-              // throw away everything filled in (including photos).
-              const input = document.getElementById('{{ form.captcha.id_for_label }}');
+              const kesimpulan = $root.querySelector('[name=kesimpulan]');
+              if (!kesimpulan.reportValidity()) return;
+              const input = document.getElementById('id-captcha');
               if (!input.reportValidity()) return;
               this.sending = true;
               this.captchaError = '';
@@ -28,6 +36,7 @@
                   });
                   const data = await response.json();
                   if (data.ok) {
+                      this.clearDraft();
                       $root.requestSubmit();
                       return;
                   }
@@ -58,39 +67,192 @@
                   this.scanError = 'Kamera tidak bisa dibuka: ' + err;
               }
           },
-          async lookup(text) {
-              // QR text is 'No. Registrasi: X' plus other lines; the vehicle
-              // is looked up by that number so the fields (including Group
-              // Kendaraan, which isn't in the QR) come from the database.
-              const nopol = bmnNopolFromQr(text);
-              this.kendaraan = null;
-              if (!nopol) {
-                  this.scanError = 'QR Code bukan QR kendaraan.';
-                  return;
+          draftKey() { return this.kendaraan ? 'bmn_draft_' + this.kendaraan.uuid : null; },
+          draftUrl() { return '{% url 'accounts:pemeriksaan_draft' '00000000-0000-0000-0000-000000000000' %}'.replace('00000000-0000-0000-0000-000000000000', this.kendaraan.uuid); },
+          draftData() {
+              const data = {};
+              for (const el of $root.querySelectorAll('input:not([type=file]), textarea, select')) {
+                  if (!el.name || el.name === 'captcha') continue;
+                  if (el.type === 'radio' || el.type === 'checkbox') {
+                      if (el.checked) data[el.name] = el.value;
+                  } else if (el.type !== 'hidden' || el.closest('[x-data^=autocomplete]')) {
+                      data[el.name] = el.value;
+                  }
               }
+              return data;
+          },
+          // The draft lives in the database (per vehicle and user) so a refresh,
+          // closed tab or another device resumes it after scanning the vehicle
+          // again; localStorage is only a fallback when the server can't be reached.
+          async saveDraft(keepalive = false) {
+              // Nothing typed or picked since the last save: no request at all,
+              // so an idle or unattended form doesn't keep hitting the server.
+              if (!this.draftReady || !this.kendaraan || !this.draftDirty) return;
+              this.draftDirty = false;
+              const data = this.draftData();
+              try { localStorage.setItem(this.draftKey(), JSON.stringify(data)); } catch {}
+              this.draftSaving = true;
+              try {
+                  const response = await fetch(this.draftUrl(), {
+                      method: 'POST',
+                      body: JSON.stringify(data),
+                      keepalive,
+                      headers: {
+                          'Content-Type': 'application/json',
+                          'X-CSRFToken': $root.querySelector('[name=csrfmiddlewaretoken]').value,
+                      },
+                  });
+                  this.draftSaved = response.ok;
+                  if (!response.ok) this.draftDirty = true;
+              } catch { this.draftSaved = false; this.draftDirty = true; }
+              finally { this.draftSaving = false; }
+          },
+          jadwalkanDraft() {
+              // Only marks the form as changed; the 10-second timer saves it.
+              if (this.draftReady) this.draftDirty = true;
+          },
+          async loadDraft() {
+              this.draftReady = false;
+              let data = null;
+              try {
+                  const response = await fetch(this.draftUrl());
+                  if (response.ok) data = await response.json();
+              } catch {}
+              if (!data || !Object.keys(data).length) {
+                  try { data = JSON.parse(localStorage.getItem(this.draftKey()) || 'null'); } catch {}
+              }
+              if (data && Object.keys(data).length) {
+                  for (const [name, value] of Object.entries(data)) {
+                      for (const el of $root.querySelectorAll('[name=' + CSS.escape(name) + ']')) {
+                          if (el.type === 'radio' || el.type === 'checkbox') {
+                              el.checked = el.value === value;
+                              if (el.checked) el.dispatchEvent(new Event('change', { bubbles: true }));
+                          } else if (el.type !== 'file') {
+                              el.value = value;
+                              el.dispatchEvent(new Event('input', { bubbles: true }));
+                          }
+                      }
+                  }
+                  this.draftResumed = true;
+              }
+              this.draftReady = true;
+              this.draftDirty = false;
+          },
+          clearDraftState() {
+              // Flush unsaved changes for the vehicle being left.
+              this.saveDraft();
+              this.stopDraftTimer();
+              this.draftReady = false;
+              this.draftResumed = false;
+              this.draftSaved = null;
+          },
+          clearDraft() {
+              this.draftReady = false;
+              this.draftDirty = false;
+              try { const k = this.draftKey(); if (k) localStorage.removeItem(k); } catch {}
+          },
+          startDraftTimer() {
+              this.stopDraftTimer();
+              this.draftTimer = setInterval(() => this.saveDraft(), 10000);
+              // Someone else starting on the same vehicle shows up within 30 s.
+              this.cekPemeriksaLain();
+              this.lainTimer = setInterval(() => this.cekPemeriksaLain(), 30000);
+          },
+          stopDraftTimer() {
+              if (this.draftTimer) { clearInterval(this.draftTimer); this.draftTimer = null; }
+              if (this.lainTimer) { clearInterval(this.lainTimer); this.lainTimer = null; }
+              this.pemeriksaLain = [];
+          },
+          async cekPemeriksaLain() {
+              if (!this.kendaraan) return;
+              const uuid = this.kendaraan.uuid;
+              try {
+                  const response = await fetch('{% url 'accounts:pemeriksaan_lain' '00000000-0000-0000-0000-000000000000' %}'.replace('00000000-0000-0000-0000-000000000000', uuid));
+                  if (response.ok && this.kendaraan && this.kendaraan.uuid === uuid) this.pemeriksaLain = (await response.json()).lain || [];
+              } catch {}
+          },
+          lamaLain(menit) {
+              if (menit < 1) return 'baru saja';
+              if (menit < 60) return menit + ' menit lalu';
+              return Math.floor(menit / 60) + ' jam lalu';
+          },
+          async lookupNopol(nopol) {
+              if (!nopol) return;
+              this.kendaraan = null;
               this.scanError = '';
               this.scanLoading = true;
               try {
                   const response = await fetch('{% url 'fleet:vehicle_lookup' %}?nopol=' + encodeURIComponent(nopol));
                   const data = await response.json();
                   if (response.ok) {
+                      this.clearDraftState();
                       this.kendaraan = data;
                       const checklist = document.getElementById('checklist');
                       checklist.innerHTML = '';
                       if (this.golonganDenganForm.includes(data.group_kode)) {
+                          checklist.addEventListener('htmx:afterSwap', () => {
+                              this.loadDraft();
+                              this.startDraftTimer();
+                          }, { once: true });
                           htmx.ajax('GET', '{% url 'accounts:pemeriksaan_checklist' 'KODE' %}'.replace('KODE', encodeURIComponent(data.group_kode)), checklist);
                       }
-                  }
-                  else this.scanError = data.error;
-              } catch (err) {
-                  this.scanError = 'Gagal mengambil data kendaraan.';
-              } finally {
-                  this.scanLoading = false;
-              }
+                  } else this.scanError = data.error || 'Kendaraan tidak ditemukan.';
+              } catch { this.scanError = 'Gagal mengambil data kendaraan.'; }
+              finally { this.scanLoading = false; }
+          },
+          async lookup(text) {
+              const nopol = bmnNopolFromQr(text);
+              if (!nopol) { this.scanError = 'QR Code bukan QR kendaraan.'; return; }
+              await this.lookupNopol(nopol);
           },
           async stopScan() {
               this.scanOpen = false;
               if (this.scanner) await this.scanner.stop();
+          },
+          majuPanel(event) {
+              // Picking a part's Kondisi opens the next part and lines its
+              // header up under the top bar. Only real clicks (loadDraft()
+              // fires change events too), and only numbered parts: the
+              // Klasifikasi panel has optional fields after its choices.
+              const el = event.target;
+              if (!event.isTrusted || !/^alat_\d+_kondisi$/.test(el.name)) return;
+              const section = el.closest('section[data-panel]');
+              if (!section) return;
+              // Rusak Ringan, Rusak Berat or Tidak Ada picked with no photo
+              // and no note yet: warn and stay on this part to fill one in.
+              const kurang = this.kurangBukti(section);
+              if (kurang) { this.buktiKurang = [kurang]; return; }
+              const panels = [...document.querySelectorAll('#checklist section[data-panel]')];
+              const next = panels[panels.indexOf(section) + 1];
+              if (!next) return;
+              window.dispatchEvent(new CustomEvent('buka-panel', { detail: JSON.parse(next.dataset.panel) }));
+              this.$nextTick(() => next.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+          },
+          buktiKurang: [],
+          WAJIB_BUKTI: { RR: 'Rusak Ringan', RB: 'Rusak Berat', TA: 'Tidak Ada' },
+          kurangBukti(bagian) {
+              // The part's entry for the warning, or null when it needs no
+              // proof or already has a photo or a note.
+              const kondisi = bagian.querySelector('input[type=radio][name$=_kondisi]:checked');
+              if (!bagian.dataset.nama || !kondisi || !(kondisi.value in this.WAJIB_BUKTI)) return null;
+              const adaFoto = [...bagian.querySelectorAll('input[type=file][name$=_foto]')].some((f) => f.files.length);
+              const catatan = bagian.querySelector('textarea[name$=_keterangan]');
+              if (adaFoto || (catatan && catatan.value.trim())) return null;
+              return { panel: bagian.dataset.panel, nama: bagian.dataset.nama, kondisi: this.WAJIB_BUKTI[kondisi.value] };
+          },
+          tanpaBukti() {
+              return [...$refs.pemeriksaan.querySelectorAll('section[data-panel][data-nama]')]
+                  .map((bagian) => this.kurangBukti(bagian)).filter(Boolean);
+          },
+          bukaBagian(panel) {
+              this.buktiKurang = [];
+              const bagian = $refs.pemeriksaan.querySelector('section[data-panel=' + CSS.escape(panel) + ']');
+              if (!bagian) return;
+              window.dispatchEvent(new CustomEvent('buka-panel', { detail: JSON.parse(panel) }));
+              this.$nextTick(() => {
+                  bagian.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  bagian.querySelector('textarea[name$=_keterangan]')?.focus({ preventScroll: true });
+              });
           },
           lanjutkan() {
               // Required fields may sit in a collapsed accordion panel, where
@@ -98,7 +260,10 @@
               const invalid = [...$refs.pemeriksaan.querySelectorAll('input, select, textarea')]
                   .find((el) => !el.checkValidity());
               if (!invalid) {
-                  this.modalOpen = true;
+                  // Rusak Ringan, Rusak Berat and Tidak Ada need a photo or a
+                  // note; the parts without either are listed in a warning.
+                  this.buktiKurang = this.tanpaBukti();
+                  if (!this.buktiKurang.length) this.modalOpen = true;
                   return;
               }
               const panel = invalid.closest('[data-panel]');
@@ -108,30 +273,57 @@
                   invalid.reportValidity();
               });
           },
-          next() {
-              for (const el of $refs.biodata.querySelectorAll('input, select, textarea')) {
-                  if (!el.reportValidity()) return;
-              }
-              this.step = 2;
-          },
       }"
-      @htmx:before-swap.window="stopScan()">
-    {% include "accounts/_breadcrumb_langkah.html" with langkah1="Biodata Pemeriksa" langkah2="Pemeriksaan" %}
+      {% if nopol_lanjut %}x-init="lookupNopol('{{ nopol_lanjut|escapejs }}')"{% endif %}
+      @htmx:before-swap.window="stopScan()"
+      @input="jadwalkanDraft()"
+      @change="jadwalkanDraft()"
+      @pagehide.window="saveDraft(true)"
+      @visibilitychange.document="document.visibilityState === 'hidden' && saveDraft(true)">
     {% csrf_token %}
-    {% if form.non_field_errors or pemeriksaan_form.errors %}
+    {% if pemeriksaan_form.errors %}
     <div class="max-w-md mx-auto mb-4 rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
-        {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
-        {% for field, errors in pemeriksaan_form.errors.items %}{% for error in errors %}<p>{{ error }}</p>{% endfor %}{% endfor %}
+        {% for galat in pemeriksaan_form.daftar_galat %}<p>{{ galat }}</p>{% endfor %}
     </div>
     {% endif %}
-    <div x-ref="biodata" x-show="step === 1" class="max-w-md mx-auto space-y-4">
-    {% include "accounts/_biodata_fields.html" %}
-    <button type="button" @click="next()" class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
-        Lanjut
-    </button>
+    {% if pemeriksaan_form.errors %}
+    {# The same errors as a popup, so they aren't missed at the top of a long form. #}
+    <div x-data="{ buka: true }" x-show="buka" x-cloak
+         @click.self="buka = false" @keydown.escape.window="buka = false"
+         role="alertdialog" aria-modal="true" aria-labelledby="judul-galat-pemeriksaan"
+         class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/50 px-4 py-8 sm:py-4">
+        <div class="w-full max-w-md bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl my-auto">
+            <div class="flex items-center gap-3 mb-3">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-300">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.01M10.34 3.94 2.7 17.25A1.9 1.9 0 0 0 4.36 20.1h15.28a1.9 1.9 0 0 0 1.66-2.85L13.66 3.94a1.9 1.9 0 0 0-3.32 0Z" /></svg>
+                </span>
+                <h2 id="judul-galat-pemeriksaan" class="text-lg font-semibold text-navy dark:text-slate-100">Pemeriksaan belum tersimpan</h2>
+            </div>
+            <p class="text-sm text-slate-600 dark:text-slate-300 mb-2">Perbaiki hal berikut, lalu simpan lagi:</p>
+            <ul class="max-h-[50vh] overflow-y-auto space-y-1 rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+                {% for galat in pemeriksaan_form.daftar_galat %}<li>{{ galat }}</li>{% endfor %}
+            </ul>
+            <div class="flex items-center justify-end pt-4">
+                <button type="button" @click="buka = false" x-init="$nextTick(() => $el.focus())"
+                        class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400/50">Mengerti</button>
+            </div>
+        </div>
     </div>
+    {% endif %}
 
-    <div x-show="step === 2" x-cloak class="max-w-md mx-auto space-y-4">
+    {% if laporan_user %}
+    <div class="max-w-md mx-auto mb-4 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm">
+        <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Pemeriksa</p>
+        <p class="font-medium text-navy dark:text-slate-100">{{ laporan_user.nama }}</p>
+        <p class="text-slate-500 dark:text-slate-400 tabular-nums text-xs mt-0.5">{{ laporan_user.nip }} · {{ laporan_user.pangkat }}</p>
+    </div>
+    {% else %}
+    <div class="max-w-md mx-auto mb-4 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+        Isi biodata di <a href="{% url 'accounts:info_profile' %}" class="underline font-medium">Info Profil</a> terlebih dahulu sebelum melakukan pemeriksaan.
+    </div>
+    {% endif %}
+
+    <div class="max-w-md mx-auto space-y-4">
         <button type="button" @click="startScan()"
                 class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -140,6 +332,14 @@
             </svg>
             Scan QR Code Kendaraan
         </button>
+
+        <div class="flex gap-2">
+            <input type="text" id="manual-nopol" placeholder="atau ketik No. Registrasi…"
+                   @keydown.enter.prevent="lookupNopol($el.value.trim())"
+                   class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+            <button type="button" @click="lookupNopol(document.getElementById('manual-nopol').value.trim())"
+                    class="shrink-0 rounded-md bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-gold/50">Cari</button>
+        </div>
 
         <p x-show="scanLoading" x-cloak class="text-sm text-slate-500 dark:text-slate-400">Mengambil data kendaraan…</p>
         <p x-show="!scanOpen && scanError" x-cloak x-text="scanError" class="rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300"></p>
@@ -179,32 +379,91 @@
         </p>
 
         <div x-show="kendaraan && golonganDenganForm.includes(kendaraan.group_kode)" x-cloak x-ref="pemeriksaan" class="space-y-4">
+            <div x-show="pemeriksaLain.length" x-cloak role="alert"
+                 class="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                <p class="font-semibold">Peringatan: kendaraan <span x-text="kendaraan && kendaraan.nopol"></span> juga sedang diperiksa orang lain.</p>
+                <ul class="mt-1 list-disc pl-5">
+                    <template x-for="p in pemeriksaLain" :key="p.nama">
+                        <li><span class="font-medium" x-text="p.nama"></span> — terakhir mengisi <span x-text="lamaLain(p.menit)"></span></li>
+                    </template>
+                </ul>
+                <p class="mt-1 text-xs">Kalau keduanya menyimpan, kendaraan ini akan punya dua pemeriksaan. Pastikan dulu siapa yang memeriksa.</p>
+            </div>
             {# Filled after the scan with the scanned group's checklist only (see lookup()). #}
-            <div id="checklist"></div>
-            <input type="hidden" name="vehicle" :value="kendaraan ? kendaraan.id : ''">
+            <div id="checklist" @change="majuPanel($event)"></div>
+            <div class="flex items-center gap-2 text-xs">
+                <span x-show="draftResumed" x-cloak class="text-green-600 dark:text-green-400 font-medium">&#10003; Draft dilanjutkan</span>
+                <span x-show="draftSaving" x-cloak class="text-slate-400">Menyimpan draft…</span>
+                <span x-show="!draftSaving && draftSaved === true" x-cloak class="text-slate-400">Tersimpan otomatis</span>
+                <span x-show="!draftSaving && draftSaved === false" x-cloak class="text-red-500">Gagal simpan draft</span>
+            </div>
+            <input type="hidden" name="vehicle" :value="kendaraan ? kendaraan.uuid : ''">
             <button type="button" id="pemeriksaan-lanjutkan" @click="lanjutkan()"
                     class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
                 Lanjutkan
             </button>
+            {# Room below the form, so the last parts can also scroll their heading up under the top bar like every other part. #}
+            <div class="h-[70vh]" aria-hidden="true"></div>
         </div>
     </div>
 
     {% include "accounts/_qr_scan_modal.html" %}
+
+    {# Warning before the save dialog: parts marked RR / RB / TA with neither a photo nor a note. #}
+    <div x-show="buktiKurang.length" x-cloak
+         @click.self="buktiKurang = []" @keydown.escape.window="buktiKurang = []"
+         role="alertdialog" aria-modal="true" aria-labelledby="judul-bukti-kurang"
+         class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/50 px-4 py-8 sm:py-4">
+        <div class="w-full max-w-md bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl my-auto">
+            <div class="flex items-center gap-3 mb-3">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-300">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.01M10.34 3.94 1.82 18a2.25 2.25 0 0 0 1.92 3.38h16.52A2.25 2.25 0 0 0 22.18 18L13.66 3.94a1.94 1.94 0 0 0-3.32 0Z"/></svg>
+                </span>
+                <h2 id="judul-bukti-kurang" class="text-lg font-semibold text-navy dark:text-slate-100">Foto atau keterangan belum diisi</h2>
+            </div>
+            <p class="text-sm text-slate-600 dark:text-slate-300 mb-2">
+                Komponen yang Rusak Ringan, Rusak Berat, atau Tidak Ada wajib disertai foto atau keterangan.
+                Unggah minimal 1 foto atau isi keterangan untuk <span class="font-semibold" x-text="buktiKurang.length"></span> komponen berikut (ketuk untuk membukanya):
+            </p>
+            <ul class="max-h-[45vh] overflow-y-auto divide-y divide-amber-200 dark:divide-amber-800 rounded-md border border-amber-300 bg-amber-50 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+                <template x-for="b in buktiKurang" :key="b.panel">
+                    <li>
+                        <button type="button" @click="bukaBagian(b.panel)" class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-amber-100 dark:hover:bg-amber-900/40">
+                            <span class="font-medium" x-text="b.nama"></span>
+                            <span class="shrink-0 text-xs" x-text="b.kondisi"></span>
+                        </button>
+                    </li>
+                </template>
+            </ul>
+            <div class="flex items-center justify-end pt-4">
+                <button type="button" @click="buktiKurang.length && bukaBagian(buktiKurang[0].panel)"
+                        class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400/50">Lengkapi</button>
+            </div>
+        </div>
+    </div>
 
     <div x-show="modalOpen"
          x-cloak
          @click.self="modalOpen = false"
          @keydown.escape.window="modalOpen = false"
          class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/50 px-4 py-8 sm:py-4">
-        <div class="w-full max-w-sm bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl my-auto">
+        <div class="w-full max-w-md bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl my-auto">
+            <div class="mb-4">{% include "accounts/_kesimpulan.html" %}</div>
+            <div class="mb-4">
+                <label for="id-keterangan" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Keterangan <span class="font-normal text-slate-500 dark:text-slate-400">(opsional)</span></label>
+                <textarea id="id-keterangan" name="keterangan" rows="3"
+                          class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"></textarea>
+            </div>
             <h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-4">Verifikasi Kode Keamanan</h2>
             <div class="select-none rounded-md border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-900 px-3 py-2 text-center text-lg font-mono font-bold tracking-[0.4em] text-navy dark:text-gold mb-3">
                 <span x-text="captchaCode">{{ captcha_code }}</span>
             </div>
-            <label for="{{ form.captcha.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Ketik kode di atas</label>
-            <div @keydown.enter.prevent="kirim()">{{ form.captcha }}</div>
+            <label for="id-captcha" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Ketik kode di atas</label>
+            <div @keydown.enter.prevent="kirim()">
+                <input id="id-captcha" name="captcha" type="text" required autocomplete="off"
+                       class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40 font-mono tracking-widest uppercase">
+            </div>
             <p x-show="captchaError" x-cloak x-text="captchaError" class="text-xs text-red-600 dark:text-red-400 mt-1"></p>
-            {% if form.captcha.errors %}<p x-show="!captchaError" class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.captcha.errors.0 }}</p>{% endif %}
             <div class="flex items-center gap-3 pt-4">
                 <button type="button" @click="kirim()" :disabled="sending" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50 disabled:opacity-60" x-text="sending ? 'Memeriksa…' : 'Konfirmasi & Kirim'">Konfirmasi &amp; Kirim</button>
                 <button type="button" @click="modalOpen = false" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Batal</button>

@@ -1,0 +1,35 @@
+<h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-1">Tambah Form</h2>
+<p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
+    {% if ketua %}Ketua Tim{% else %}Anggota{% endif %} <span class="font-semibold text-navy dark:text-slate-100">{{ akun.username }}</span>{% if ketua and jumlah %} · berlaku juga untuk {{ jumlah }} anggotanya{% endif %}
+</p>
+<form hx-post="{% url 'accounts:form_group_tambah' akun.publik.uuid %}"
+      hx-target="#form-group-modal-body"
+      hx-swap="innerHTML"
+      x-data="{ tab: 'kendaraan' }">
+    {% csrf_token %}
+    {% if lengkap %}
+    <div class="mb-4 rounded-md bg-slate-100 dark:bg-slate-900 px-3 py-2 text-sm text-slate-600 dark:text-slate-300">Semua form sudah dimiliki. Hapus form dulu lewat tombol Hapus Form kalau ingin membatasi.</div>
+    {% elif kosong %}
+    <div class="mb-4 rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">Pilih minimal satu form.</div>
+    {% endif %}
+    <div class="mb-4 flex rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 p-1 gap-1">
+        <button type="button" @click="tab = 'kendaraan'"
+                :class="tab === 'kendaraan' ? 'bg-white dark:bg-slate-700 text-navy dark:text-slate-100 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+                class="flex-1 rounded py-1.5 text-sm font-medium transition-colors">Kendaraan</button>
+        <button type="button" @click="tab = 'non_kendaraan'"
+                :class="tab === 'non_kendaraan' ? 'bg-white dark:bg-slate-700 text-navy dark:text-slate-100 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+                class="flex-1 rounded py-1.5 text-sm font-medium transition-colors">Non Kendaraan</button>
+    </div>
+    <div x-show="tab === 'kendaraan'" class="space-y-3">
+        {% for kode, label, punya in kendaraan %}
+        {% include "accounts/_form_group_pilihan.html" %}
+        {% endfor %}
+    </div>
+    <div x-show="tab === 'non_kendaraan'" x-cloak class="space-y-3">
+        {% include "accounts/_form_group_pilihan.html" with kode="non_kendaraan" label="Non Kendaraan" punya=punya_non_kendaraan %}
+    </div>
+    <div class="flex items-center justify-end gap-3 pt-4">
+        <button type="button" @click="modalOpen = false" class="rounded-md border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">Batal</button>
+        <button type="submit"{% if lengkap %} disabled{% endif %} class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed">Tambah</button>
+    </div>
+</form>

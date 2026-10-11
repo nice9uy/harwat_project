@@ -36,3 +36,153 @@ input::-webkit-calendar-picker-indicator {
   from { transform: scale(1.08); }
   to { transform: scale(1); }
 }
+
+/* Calendar popup of static/js/datepicker.js (replaces the browser's own on
+   devices with a mouse, which also hides the native picker icon's popup). */
+.dp-panel {
+  position: fixed;
+  z-index: 100;
+  width: 18.5rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 20px 40px -12px rgb(2 6 23 / 0.35);
+  font-size: 0.875rem;
+  user-select: none;
+}
+.dark .dp-panel {
+  border-color: #334155;
+  background: #1e293b;
+  color: #e2e8f0;
+}
+.dp-kepala {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+.dp-judul {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  gap: 0.25rem;
+}
+.dp-pilih {
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  padding: 0.25rem 0.375rem;
+  cursor: pointer;
+}
+.dp-pilih option { color: #0f172a; background: #fff; }
+.dark .dp-pilih option { color: #e2e8f0; background: #1e293b; }
+.dp-tahun { width: 4.25rem; text-align: center; cursor: text; }
+.dp-pilih:hover, .dp-pilih:focus { background: #f1f5f9; outline: none; }
+.dark .dp-pilih:hover, .dark .dp-pilih:focus { background: #334155; }
+.dp-nav {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+}
+.dp-nav:hover { background: #f1f5f9; color: var(--color-navy); }
+.dark .dp-nav { color: #94a3b8; }
+.dark .dp-nav:hover { background: #334155; color: var(--color-gold); }
+.dp-kisi {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.dp-hari {
+  padding: 0.25rem 0;
+  text-align: center;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+}
+.dp-tgl {
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.dp-tgl:hover { background: #f1f5f9; }
+.dark .dp-tgl:hover { background: #334155; }
+.dp-luar { color: #cbd5e1; }
+.dark .dp-luar { color: #475569; }
+.dp-hari-ini { box-shadow: inset 0 0 0 1.5px var(--color-gold); font-weight: 600; }
+.dp-terpilih, .dp-terpilih:hover {
+  background: var(--color-navy);
+  color: #fff;
+  font-weight: 600;
+}
+.dark .dp-terpilih, .dark .dp-terpilih:hover {
+  background: var(--color-gold);
+  color: var(--color-navy);
+}
+.dp-tgl:disabled, .dp-teks:disabled { opacity: 0.3; cursor: not-allowed; }
+.dp-tgl:disabled:hover { background: transparent; }
+.dp-tgl:focus-visible, .dp-nav:focus-visible, .dp-teks:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 1px;
+}
+.dp-kaki {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+.dark .dp-kaki { border-top-color: #334155; }
+.dp-teks {
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+}
+.dp-teks:hover { background: #f1f5f9; }
+.dark .dp-teks { color: #94a3b8; }
+.dark .dp-teks:hover { background: #334155; }
+.dp-utama { color: #2563eb; }
+.dark .dp-utama { color: var(--color-gold); }
+
+/* Skeleton rows while a table's data loads (static/js/skeleton.js). */
+@keyframes kerangka-kilau {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+table.memuat { pointer-events: none; }
+table.memuat tbody td { position: relative; color: transparent !important; }
+table.memuat tbody td > * { visibility: hidden; }
+table.memuat tbody td::after {
+  content: "";
+  position: absolute;
+  inset: 0.55rem 0.75rem;
+  min-height: 0.75rem;
+  max-height: 1rem;
+  margin: auto 0;
+  border-radius: 0.25rem;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: kerangka-kilau 1.4s ease-in-out infinite;
+}
+.dark table.memuat tbody td::after {
+  background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+  background-size: 200% 100%;
+}
+.kerangka-tabel td { padding: 0.625rem 0.75rem; }
+@media (prefers-reduced-motion: reduce) {
+  table.memuat tbody td::after { animation: none; }
+}

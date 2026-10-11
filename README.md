@@ -29,17 +29,36 @@ knows why that guard is there.
 ./prod.sh   # production: built image, multi-process, secrets auto-generated into .env.prod on first run
 ```
 
-Production also needs a one-time manual Garage cluster bootstrap after the first `./prod.sh` —
-see `docs/podman-garage-prod-setup.md`.
+### Production data: PostgreSQL (1 primary + 2 replicas) and Garage
 
-**Note:** the app containers still run against SQLite today (`harwat_main/settings.py`'s
-`DATABASES` is unchanged by this sub-project) — the Postgres/PgBouncer/Valkey/Garage containers
-come up and are reachable, but Django isn't wired to use them yet. That wiring is a separate,
-future piece of work. In production this now means **three** `app1`/`app2`/`app3` replicas share
-one SQLite file over a single named volume — functional, but SQLite wasn't designed for 3-way
-concurrent writers, so heavy concurrent write load can surface `database is locked` errors. This
-is one more reason the eventual Postgres wiring matters, not a new bug this sub-project
-introduces.
+In production (`./prod.sh`) the app no longer runs on SQLite or keeps photos inside the containers:
+
+- **Database** — PostgreSQL 17. `postgres` is the primary; the app reads and writes it through
+  `pgbouncer`. `postgres-replica1` and `postgres-replica2` are read-only hot standbys that follow
+  the primary by streaming replication, each on its own volume (`podman/postgres/*.sh`). They are
+  copies to fall back on, not something the app reads from. Check them with:
+
+  ```bash
+  podman exec podman_postgres_1 psql -U bmn_harwat -d bmn_harwat -c "select client_addr, state from pg_stat_replication"
+  ```
+
+  Two rows in state `streaming` is healthy. **Failover is manual:** if the primary is lost, promote
+  a replica (`podman exec podman_postgres-replica1_1 gosu postgres pg_ctl promote -D /var/lib/postgresql/data`)
+  and point `DB_HOST` of `pgbouncer` at it. Nothing does this automatically.
+- **Photos** — the Garage bucket `GARAGE_DEFAULT_BUCKET`, through `harwat_main/storage.py`. The
+  bucket and the app's access key are created when Garage starts, from the key pair `prod.sh`
+  generates into `.env.prod` (Garage does not print the secret to its log). Browsers get photos
+  from `/media/...`, which the app serves to signed-in users only.
+- **Settings** — all in `.env.prod`. `prod.sh` appends the ones a `.env.prod` from before this
+  setup lacks (`DATABASE_ENGINE`, `DATABASE_URL`, `REPLIKASI_*`, `GARAGE_*`, `SQLITE_LAMA`,
+  `BACKUP_DIR`) and never rewrites existing lines. **Back the file up**: it holds every secret.
+- **Moving the old data** — the first `./prod.sh` with this setup copies the photos out of the
+  old app containers (`migrasi/media/`) before removing them, then runs `manage.py impor_sqlite`
+  (old SQLite file → PostgreSQL, only into an empty database) and `manage.py impor_media`
+  (rescued photos → Garage). Both are safe to run again; they skip what is already there.
+
+Development (`./dev.sh`, `manage.py runserver`, the tests) is unchanged: SQLite and `media/`.
+PostgreSQL is only used when `DATABASE_ENGINE=postgresql`, Garage only when `GARAGE_ENDPOINT` is set.
 
 Production now runs behind nginx, load-balancing across three app replicas (`app1`/`app2`/`app3`)
 and serving `/static/*` directly from a shared volume instead of proxying it to Django. See

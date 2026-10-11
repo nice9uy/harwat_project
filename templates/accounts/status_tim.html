@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Status — BMN Harwat{% endblock %}
+{% block page_title %}Status{% endblock %}
+{% block content %}
+<div class="space-y-4">
+    <p class="text-sm text-slate-500 dark:text-slate-400">
+        Status pekerjaan anggota tim Anda: <span class="font-semibold text-green-700 dark:text-green-400">{{ jumlah_aktif }} aktif</span> dari {{ baris|length }} anggota.
+        Aktif berarti ada pekerjaan yang sudah dimulai dan belum disimpan.
+    </p>
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead class="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                <tr>
+                    <th class="py-2 px-4 font-medium w-12">No</th>
+                    <th class="py-2 px-4 font-medium">Anggota</th>
+                    <th class="py-2 px-4 font-medium">Keanggotaan</th>
+                    <th class="py-2 px-4 font-medium">Ketua Tim</th>
+                    <th class="py-2 px-4 font-medium">Status</th>
+                    <th class="py-2 px-4 font-medium">Pekerjaan</th>
+                    <th class="py-2 px-4 font-medium">Terakhir Dikerjakan</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                {% for b in baris %}
+                <tr>
+                    <td class="py-2 px-4 text-slate-500 dark:text-slate-400 tabular-nums">{{ forloop.counter }}</td>
+                    <td class="py-2 px-4 font-medium text-navy dark:text-slate-100 whitespace-nowrap">{{ b.user.username }}{% if b.nama %} <span class="font-normal text-slate-500 dark:text-slate-400">· {{ b.nama }}</span>{% endif %}</td>
+                    <td class="py-2 px-4 whitespace-nowrap">{{ b.keanggotaan }}</td>
+                    <td class="py-2 px-4 whitespace-nowrap">{{ b.ketua.username }}</td>
+                    <td class="py-2 px-4 whitespace-nowrap">
+                        {% if b.pekerjaan %}
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-green-100 dark:bg-green-900/40 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-300"><span class="h-1.5 w-1.5 rounded-full bg-green-500"></span>Aktif</span>
+                        {% else %}
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-300"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>Tidak Aktif</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-4">
+                        {% for p in b.pekerjaan %}
+                        <p>{{ p.jenis }} {% if p.vehicle %}{{ p.vehicle.nopol }} <span class="text-slate-500 dark:text-slate-400">· {{ p.vehicle.merek }}</span>{% else %}<span class="text-slate-500 dark:text-slate-400">{{ p.keterangan|default:"kendaraan baru" }}</span>{% endif %}</p>
+                        {% empty %}—{% endfor %}
+                    </td>
+                    <td class="py-2 px-4 tabular-nums whitespace-nowrap">
+                        {% for p in b.pekerjaan %}<p>{{ p.waktu|date:"d M Y H:i" }}</p>{% empty %}—{% endfor %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="py-6 px-4 text-center text-slate-400 dark:text-slate-500">Belum ada anggota tim di bawah Anda.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

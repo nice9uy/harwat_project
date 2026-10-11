@@ -1,6 +1,6 @@
 {% comment %}
-Inspection checklist for Kendaraan Bermotor (63-component paper form), shown
-after a Kendaraan Bermotor vehicle is scanned.
+Inspection checklist for Motor (62 components), shown
+after a Motor vehicle is scanned.
 {% endcomment %}
 <div x-data="{ open: 'klasifikasi' }" @buka-panel.window="open = $event.detail" class="divide-y divide-slate-200 dark:divide-slate-700 rounded-md border border-slate-300 dark:border-slate-600 overflow-hidden">
     <section data-panel='"klasifikasi"'>
@@ -13,13 +13,24 @@ after a Kendaraan Bermotor vehicle is scanned.
         <div x-show="open === 'klasifikasi'" class="px-4 py-4 space-y-4">
             <div>
                 <label for="bbm" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">BBM</label>
-                <input type="text" id="bbm" name="bbm" placeholder="Solar / Pertalite / 3/4 tangki" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+                <input type="text" id="bbm" name="bbm" maxlength="100" placeholder="Solar / Pertalite / 3/4 tangki" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+            </div>
+            <div x-data="{ pratinjau: null }">
+                <label for="km_kendaraan" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">KM Kendaraan<span class="ml-0.5 font-bold text-red-500" title="Masuk ke Jadwal untuk dicek">*</span> <span class="font-normal text-slate-500 dark:text-slate-400">(opsional)</span></label>
+                <input type="number" id="km_kendaraan" name="km_kendaraan" min="0" inputmode="numeric" placeholder="Angka odometer"
+                       class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+                <label for="foto_km" class="block text-xs text-slate-500 dark:text-slate-400 mt-2 mb-1">Foto KM Kendaraan (odometer)</label>
+                <input type="file" id="foto_km" name="foto_km" accept="image/*" capture="environment"
+                       @change="pratinjau = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : null"
+                       class="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 shadow-sm file:mr-2 file:rounded file:border-0 file:bg-green-600 file:px-2 file:py-1 file:text-xs file:font-medium file:text-white hover:file:bg-green-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400"><span class="font-bold text-red-500">*</span> Masuk ke Jadwal untuk dicek.</p>
+                <img x-show="pratinjau" x-cloak :src="pratinjau" alt="Pratinjau foto KM kendaraan" class="mt-1 aspect-[4/3] w-40 rounded-md border border-slate-300 dark:border-slate-600 object-cover">
             </div>
             <fieldset>
                 <legend class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Buku Harian</legend>
                 <div class="grid grid-cols-2 gap-2">
                     {% for value, label in buku_harian %}
-                    <label class="flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 py-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-blue-600 has-checked:bg-blue-600 has-checked:text-white">
+                    <label class="flex flex-col items-center justify-center rounded-xl border border-slate-300 dark:border-slate-600 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-navy has-checked:bg-navy has-checked:text-white dark:has-checked:border-gold dark:has-checked:bg-slate-700 dark:has-checked:text-gold">
                         <input type="radio" name="buku_harian" value="{{ value }}" required class="sr-only">{{ label }}
                     </label>
                     {% endfor %}
@@ -29,7 +40,7 @@ after a Kendaraan Bermotor vehicle is scanned.
                 <legend class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Macam Pemeriksaan</legend>
                 <div class="grid grid-cols-2 gap-2">
                     {% for value, label in macam_pemeriksaan %}
-                    <label class="flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 py-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-blue-600 has-checked:bg-blue-600 has-checked:text-white">
+                    <label class="flex flex-col items-center justify-center rounded-xl border border-slate-300 dark:border-slate-600 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-navy has-checked:bg-navy has-checked:text-white dark:has-checked:border-gold dark:has-checked:bg-slate-700 dark:has-checked:text-gold">
                         <input type="radio" name="macam_pemeriksaan" value="{{ value }}" required class="sr-only">{{ label }}
                     </label>
                     {% endfor %}
@@ -37,13 +48,13 @@ after a Kendaraan Bermotor vehicle is scanned.
             </fieldset>
             <div>
                 <label for="tempat_pemeriksaan" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tempat Pemeriksaan</label>
-                <input type="text" id="tempat_pemeriksaan" name="tempat_pemeriksaan" placeholder="Bengkel Yonif Mekanis 202/TM" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+                <input type="text" id="tempat_pemeriksaan" name="tempat_pemeriksaan" maxlength="150" placeholder="Bengkel Yonif Mekanis 202/TM" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
             </div>
             <fieldset class="space-y-3 rounded-md border border-slate-200 dark:border-slate-700 p-3">
                 <legend class="px-1 text-sm font-medium text-slate-700 dark:text-slate-300">Ban</legend>
                 <div>
                     <label for="ukuran_ban" class="block text-xs text-slate-500 dark:text-slate-400 mb-1">Ukuran</label>
-                    <input type="text" id="ukuran_ban" name="ukuran_ban" placeholder="265/65 R17" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+                    <input type="text" id="ukuran_ban" name="ukuran_ban" maxlength="50" placeholder="265/65 R17" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
                 </div>
                 <div>
                     <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Kondisi (%)</p>
@@ -92,4 +103,7 @@ after a Kendaraan Bermotor vehicle is scanned.
     {% for no, nama in alat_bermotor %}
     {% include "accounts/_pemeriksaan_item.html" %}
     {% endfor %}
+    {% if alat_bertanda %}
+    <p class="border-t border-slate-200 dark:border-slate-700 px-4 py-2 text-xs text-slate-500 dark:text-slate-400"><span class="font-bold text-red-500">*</span> Masuk ke Jadwal untuk dicek.</p>
+    {% endif %}
 </div>

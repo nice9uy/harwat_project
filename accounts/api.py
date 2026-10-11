@@ -12,6 +12,7 @@ from django_bolt.auth import (
     rotate_refresh_token,
 )
 from django_bolt.exceptions import HTTPException
+from django_bolt.middleware import rate_limit
 from django_bolt.serializers import Serializer
 
 api = BoltAPI()
@@ -35,7 +36,9 @@ class DetailResponse(Serializer):
     detail: str
 
 
+# Password guessing is slowed down: a few tries a second per address.
 @api.post("/auth/login", tags=["auth"])
+@rate_limit(rps=2, burst=10, key="ip")
 async def login(request, credentials: LoginCredentials) -> TokenPairResponse:
     user = await aauthenticate(username=credentials.username, password=credentials.password)
     if user is None or not user.is_active:

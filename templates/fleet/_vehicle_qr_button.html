@@ -1,6 +1,6 @@
 <button type="button"
         @click="modalOpen = true"
-        hx-get="{% url 'fleet:vehicle_qr_modal' vehicle.pk %}"
+        hx-get="{% url 'fleet:vehicle_qr_modal' vehicle.uuid %}"
         hx-target="#vehicle-modal-body"
         hx-swap="innerHTML"
         title="Lihat QR Code"

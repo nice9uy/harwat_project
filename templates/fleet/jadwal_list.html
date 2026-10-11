@@ -46,10 +46,10 @@
                     <td class="py-2 px-4">
                         <div class="flex items-center gap-2">
                             <button type="button" @click="modalOpen = true"
-                                    hx-get="{% url 'operasional:jadwal_update' obj.pk %}" hx-target="#catatan-modal-body" hx-swap="innerHTML"
+                                    hx-get="{% url 'operasional:jadwal_update' obj.uuid %}" hx-target="#catatan-modal-body" hx-swap="innerHTML"
                                     class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700">Edit</button>
                             <button type="button" @click="modalOpen = true"
-                                    hx-get="{% url 'operasional:jadwal_delete' obj.pk %}" hx-target="#catatan-modal-body" hx-swap="innerHTML"
+                                    hx-get="{% url 'operasional:jadwal_delete' obj.uuid %}" hx-target="#catatan-modal-body" hx-swap="innerHTML"
                                     class="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">Hapus</button>
                         </div>
                     </td>

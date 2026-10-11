@@ -1,0 +1,24 @@
+<h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-2">Import Satuan</h2>
+<p class="text-sm text-slate-600 dark:text-slate-300">
+    Unggah berkas <span class="font-medium">.xlsx</span> atau <span class="font-medium">.csv</span> dengan kolom
+    <span class="font-medium">Nama Satuan</span>, <span class="font-medium">Matra</span> (Darat / Laut / Udara) dan <span class="font-medium">Keterangan</span> (baris pertama judul kolom),
+    sama seperti hasil Export.
+</p>
+<ul class="mt-2 list-disc pl-5 text-xs text-slate-500 dark:text-slate-400 space-y-0.5">
+    <li>Nama yang belum ada ditambahkan.</li>
+    <li>Nama yang sudah ada tidak digandakan; keterangan dan matranya diganti bila di berkas berbeda.</li>
+    <li>Satuan baru tanpa isian Matra masuk ke Matra Darat.</li>
+    <li>Tidak ada satuan yang dihapus.</li>
+</ul>
+<form method="post" enctype="multipart/form-data" action="{% url 'accounts:satuan_impor' %}"
+      x-data="{ ada: false, sibuk: false }" @submit="setTimeout(() => sibuk = true)" class="pt-4 space-y-4">
+    {% csrf_token %}
+    <input type="file" name="berkas" accept=".xlsx,.csv" required @change="ada = $event.target.files.length > 0"
+           class="block w-full text-sm text-slate-700 dark:text-slate-200 file:mr-3 file:rounded-md file:border-0 file:bg-navy file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-navy-light">
+    <div class="flex items-center justify-end gap-3">
+        <button type="button" @click="modalOpen = false" class="rounded-md border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">Batal</button>
+        <button type="submit" :disabled="!ada || sibuk"
+                :class="ada && !sibuk ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-300 dark:bg-blue-900/50 cursor-not-allowed'"
+                class="rounded-md px-4 py-2 text-sm font-medium text-white" x-text="sibuk ? 'Mengimpor…' : 'Import'">Import</button>
+    </div>
+</form>

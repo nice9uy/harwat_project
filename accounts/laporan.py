@@ -1,8 +1,10 @@
 """Laporan menus: inspections, repairs and vehicles added, across all vehicle groups.
 
-Each report filters by date range and vehicle group, shows a paged table and
-offers the same rows as an Excel download (?unduh=excel).
+Each report filters by vehicle group and by the Satuan of whoever did the
+work, and shows a paged table. (Laporan Tim, in laporan_tim.py, reuses the
+table and also offers it as an Excel download, ?unduh=excel.)
 """
+import uuid
 from datetime import date
 from io import BytesIO
 
@@ -28,12 +30,24 @@ def _tanggal(raw):
         return None
 
 
+def _satuan(raw):
+    """The Satuan with public uuid ``raw`` (the ?satuan= filter), or None."""
+    from .models import Satuan
+
+    try:
+        return Satuan.objects.filter(uuid=uuid.UUID(raw or "")).first()
+    except ValueError:
+        return None
+
+
 def _filter(request):
     grup = request.GET.get("golongan", "")
     return {
         "dari": _tanggal(request.GET.get("dari")),
         "sampai": _tanggal(request.GET.get("sampai")),
         "golongan": grup if grup in Vehicle.GroupKendaraan.values else "",
+        # The unit of whoever did the work (their biodata's Satuan).
+        "satuan": _satuan(request.GET.get("satuan")),
     }
 
 
@@ -57,7 +71,18 @@ def _keterangan_filter(f):
         sampai = f["sampai"].strftime("%d-%m-%Y") if f["sampai"] else "sekarang"
         bagian.append(f"Periode {dari} s/d {sampai}")
     bagian.append(Vehicle.GroupKendaraan(f["golongan"]).label if f["golongan"] else "Semua golongan")
+    if f.get("satuan"):
+        bagian.append(f"Satuan {f['satuan'].nama}")
     return " · ".join(bagian)
+
+
+def teks_saja(ws):
+    """Typed text stays text: openpyxl would write a cell starting with "="
+    (a Keterangan, a Merk/Type) as a formula that Excel runs on opening."""
+    for baris in ws.iter_rows():
+        for sel in baris:
+            if sel.data_type == "f":
+                sel.data_type = "s"
 
 
 def _excel(judul, header, rows, f, nama_file):
@@ -71,6 +96,7 @@ def _excel(judul, header, rows, f, nama_file):
     ws.append(["No"] + header)
     for nomor, baris in enumerate(rows, start=1):
         ws.append([nomor] + list(baris))
+    teks_saja(ws)
 
     ws["A1"].font = Font(bold=True, size=14, color="0B1F3A")
     ws["A2"].font = Font(italic=True, color="5B6579")
@@ -97,15 +123,25 @@ def _excel(judul, header, rows, f, nama_file):
     return response
 
 
+def _pilihan_satuan():
+    from .models import Satuan
+
+    return list(Satuan.objects.order_by("nama"))
+
+
 def _render(
     request, template, judul, header, rows, f, nama_file, tautan=None, kolom_tanggal=1, kolom_utama=2,
-    pakai_tanggal=True, pakai_cari=False,
+    pakai_tanggal=True, pakai_cari=False, pakai_excel=True, pakai_satuan=False, pakai_filter=True, pakai_hapus=False, pakai_qr=False,
+    pakai_ekspor_qr=False, tab=None,
 ):
     """``tautan``: optional per-row URL (same order as ``rows``) opened in the detail modal.
     ``kolom_tanggal`` / ``kolom_utama``: 1-based columns styled as the date and as
     the row's key (No. Registrasi); 0 for none. ``pakai_tanggal``: show the date filter;
-    ``pakai_cari``: show the search field (``?q=``)."""
-    if request.GET.get("unduh") == "excel":
+    ``pakai_cari``: show the search field (``?q=``); ``pakai_excel``: offer the
+    Excel download (``nama_file``); ``pakai_satuan``: show the Satuan filter;
+    ``pakai_filter``: show the filter box at all. ``tab``: the report's tabs
+    above the table, [(kode, label)], the one shown being ``?tab=``."""
+    if pakai_excel and request.GET.get("unduh") == "excel":
         return _excel(judul, header, rows, f, nama_file)
     halaman = halaman_dari(request, list(zip(rows, tautan or [None] * len(rows))))
     query = request.GET.copy()
@@ -122,8 +158,25 @@ def _render(
         "kolom_utama": kolom_utama,
         "pakai_tanggal": pakai_tanggal,
         "pakai_cari": pakai_cari,
+        "pakai_excel": pakai_excel,
+        "pakai_filter": pakai_filter,
+        "pakai_hapus": pakai_hapus,
+        "pakai_qr": pakai_qr,
+        "pakai_ekspor_qr": pakai_ekspor_qr,
+        "satuan_pilihan": _pilihan_satuan() if pakai_satuan else [],
         "q": request.GET.get("q", "").strip(),
+        "tab": tab or [],
+        "tab_aktif": _tab(request, tab) if tab else "",
     })
+
+
+def _tab(request, tab):
+    """The tab picked (?tab=) of a report's ``tab`` [(kode, label)]; without
+    one, Kendaraan (what the report listed before it had tabs) or the first."""
+    kode = request.GET.get("tab", "")
+    if kode in dict(tab):
+        return kode
+    return "kendaraan" if "kendaraan" in dict(tab) else tab[0][0]
 
 
 def _cari_kendaraan(qs, q):
@@ -134,29 +187,62 @@ def _cari_kendaraan(qs, q):
     return qs
 
 
-def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file):
+class _Tautan(str):
+    """A row's detail URL, carrying the URLs of its QR code modal and of its
+    Hapus action (or '')."""
+    hapus = ""
+    qr = ""
+
+
+def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, satuan=None, ekspor_qr=False, tab=None):
     """A report with one row per vehicle (``kendaraan``: in display order), a
-    search field and no date filter; each row opens the ``detail`` modal."""
+    search field and no date filter; each row opens the ``detail`` modal.
+    ``jenis``: the report's key in laporan_hapus.JENIS, for the Hapus action
+    its rows get when the user may delete. ``satuan``: vehicle -> the unit
+    for a Satuan column (none without it). ``ekspor_qr``: offer the QR
+    codes as a Word document (Laporan Penambahan only)."""
+    from .laporan_hapus import boleh_hapus
+
     f = _filter(request)
-    tautan = [reverse(detail, args=[v.pk]) for v in kendaraan]
+    if ekspor_qr and request.GET.get("unduh") == "qr":
+        from .laporan_qr import qr_word
+        return qr_word(judul, kendaraan, nama_file.replace(".xlsx", ".docx").replace("laporan-", "qr-"))
+    pakai_hapus = boleh_hapus(request.user)
+    tautan = []
+    for v in kendaraan:
+        t = _Tautan(reverse(detail, args=[v.uuid]))
+        t.qr = reverse("fleet:vehicle_qr_modal", args=[v.uuid])
+        if pakai_hapus:
+            t.hapus = reverse("accounts:laporan_hapus", args=[jenis, v.uuid])
+        tautan.append(t)
     rows = [
         (v.nopol, v.merek, v.no_chasis or "-", v.no_mesin or "-", v.get_group_kendaraan_display())
         for v in kendaraan
     ]
     header = ["No. Registrasi", "Merk/Type", "No. Chasis", "No. Mesin", "Golongan"]
+    if satuan is not None:
+        header.append("Satuan")
+        rows = [baris + (satuan(v) or "-",) for baris, v in zip(rows, kendaraan)]
     return _render(
         request, "accounts/laporan_tabel.html", judul, header, rows, f, nama_file,
         tautan=tautan, kolom_tanggal=0, kolom_utama=1, pakai_tanggal=False, pakai_cari=True,
+        # Laporan Pemeriksaan, Perbaikan and Penambahan have no Excel download.
+        pakai_excel=False, pakai_satuan=True, pakai_hapus=pakai_hapus, pakai_qr=True, pakai_ekspor_qr=ekspor_qr,
+        tab=tab,
     )
 
 
-def _kendaraan_dengan_catatan(request, model_dari_cfg, relasi_kendaraan):
+def _kendaraan_dengan_catatan(request, model_dari_cfg, relasi_kendaraan, relasi_orang):
     """Vehicles with at least one record (inspection or repair) in the chosen
-    group and matching the search, newest record first."""
+    group, by someone of the chosen Satuan (``relasi_orang``: the record's
+    biodata), and matching the search, newest record first."""
     f = _filter(request)
     terakhir = {}  # vehicle id -> newest record time
     for _, cfg in _golongan_dipilih(f):
-        qs = model_dari_cfg(cfg).objects.order_by().values(relasi_kendaraan).annotate(waktu=Max("dibuat_pada"))
+        qs = model_dari_cfg(cfg).objects.all()
+        if f["satuan"]:
+            qs = qs.filter(**{f"{relasi_orang}__satuan": f["satuan"]})
+        qs = qs.order_by().values(relasi_kendaraan).annotate(waktu=Max("dibuat_pada"))
         for baris in qs:
             vid = baris[relasi_kendaraan]
             terakhir[vid] = max(baris["waktu"], terakhir.get(vid, baris["waktu"]))
@@ -167,18 +253,22 @@ def _kendaraan_dengan_catatan(request, model_dari_cfg, relasi_kendaraan):
 @login_required
 def laporan_pemeriksaan(request):
     """One row per inspected vehicle; the row's modal lists the inspections."""
-    kendaraan = _kendaraan_dengan_catatan(request, lambda cfg: cfg.pemeriksaan_model, "vehicle")
+    kendaraan = _kendaraan_dengan_catatan(request, lambda cfg: cfg.pemeriksaan_model, "vehicle", "pemeriksa")
     return _laporan_per_kendaraan(
         request, "Laporan Pemeriksaan", kendaraan, "accounts:laporan_pemeriksaan_detail", "laporan-pemeriksaan.xlsx",
+        "pemeriksaan",
     )
 
 
 @login_required
 def laporan_perbaikan(request):
     """One row per repaired vehicle; the row's modal lists the repairs."""
-    kendaraan = _kendaraan_dengan_catatan(request, lambda cfg: cfg.perbaikan_model, "item__pemeriksaan__vehicle")
+    kendaraan = _kendaraan_dengan_catatan(
+        request, lambda cfg: cfg.perbaikan_model, "item__pemeriksaan__vehicle", "teknisi",
+    )
     return _laporan_per_kendaraan(
         request, "Laporan Perbaikan", kendaraan, "accounts:laporan_perbaikan_detail", "laporan-perbaikan.xlsx",
+        "perbaikan",
     )
 
 
@@ -186,21 +276,108 @@ def laporan_perbaikan(request):
 def laporan_penambahan(request):
     """Every vehicle, newest added first; the row's modal shows it and who added it."""
     f = _filter(request)
-    qs = Vehicle.objects.order_by("-dibuat_pada", "-id")
+    qs = Vehicle.objects.select_related("penambah__satuan").order_by("-dibuat_pada", "-id")
     if f["golongan"]:
         qs = qs.filter(group_kendaraan=f["golongan"])
+    if f["satuan"]:
+        qs = qs.filter(penambah__satuan=f["satuan"])
     kendaraan = list(_cari_kendaraan(qs, request.GET.get("q", "").strip()))
     return _laporan_per_kendaraan(
         request, "Laporan Penambahan Kendaraan/Barang", kendaraan, "accounts:laporan_penambahan_detail",
-        "laporan-penambahan-kendaraan.xlsx",
+        "laporan-penambahan-kendaraan.xlsx", "penambahan",
+        # The unit of whoever added the vehicle (their biodata's Satuan).
+        satuan=lambda v: v.penambah.satuan.nama if v.penambah and v.penambah.satuan else "",
+        ekspor_qr=True,
+    )
+
+
+JUDUL_RUSAK = "Laporan Rusak/Tidak Layak Pakai"
+TAB_RUSAK = [("sparepart", "Sparepart"), ("kendaraan", "Kendaraan"), ("non_kendaraan", "Non Kendaraan")]
+
+
+def _laporan_sparepart_rusak(request, f):
+    """Laporan Rusak's Sparepart tab: every part that is Rusak Berat now
+    (dashboard.sparepart_rusak), one row per part, newest first."""
+    from . import dashboard
+
+    q = request.GET.get("q", "").strip().lower()
+    rows = []
+    for b in dashboard.sparepart_rusak(None, batas=None)[0]:
+        v = b["vehicle"]
+        satuan = v.penambah.satuan if v.penambah else None
+        if f["golongan"] and v.group_kendaraan != f["golongan"]:
+            continue
+        if f["satuan"] and satuan != f["satuan"]:
+            continue
+        if q and not any(q in (teks or "").lower() for teks in (v.nopol, v.merek, v.no_chasis, v.no_mesin, b["item"].nama_alat)):
+            continue
+        oleh = b["perbaikan"].teknisi.nama if b["perbaikan"] else b["periksa"].pemeriksa.nama
+        rows.append((
+            f"{b['item'].nomor}. {b['item'].nama_alat}", v.nopol, v.merek, v.get_group_kendaraan_display(),
+            satuan.nama if satuan else "-", "Perbaikan" if b["perbaikan"] else "Pemeriksaan",
+            timezone.localtime(b["waktu"]).strftime("%d-%m-%Y %H:%M"), oleh, b["keterangan"] or "-",
+        ))
+    return _render(
+        request, "accounts/laporan_tabel.html", JUDUL_RUSAK,
+        ["Sparepart / Komponen", "No. Registrasi", "Merk/Type", "Golongan", "Satuan", "Sumber", "Tanggal", "Oleh", "Keterangan"],
+        rows, f, "laporan-sparepart-rusak.xlsx", kolom_tanggal=7, kolom_utama=1, pakai_tanggal=False, pakai_cari=True,
+        pakai_satuan=True, tab=TAB_RUSAK,
     )
 
 
 @login_required
-def laporan_pemeriksaan_detail(request, pk):
+def laporan_rusak(request):
+    """One row per vehicle declared Rusak/Tidak Layak Pakai (Form Rusak),
+    newest declaration first; the row's modal lists its declarations."""
+    from .models import KendaraanRusak
+
+    f = _filter(request)
+    tab = _tab(request, TAB_RUSAK)
+    if tab == "sparepart":
+        return _laporan_sparepart_rusak(request, f)
+    if tab == "non_kendaraan":
+        # Nothing to list yet: only vehicles can be declared rusak.
+        return _laporan_per_kendaraan(
+            request, JUDUL_RUSAK, [], "accounts:laporan_rusak_detail", "laporan-rusak.xlsx", "rusak",
+            satuan=lambda v: "", tab=TAB_RUSAK,
+        )
+    qs = KendaraanRusak.objects.select_related("pelapor__satuan")
+    if f["satuan"]:
+        qs = qs.filter(pelapor__satuan=f["satuan"])
+    terakhir = {}  # vehicle id -> its newest declaration
+    for d in qs.order_by("dibuat_pada", "id"):
+        terakhir[d.vehicle_id] = d
+    kendaraan = Vehicle.objects.filter(pk__in=list(terakhir))
+    if f["golongan"]:
+        kendaraan = kendaraan.filter(group_kendaraan=f["golongan"])
+    kendaraan = sorted(
+        _cari_kendaraan(kendaraan, request.GET.get("q", "").strip()),
+        key=lambda v: (terakhir[v.pk].dibuat_pada, v.pk), reverse=True,
+    )
+    return _laporan_per_kendaraan(
+        request, JUDUL_RUSAK, kendaraan, "accounts:laporan_rusak_detail", "laporan-rusak.xlsx",
+        "rusak", tab=TAB_RUSAK,
+        # The unit of whoever declared it last (their biodata's Satuan).
+        satuan=lambda v: terakhir[v.pk].pelapor.satuan.nama if terakhir[v.pk].pelapor.satuan else "",
+    )
+
+
+@login_required
+def laporan_rusak_detail(request, uid):
+    """Modal for a Laporan Rusak row: the vehicle's declarations (reason,
+    photos) and the personnel who declared it."""
+    vehicle = get_object_or_404(Vehicle, uuid=uid)
+    riwayat = list(vehicle.rusak.select_related("pelapor__satuan").order_by("-dibuat_pada", "-id"))
+    return render(request, "accounts/_laporan_rusak_detail.html", {
+        "vehicle": vehicle, "riwayat": riwayat, "personil": _per_orang(riwayat, "pelapor"),
+    })
+
+
+@login_required
+def laporan_pemeriksaan_detail(request, uid):
     """Modal for a Laporan Pemeriksaan row: every inspection of that vehicle
     (the clicked one highlighted) and the personnel who inspected it."""
-    vehicle = get_object_or_404(Vehicle, pk=pk)
+    vehicle = get_object_or_404(Vehicle, uuid=uid)
     cfg = golongan.for_vehicle(vehicle)
     riwayat = []
     if cfg is not None:
@@ -237,17 +414,18 @@ def _per_orang(daftar, atribut):
 
 
 def _id_dipilih(request, param):
+    """UUID of the row that was clicked (?<param>=<uuid>), or None."""
     try:
-        return int(request.GET.get(param, ""))
+        return uuid.UUID(request.GET.get(param, ""))
     except ValueError:
         return None
 
 
 @login_required
-def laporan_perbaikan_detail(request, pk):
+def laporan_perbaikan_detail(request, uid):
     """Modal for a Laporan Perbaikan row: every repair of that vehicle (the
     clicked one highlighted) and the personnel who repaired it."""
-    vehicle = get_object_or_404(Vehicle, pk=pk)
+    vehicle = get_object_or_404(Vehicle, uuid=uid)
     cfg = golongan.for_vehicle(vehicle)
     riwayat = []
     if cfg is not None:
@@ -265,11 +443,11 @@ def laporan_perbaikan_detail(request, pk):
 
 
 @login_required
-def laporan_penambahan_detail(request, pk):
+def laporan_penambahan_detail(request, uid):
     """Modal for a Laporan Penambahan row: the vehicle's data, photos and QR
     code, and who added it."""
     vehicle = get_object_or_404(
-        Vehicle.objects.select_related("ditambahkan_oleh", "penambah__satuan").prefetch_related("fotos"), pk=pk,
+        Vehicle.objects.select_related("ditambahkan_oleh", "penambah__satuan").prefetch_related("fotos"), uuid=uid,
     )
     # Same table as the other modals' personnel tab, with the account in the
     # count column and the time added in the "last" column.

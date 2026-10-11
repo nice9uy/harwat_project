@@ -47,14 +47,39 @@ class VehicleForm(forms.ModelForm):
 
     class Meta:
         model = Vehicle
-        fields = ["nopol", "merek", "no_chasis", "no_mesin"]
+        fields = ["nopol", "merek", "no_chasis", "no_mesin", "kepemilikan"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for name, field in self.fields.items():
             field.widget.attrs["class"] = FILE_INPUT_CLASSES if name == "foto" else TEXT_INPUT_CLASSES
         self.fields["nopol"].widget.attrs["placeholder"] = "B 9021 XY"
-        self.fields["merek"].widget.attrs["placeholder"] = "Toyota Hilux"
+        self.fields["merek"].widget.attrs["placeholder"] = "TOYOTA HILUX"
+        # Organik or Pinjaman has to be picked: a new vehicle starts on the
+        # empty option, an existing one on what it has.
+        self.fields["kepemilikan"].choices = [("", "— Pilih status —"), *Vehicle.Kepemilikan.choices]
+        if not self.instance.pk:
+            self.initial["kepemilikan"] = ""
+        # Typed and stored in capitals (see _clean_kapital).
+        for name in self.KAPITAL:
+            self.fields[name].widget.attrs["class"] += " uppercase"
+
+    KAPITAL = ("nopol", "merek", "no_chasis", "no_mesin")
+
+    def _clean_kapital(self, name):
+        return (self.cleaned_data.get(name) or "").strip().upper()
+
+    def clean_nopol(self):
+        return self._clean_kapital("nopol")
+
+    def clean_merek(self):
+        return self._clean_kapital("merek")
+
+    def clean_no_chasis(self):
+        return self._clean_kapital("no_chasis")
+
+    def clean_no_mesin(self):
+        return self._clean_kapital("no_mesin")
 
     def clean_foto(self):
         files = self.cleaned_data["foto"]
@@ -102,10 +127,9 @@ class JadwalForm(_CatatanKendaraanForm):
 class ServisForm(_CatatanKendaraanForm):
     class Meta:
         model = Servis
-        fields = ["vehicle", "tanggal", "jenis_servis", "bengkel", "biaya", "keterangan"]
+        fields = ["vehicle", "tanggal", "jenis_servis", "bengkel", "keterangan"]
         widgets = {
             "tanggal": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
-            "biaya": forms.NumberInput(attrs={"min": 0, "step": 1000, "inputmode": "numeric", "placeholder": "0"}),
             "keterangan": forms.Textarea(attrs={"rows": 3}),
         }
 

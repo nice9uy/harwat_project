@@ -2,46 +2,99 @@
 {% block title %}Form Tambah — BMN Harwat{% endblock %}
 {% block page_title %}Form Tambah{% endblock %}
 {% block content %}
-<form id="form-tambah-biodata" method="post" enctype="multipart/form-data"
-      x-data="{
-          step: 1,
-          fotoPreview: null,
-          tambahKendaraan() {
-              if (!$refs.golongan.reportValidity()) return;
-              const group = $root.querySelector('input[name=golongan]:checked').value;
-              window.dispatchEvent(new CustomEvent('buka-tambah-kendaraan', { detail: group }));
-          },
-          next() {
-              for (const el of $refs.biodata.querySelectorAll('input, select, textarea')) {
-                  if (!el.reportValidity()) return;
-              }
-              this.step = 2;
-          },
-      }">
-    {% include "accounts/_breadcrumb_langkah.html" with langkah1="Biodata Pemeriksa" langkah2="Tambah Kendaraan" %}
-    {% csrf_token %}
-    <div x-ref="biodata" x-show="step === 1" class="max-w-md mx-auto space-y-4">
-    {% include "accounts/_biodata_fields.html" %}
-    <button type="button" @click="next()" class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
-        Lanjut
-    </button>
+<div x-data="{ tab: '{% if golongan_pilihan or not boleh_non_kendaraan %}kendaraan{% else %}non_kendaraan{% endif %}', matra: '{{ matra_awal }}' }">
+
+    {% if laporan_user %}
+    <div class="max-w-md mx-auto mb-4 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm">
+        <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Penambah</p>
+        <p class="font-medium text-navy dark:text-slate-100">{{ laporan_user.nama }}</p>
+        <p class="text-slate-500 dark:text-slate-400 tabular-nums text-xs mt-0.5">{{ laporan_user.nip }} · {{ laporan_user.pangkat }}</p>
     </div>
-    <div x-show="step === 2" x-cloak class="max-w-md mx-auto space-y-4">
-        {% for kode, label in golongan_pilihan %}
-        <label class="flex items-center gap-3 rounded-md border border-slate-300 dark:border-slate-600 px-3 py-3 text-sm text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800">
-            <input type="radio" name="golongan" value="{{ kode }}" required{% if forloop.first %} x-ref="golongan"{% endif %} class="h-4 w-4 border-slate-300 text-navy accent-gold focus:ring-gold dark:border-slate-600 dark:bg-slate-900">
-            {% if kode == "B" %}Golongan "B"{% else %}{{ label }}{% endif %}
-        </label>
+    {% else %}
+    <div class="max-w-md mx-auto mb-4 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+        Isi biodata di <a href="{% url 'accounts:info_profile' %}" class="underline font-medium">Info Profil</a> terlebih dahulu sebelum menambah data.
+    </div>
+    {% endif %}
+
+    {% if not golongan_pilihan and not boleh_non_kendaraan %}
+    <div class="max-w-md mx-auto py-16 text-center text-sm text-slate-400 dark:text-slate-500">
+        Belum ada form yang bisa Anda akses. Hubungi admin.
+    </div>
+    {% endif %}
+    {% if request.user.is_superuser %}
+    {# Superadmin picks the matra the data is added for; anyone else adds for their own. #}
+    <div class="max-w-md mx-auto mb-4 flex rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1 gap-1">
+        {% for kode, label in matra_pilihan %}
+        <button type="button" @click="matra = '{{ kode }}'"
+                :class="matra === '{{ kode }}' ? 'bg-navy text-white dark:bg-gold dark:text-navy shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+                class="flex-1 rounded py-1.5 text-sm font-medium transition-colors">
+            {{ label }}
+        </button>
         {% endfor %}
-        <button type="button" @click="tambahKendaraan()" class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
-            Lanjut
+    </div>
+    {% endif %}
+    {# Form Group may leave this user only one of the two tabs. #}
+    {% if golongan_pilihan and boleh_non_kendaraan %}
+    <div class="max-w-md mx-auto mb-4 flex rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1 gap-1">
+        <button type="button" @click="tab = 'kendaraan'"
+                :class="tab === 'kendaraan' ? 'bg-white dark:bg-slate-700 text-navy dark:text-slate-100 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+                class="flex-1 rounded py-1.5 text-sm font-medium transition-colors">
+            Kendaraan
+        </button>
+        <button type="button" @click="tab = 'non_kendaraan'"
+                :class="tab === 'non_kendaraan' ? 'bg-white dark:bg-slate-700 text-navy dark:text-slate-100 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+                class="flex-1 rounded py-1.5 text-sm font-medium transition-colors">
+            Non Kendaraan
         </button>
     </div>
-</form>
+    {% endif %}
+
+    {% if golongan_pilihan %}
+    {# The vehicle groups are Matra Darat's; Laut and Udara have none yet. #}
+    <div x-show="tab === 'kendaraan' && matra !== 'darat'" x-cloak>
+        <div class="max-w-md mx-auto flex flex-col items-center justify-center py-24 text-center">
+            <p class="text-slate-400 dark:text-slate-500 text-sm">Belum ada jenis kendaraan untuk matra ini.</p>
+        </div>
+    </div>
+    <div x-show="tab === 'kendaraan' && matra === 'darat'"{% if matra_awal != "darat" %} x-cloak{% endif %}>
+        <form id="form-tambah-biodata" method="post" enctype="multipart/form-data"
+              x-data="{
+                  tambahKendaraan() {
+                      if (!$refs.golongan.reportValidity()) return;
+                      const group = $root.querySelector('input[name=golongan]:checked').value;
+                      window.dispatchEvent(new CustomEvent('buka-tambah-kendaraan', { detail: { group: group, matra: matra } }));
+                  },
+              }">
+            {% csrf_token %}
+            <div class="max-w-md mx-auto space-y-4">
+                {% for kode, label in golongan_pilihan %}
+                <label class="flex items-center gap-3 rounded-md border border-slate-300 dark:border-slate-600 px-3 py-3 text-sm text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800">
+                    <input type="radio" name="golongan" value="{{ kode }}" required{% if forloop.first %} x-ref="golongan"{% endif %} class="h-4 w-4 border-slate-300 text-navy accent-gold focus:ring-gold dark:border-slate-600 dark:bg-slate-900">
+                    {% if kode == "B" %}Golongan "B"{% else %}{{ label }}{% endif %}
+                </label>
+                {% endfor %}
+                <button type="button" @click="tambahKendaraan()" class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
+                    Lanjut
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    {% if boleh_non_kendaraan %}
+    <div x-show="tab === 'non_kendaraan'" x-cloak>
+        <div class="max-w-md mx-auto flex flex-col items-center justify-center py-24 text-center">
+            <p class="text-slate-400 dark:text-slate-500 text-sm">Halaman ini belum tersedia.</p>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
 
 {# Outside the page form: the vehicle form in it is a <form> of its own. #}
 <div x-data="{ modalOpen: false }"
-     @buka-tambah-kendaraan.window="modalOpen = true; htmx.ajax('GET', '{% url 'fleet:vehicle_create' %}?group=' + encodeURIComponent($event.detail) + '&penambah=1&next={{ request.path|urlencode }}', '#vehicle-modal-body')">
+     {% if golongan_lanjut %}x-init="$nextTick(() => window.dispatchEvent(new CustomEvent('buka-tambah-kendaraan', { detail: { group: '{{ golongan_lanjut|escapejs }}', matra: '{{ matra_awal }}' } })))"{% endif %}
+     @buka-tambah-kendaraan.window="modalOpen = true; htmx.ajax('GET', '{% url 'fleet:vehicle_create' %}?group=' + encodeURIComponent($event.detail.group) + '&matra=' + encodeURIComponent($event.detail.matra) + '&penambah=1&next={{ request.path|urlencode }}', '#vehicle-modal-body')">
     <div x-show="modalOpen"
          x-cloak
          @click.self="modalOpen = false"

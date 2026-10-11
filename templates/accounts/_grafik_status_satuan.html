@@ -1,0 +1,174 @@
+{% comment %}
+The summary cards' numbers per Satuan (accounts.dashboard._status_per_satuan):
+`baris` is every unit; `kunci` makes the ids unique (the Grafik tab has two
+sub-tabs), `golongan` the sub-tab's vehicle groups [{kode, label}]. The
+filter narrows cards, bars and table together; the cards are the sum of the
+units shown, and each opens a table of its vehicles per unit and group.
+{% endcomment %}
+{{ baris|json_script:kunci }}
+{% with kunci_gol=kunci|add:"-golongan" %}{{ golongan|json_script:kunci_gol }}{% endwith %}
+<div x-data="{
+        q: '',
+        baris: [],
+        // A card opens a table of its vehicles: units down, vehicle groups across.
+        golongan: [],
+        kartu: null,
+        JUDUL: { total: 'Total Kendaraan', siap: 'Siap', ringan: 'Rusak Ringan', berat: 'Rusak Berat', diperbaiki: 'Sudah Diperbaiki', servis: 'Perlu Servis' },
+        get rinci() { return this.kartu ? this.cocok.filter((b) => b[this.kartu] > 0) : []; },
+        // The popup pages its rows, PER_HAL a page (its totals stay those of every row).
+        hal: 1,
+        PER_HAL: 15,
+        get jumlahHal() { return Math.max(1, Math.ceil(this.rinci.length / this.PER_HAL)); },
+        get awal() { return (this.hal - 1) * this.PER_HAL; },
+        get rinciHal() { return this.rinci.slice(this.awal, this.awal + this.PER_HAL); },
+        get golonganTampil() { return this.golongan.filter((g) => this.rinci.some((b) => b.rinci[this.kartu][g.kode])); },
+        jumlahGolongan(kode) { return this.rinci.reduce((n, b) => n + (b.rinci[this.kartu][kode] || 0), 0); },
+        get cocok() {
+            const q = this.q.trim().toLowerCase();
+            return q ? this.baris.filter((b) => b.nama.toLowerCase().includes(q)) : this.baris;
+        },
+        jumlah(kolom) { return this.cocok.reduce((n, b) => n + b[kolom], 0); },
+        get maks() { return Math.max(1, ...this.cocok.map((b) => b.total)); },
+        lebar(n) { return (100 * n / this.maks) + '%'; },
+     }"
+     x-init="baris = JSON.parse(document.getElementById('{{ kunci }}').textContent); golongan = JSON.parse(document.getElementById('{{ kunci }}-golongan').textContent); $watch('kartu', () => hal = 1); $watch('q', () => hal = 1)"
+     @keydown.escape.window="kartu = null"
+     class="space-y-4">
+    <div class="flex flex-wrap items-end gap-3">
+        <div class="min-w-0 flex-1 sm:max-w-sm">
+            <label for="{{ kunci }}-q" class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Filter satuan</label>
+            <input type="search" id="{{ kunci }}-q" x-model="q" list="{{ kunci }}-daftar" placeholder="Ketik atau pilih nama satuan…" autocomplete="off"
+                   class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500">
+            <datalist id="{{ kunci }}-daftar">{% for b in baris %}<option value="{{ b.nama }}"></option>{% endfor %}</datalist>
+        </div>
+        <button type="button" x-show="q" x-cloak @click="q = ''"
+                class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Semua satuan</button>
+        <p class="pb-2 text-xs text-slate-500 dark:text-slate-400"><span class="font-semibold tabular-nums" x-text="cocok.length"></span> dari {{ baris|length }} satuan</p>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <button type="button" @click="kartu = 'total'" title="Lihat rincian per satuan dan jenis kendaraan" class="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40 dark:border-slate-700 dark:hover:border-gold"><p class="text-xs text-slate-500 dark:text-slate-400">Total Kendaraan</p><p class="text-xl font-semibold tabular-nums text-navy dark:text-slate-100" x-text="jumlah('total')">0</p></button>
+        <button type="button" @click="kartu = 'siap'" title="Lihat rincian per satuan dan jenis kendaraan" class="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40 dark:border-slate-700 dark:hover:border-gold"><p class="text-xs text-slate-500 dark:text-slate-400">Siap</p><p class="text-xl font-semibold tabular-nums text-green-600 dark:text-green-400" x-text="jumlah('siap')">0</p></button>
+        <button type="button" @click="kartu = 'ringan'" title="Lihat rincian per satuan dan jenis kendaraan" class="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40 dark:border-slate-700 dark:hover:border-gold"><p class="text-xs text-slate-500 dark:text-slate-400">Rusak Ringan</p><p class="text-xl font-semibold tabular-nums text-amber-500 dark:text-amber-400" x-text="jumlah('ringan')">0</p></button>
+        <button type="button" @click="kartu = 'berat'" title="Lihat rincian per satuan dan jenis kendaraan" class="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40 dark:border-slate-700 dark:hover:border-gold"><p class="text-xs text-slate-500 dark:text-slate-400">Rusak Berat</p><p class="text-xl font-semibold tabular-nums text-red-500 dark:text-red-400" x-text="jumlah('berat')">0</p></button>
+        <button type="button" @click="kartu = 'diperbaiki'" title="Lihat rincian per satuan dan jenis kendaraan" class="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40 dark:border-slate-700 dark:hover:border-gold"><p class="text-xs text-slate-500 dark:text-slate-400">Sudah Diperbaiki</p><p class="text-xl font-semibold tabular-nums text-sky-500 dark:text-sky-400" x-text="jumlah('diperbaiki')">0</p></button>
+        <button type="button" @click="kartu = 'servis'" title="Lihat rincian per satuan dan jenis kendaraan" class="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40 dark:border-slate-700 dark:hover:border-gold"><p class="text-xs text-slate-500 dark:text-slate-400">Perlu Servis</p><p class="text-xl font-semibold tabular-nums text-violet-500 dark:text-violet-400" x-text="jumlah('servis')">0</p></button>
+    </div>
+
+    <ul class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300">
+        <li class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-green-500"></span>Siap</li>
+        <li class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-amber-500"></span>Rusak Ringan</li>
+        <li class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-red-500"></span>Rusak Berat</li>
+        <li class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-sky-500"></span>Sudah Diperbaiki</li>
+    </ul>
+
+    <div class="max-h-[32rem] overflow-auto rounded-md border border-slate-200 dark:border-slate-700">
+        <table class="w-full text-left text-sm tabular-nums">
+            <thead class="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                <tr>
+                    <th class="w-10 px-3 py-2 font-medium">No</th>
+                    <th class="px-3 py-2 font-medium">Satuan</th>
+                    <th class="w-1/3 px-3 py-2 font-medium">Grafik</th>
+                    <th class="px-3 py-2 text-right font-medium">Total</th>
+                    <th class="px-3 py-2 text-right font-medium">Siap</th>
+                    <th class="px-3 py-2 text-right font-medium">Rusak Ringan</th>
+                    <th class="px-3 py-2 text-right font-medium">Rusak Berat</th>
+                    <th class="px-3 py-2 text-right font-medium">Sudah Diperbaiki</th>
+                    <th class="px-3 py-2 text-right font-medium">Perlu Servis</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                <template x-for="(b, i) in cocok" :key="b.nama">
+                    <tr>
+                        <td class="px-3 py-2 text-slate-500 dark:text-slate-400" x-text="i + 1"></td>
+                        <td class="px-3 py-2 font-medium text-navy dark:text-slate-100" x-text="b.nama"></td>
+                        <td class="px-3 py-2">
+                            <div class="flex h-3.5 gap-0.5" :title="b.nama + ': ' + b.siap + ' siap, ' + b.ringan + ' rusak ringan, ' + b.berat + ' rusak berat, ' + b.diperbaiki + ' sudah diperbaiki'">
+                                <span x-show="b.siap" class="rounded-sm bg-green-500" :style="{ width: lebar(b.siap) }"></span>
+                                <span x-show="b.ringan" class="rounded-sm bg-amber-500" :style="{ width: lebar(b.ringan) }"></span>
+                                <span x-show="b.berat" class="rounded-sm bg-red-500" :style="{ width: lebar(b.berat) }"></span>
+                                <span x-show="b.diperbaiki" class="rounded-sm bg-sky-500" :style="{ width: lebar(b.diperbaiki) }"></span>
+                            </div>
+                        </td>
+                        <td class="px-3 py-2 text-right font-semibold" x-text="b.total"></td>
+                        <td class="px-3 py-2 text-right text-green-600 dark:text-green-400" x-text="b.siap"></td>
+                        <td class="px-3 py-2 text-right text-amber-600 dark:text-amber-400" x-text="b.ringan"></td>
+                        <td class="px-3 py-2 text-right text-red-600 dark:text-red-400" x-text="b.berat"></td>
+                        <td class="px-3 py-2 text-right text-sky-600 dark:text-sky-400" x-text="b.diperbaiki"></td>
+                        <td class="px-3 py-2 text-right text-violet-600 dark:text-violet-400" x-text="b.servis"></td>
+                    </tr>
+                </template>
+                <tr x-show="!cocok.length" x-cloak><td colspan="9" class="px-3 py-6 text-center text-slate-400 dark:text-slate-500">{% if baris %}Tidak ada satuan yang cocok.{% else %}Belum ada kendaraan.{% endif %}</td></tr>
+            </tbody>
+            <tfoot class="sticky bottom-0 border-t border-slate-300 bg-slate-50 font-semibold dark:border-slate-600 dark:bg-slate-900">
+                <tr>
+                    <td></td><td class="px-3 py-2" x-text="q ? 'Jumlah yang tampil' : 'Semua satuan'"></td><td></td>
+                    <td class="px-3 py-2 text-right" x-text="jumlah('total')"></td>
+                    <td class="px-3 py-2 text-right" x-text="jumlah('siap')"></td>
+                    <td class="px-3 py-2 text-right" x-text="jumlah('ringan')"></td>
+                    <td class="px-3 py-2 text-right" x-text="jumlah('berat')"></td>
+                    <td class="px-3 py-2 text-right" x-text="jumlah('diperbaiki')"></td>
+                    <td class="px-3 py-2 text-right" x-text="jumlah('servis')"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    {# What a card opens: the units that have such vehicles, split by vehicle group. Follows the filter. #}
+    <div x-show="kartu" x-cloak @click.self="kartu = null" role="dialog" aria-modal="true"
+         class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-8 sm:items-center sm:py-4">
+        <div class="my-auto w-full max-w-4xl rounded-lg border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+            <div class="mb-1 flex items-center justify-between gap-3">
+                <h2 class="text-lg font-semibold text-navy dark:text-slate-100">
+                    <span x-text="kartu === 'total' ? 'Semua Kendaraan' : 'Kendaraan ' + (JUDUL[kartu] || '')"></span>
+                    <span class="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium tabular-nums text-slate-600 dark:bg-slate-700 dark:text-slate-300" x-text="kartu ? jumlah(kartu) : 0"></span>
+                </h2>
+                <button type="button" @click="kartu = null" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Tutup</button>
+            </div>
+            <p class="mb-3 text-sm text-slate-500 dark:text-slate-400">
+                Jumlah kendaraan per satuan dan jenis kendaraan<span x-show="q" x-cloak> · filter satuan: <span class="font-medium" x-text="q"></span></span>
+            </p>
+            <div class="max-h-[60vh] overflow-auto rounded-md border border-slate-200 dark:border-slate-700">
+                <table class="w-full text-left text-sm tabular-nums">
+                    <thead class="sticky top-0 border-b border-slate-200 bg-slate-50 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                        <tr>
+                            <th class="w-10 px-3 py-2 font-medium">No</th>
+                            <th class="px-3 py-2 font-medium">Satuan</th>
+                            <template x-for="g in golonganTampil" :key="g.kode"><th class="px-3 py-2 text-right font-medium" x-text="g.label"></th></template>
+                            <th class="px-3 py-2 text-right font-medium">Jumlah</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        <template x-for="(b, i) in rinciHal" :key="b.nama">
+                            <tr>
+                                <td class="px-3 py-2 text-slate-500 dark:text-slate-400" x-text="awal + i + 1"></td>
+                                <td class="px-3 py-2 font-medium text-navy dark:text-slate-100" x-text="b.nama"></td>
+                                <template x-for="g in golonganTampil" :key="g.kode"><td class="px-3 py-2 text-right" x-text="b.rinci[kartu][g.kode] || 0"></td></template>
+                                <td class="px-3 py-2 text-right font-semibold" x-text="b[kartu]"></td>
+                            </tr>
+                        </template>
+                        <tr x-show="!rinci.length"><td :colspan="golonganTampil.length + 3" class="px-3 py-6 text-center text-slate-400 dark:text-slate-500">Tidak ada kendaraan.</td></tr>
+                    </tbody>
+                    <tfoot x-show="rinci.length" class="sticky bottom-0 border-t border-slate-300 bg-slate-50 font-semibold dark:border-slate-600 dark:bg-slate-900">
+                        <tr>
+                            <td></td><td class="px-3 py-2" x-text="jumlahHal > 1 ? 'Jumlah semua (' + rinci.length + ' satuan)' : 'Jumlah'">Jumlah</td>
+                            <template x-for="g in golonganTampil" :key="g.kode"><td class="px-3 py-2 text-right" x-text="jumlahGolongan(g.kode)"></td></template>
+                            <td class="px-3 py-2 text-right" x-text="kartu ? jumlah(kartu) : 0"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <template x-if="rinci.length > PER_HAL">
+                <div class="flex flex-wrap items-center justify-between gap-3 pt-3 text-sm">
+                    <p class="text-slate-500 dark:text-slate-400">Menampilkan <span class="tabular-nums" x-text="awal + 1"></span>–<span class="tabular-nums" x-text="Math.min(awal + PER_HAL, rinci.length)"></span> dari <span class="tabular-nums" x-text="rinci.length"></span> data</p>
+                    <div class="flex items-center gap-1">
+                        <button type="button" @click="hal--" :disabled="hal <= 1"
+                                class="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">‹ Prev</button>
+                        <span class="rounded-md bg-gold px-3 py-1 text-sm font-semibold tabular-nums text-navy" x-text="hal + ' / ' + jumlahHal"></span>
+                        <button type="button" @click="hal++" :disabled="hal >= jumlahHal"
+                                class="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Next ›</button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+</div>

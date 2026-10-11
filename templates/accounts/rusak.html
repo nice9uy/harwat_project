@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Form Rusak/Tidak Layak Pakai — BMN Harwat{% endblock %}
+{% block page_title %}Form Rusak/Tidak Layak Pakai{% endblock %}
+{% block content %}
+<div x-data="{
+         scanOpen: false,
+         scanError: '',
+         scanner: null,
+         async startScan() {
+             this.scanError = '';
+             this.scanOpen = true;
+             this.scanner ??= bmnQrScanner('{% static 'vendor/html5-qrcode.min.js' %}');
+             try {
+                 await this.$nextTick();
+                 await this.scanner.start('qr-reader', (text) => { this.stopScan(); this.tampilkan(text); });
+             } catch (err) {
+                 this.scanError = 'Kamera tidak bisa dibuka: ' + err;
+             }
+         },
+         async stopScan() {
+             this.scanOpen = false;
+             if (this.scanner) await this.scanner.stop();
+         },
+         tampilkan(text) {
+             const nopol = bmnNopolFromQr(text);
+             if (!nopol) {
+                 this.scanError = 'QR Code bukan QR kendaraan.';
+                 return;
+             }
+             this.cari(nopol);
+         },
+         // Also for a No. Registrasi typed by hand, which isn't QR text.
+         cari(nopol) {
+             if (!nopol) {
+                 this.scanError = 'Ketik No. Registrasi terlebih dahulu.';
+                 return;
+             }
+             this.scanError = '';
+             htmx.ajax('GET', '{% url 'accounts:rusak_kendaraan' %}?nopol=' + encodeURIComponent(nopol), '#rusak-hasil');
+         },
+     }"
+     {% if nopol %}x-init="cari('{{ nopol|escapejs }}')"{% endif %}
+     @htmx:before-swap.window="if ($event.detail.boosted) stopScan()"
+     class="max-w-2xl mx-auto space-y-4">
+    <p class="text-sm text-slate-500 dark:text-slate-400">
+        Nyatakan kendaraan yang rusak dan tidak layak dipakai lagi. Statusnya menjadi Rusak Berat dan tampil di dashboard pada tab Rusak/Tidak Bisa Diperbaiki.
+    </p>
+    {% if not laporan_user %}
+    <div class="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+        Isi biodata di <a href="{% url 'accounts:info_profile' %}" class="font-semibold underline">Info Profil</a> terlebih dahulu.
+    </div>
+    {% endif %}
+    {% if rusak_errors %}
+    <div class="rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+        {% for galat in rusak_errors %}<p>{{ galat }}</p>{% endfor %}
+    </div>
+    {% endif %}
+
+    <button type="button" @click="startScan()"
+            class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z" />
+        </svg>
+        Scan QR Code Kendaraan
+    </button>
+    <div class="flex gap-2">
+        <input type="text" id="manual-nopol-rusak" placeholder="atau ketik No. Registrasi…"
+               @keydown.enter.prevent="cari($el.value.trim())"
+               class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm uppercase text-slate-900 shadow-sm placeholder:normal-case placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+        <button type="button" @click="cari(document.getElementById('manual-nopol-rusak').value.trim())"
+                class="shrink-0 rounded-md border border-green-500 px-3 py-2 text-sm font-medium text-green-400 hover:bg-green-500/10 focus:outline-none focus:ring-2 focus:ring-green-500/50">Cari</button>
+    </div>
+    <p x-show="!scanOpen && scanError" x-cloak x-text="scanError"
+       class="rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300"></p>
+
+    <div id="rusak-hasil">
+        <p class="rounded-md border border-dashed border-slate-300 dark:border-slate-600 px-3 py-6 text-center text-sm text-slate-500 dark:text-slate-400">Scan QR Code kendaraan atau ketik No. Registrasinya.</p>
+    </div>
+
+    {% include "accounts/_qr_scan_modal.html" %}
+</div>
+{% endblock %}

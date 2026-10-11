@@ -16,12 +16,21 @@ def _auth_headers(user):
 
 class VehicleApiAuthTests(TransactionTestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.user = User.objects.create_superuser(username="root1", password="rahasia-123")
 
     def test_list_without_token_returns_401(self):
         with TestClient(api) as client:
             response = client.get("/api/vehicles")
         self.assertEqual(response.status_code, 401)
+
+    def test_only_a_superuser_reaches_the_vehicles(self):
+        biasa = User.objects.create_user(username="teknisi9", password="rahasia-123")
+        with TestClient(api) as client:
+            self.assertEqual(client.get("/api/vehicles", headers=_auth_headers(biasa)).status_code, 403)
+            response = client.post("/api/vehicles", headers=_auth_headers(biasa), json={"nopol": "B 1 API", "merek": "Uji"})
+            self.assertEqual(response.status_code, 403)
+            self.assertEqual(client.get("/api/vehicles", headers=_auth_headers(self.user)).status_code, 200)
+        self.assertFalse(Vehicle.objects.filter(nopol="B 1 API").exists())
 
     def test_create_without_token_returns_401(self):
         with TestClient(api) as client:
@@ -31,7 +40,7 @@ class VehicleApiAuthTests(TransactionTestCase):
 
 class VehicleApiCrudTests(TransactionTestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.user = User.objects.create_superuser(username="root1", password="rahasia-123")
         self.headers = _auth_headers(self.user)
 
     def test_create_list_retrieve_update_delete_round_trip(self):
@@ -209,7 +218,7 @@ class FleetSummaryApiTests(TransactionTestCase):
 
 class VehicleApiGolonganBFieldsTests(TransactionTestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.user = User.objects.create_superuser(username="root1", password="rahasia-123")
         self.headers = _auth_headers(self.user)
 
     def test_list_includes_vehicle_saved_with_only_table_fields(self):

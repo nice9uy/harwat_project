@@ -1,3 +1,8 @@
+> **Superseded.** `prod.sh` now starts Garage with `--single-node --default-bucket`, which sets
+> up the layout, the bucket and the app's access key on start from the key pair in `.env.prod`
+> (the secret is not written to Garage's log). The manual steps below are only needed for a
+> cluster of more than one node. See "Production data" in the README.
+
 # Garage production cluster bootstrap
 
 `prod.sh` starts the `garage` container but does **not** auto-configure its cluster layout,

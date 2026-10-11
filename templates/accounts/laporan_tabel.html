@@ -2,8 +2,10 @@
 {% block title %}{{ judul }} — BMN Harwat{% endblock %}
 {% block page_title %}{{ judul }}{% endblock %}
 {% block content %}
-<div class="space-y-4" x-data="{ modalOpen: false }">
+<div class="space-y-4" x-data="{ modalOpen: false, modalSempit: false }">
+    {% if pakai_filter %}
     <form method="get" class="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+        {% if tab %}<input type="hidden" name="tab" value="{{ tab_aktif }}">{% endif %}
         {% if pakai_cari %}
         <div>
             <label for="q" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Cari</label>
@@ -31,17 +33,46 @@
                 {% for kode, label in golongan_pilihan %}<option value="{{ kode }}"{% if kode == f.golongan %} selected{% endif %}>{{ label }}</option>{% endfor %}
             </select>
         </div>
+        {% if satuan_pilihan %}
+        <div>
+            <label for="satuan" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Satuan</label>
+            <select id="satuan" name="satuan"
+                    class="max-w-56 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+                <option value="">Semua satuan</option>
+                {% for satuan in satuan_pilihan %}<option value="{{ satuan.uuid }}"{% if satuan == f.satuan %} selected{% endif %}>{{ satuan.nama }}</option>{% endfor %}
+            </select>
+        </div>
+        {% endif %}
         <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">Terapkan</button>
-        <a href="{{ request.path }}" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Reset</a>
+        <a href="{{ request.path }}{% if tab %}?tab={{ tab_aktif }}{% endif %}" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Reset</a>
     </form>
+    {% endif %}
+
+    {% if tab %}
+    <div class="inline-flex overflow-hidden rounded-md border border-slate-200 text-sm font-medium dark:border-slate-700">
+        {% for kode, label in tab %}
+        <a href="?tab={{ kode }}"
+           class="px-5 py-2{% if not forloop.first %} border-l border-slate-200 dark:border-slate-700{% endif %} {% if kode == tab_aktif %}bg-navy text-white dark:bg-gold dark:text-navy{% else %}text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700{% endif %}">{{ label }}</a>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <div class="flex flex-wrap items-center justify-between gap-3">
         <p class="text-sm text-slate-600 dark:text-slate-300"><span class="font-semibold tabular-nums text-navy dark:text-gold">{{ total }}</span> data</p>
-        <a href="?{% if query %}{{ query }}&amp;{% endif %}unduh=excel" download
+        {% if pakai_ekspor_qr %}
+        <a href="?{% if query %}{{ query }}&amp;{% endif %}unduh=qr" download hx-boost="false"
+           class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+            Export QR Code (Word)
+        </a>
+        {% endif %}
+{% if pakai_excel %}
+                <a href="?{% if query %}{{ query }}&amp;{% endif %}unduh=excel" download
            class="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
             Unduh Excel
         </a>
+        {% endif %}
     </div>
 
     <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
@@ -50,18 +81,42 @@
                 <tr>
                     <th class="w-12 px-4 py-2 font-medium">No</th>
                     {% for kolom in header %}<th class="px-4 py-2 font-medium">{{ kolom }}</th>{% endfor %}
+                    {% if pakai_qr %}<th class="px-4 py-2 font-medium">QR Code</th>{% endif %}
+                    {% if pakai_hapus %}<th class="px-4 py-2 font-medium">Aksi</th>{% endif %}
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
                 {% for baris, tautan in halaman %}
                 <tr{% if tautan %} hx-get="{{ tautan }}" hx-target="#laporan-modal-body" hx-swap="innerHTML"
-                    @click="modalOpen = true" @keydown.enter="$el.click()" tabindex="0" role="button" title="Lihat detail"
+                    @click="modalSempit = false; modalOpen = true" @keydown.enter="$el.click()" tabindex="0" role="button" title="Lihat detail"
                     class="cursor-pointer hover:bg-slate-100 focus:bg-slate-100 focus:outline-none dark:hover:bg-slate-700/60 dark:focus:bg-slate-700/60"{% endif %}>
                     <td class="px-4 py-2 text-slate-500 dark:text-slate-400">{{ halaman.start_index|add:forloop.counter0 }}</td>
                     {% for sel in baris %}<td class="px-4 py-2{% if forloop.counter == kolom_tanggal %} whitespace-nowrap tabular-nums{% endif %}{% if forloop.counter == kolom_utama %} font-medium text-navy dark:text-slate-100{% endif %}">{% if sel == "" or sel is None %}—{% else %}{{ sel }}{% endif %}</td>{% endfor %}
+                    {% if pakai_qr %}
+                    <td class="px-4 py-2">
+                        <button type="button" title="QR Code" aria-label="QR Code"
+                                @click.stop="modalSempit = true; modalOpen = true" @keydown.enter.stop
+                                hx-get="{{ tautan.qr }}" hx-target="#laporan-modal-body" hx-swap="innerHTML"
+                                class="rounded p-1 text-slate-500 hover:bg-slate-200 hover:text-navy dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-gold">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5ZM6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z"/>
+                            </svg>
+                        </button>
+                    </td>
+                    {% endif %}
+                    {% if pakai_hapus %}
+                    <td class="px-4 py-2">
+                        {% if tautan.hapus %}
+                        <button type="button" title="Hapus"
+                                @click.stop="modalSempit = true; modalOpen = true" @keydown.enter.stop
+                                hx-get="{{ tautan.hapus }}" hx-target="#laporan-modal-body" hx-swap="innerHTML"
+                                class="rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">Hapus</button>
+                        {% endif %}
+                    </td>
+                    {% endif %}
                 </tr>
                 {% empty %}
-                <tr><td colspan="{{ header|length|add:1 }}" class="px-4 py-6 text-center text-slate-400 dark:text-slate-500">Tidak ada data untuk filter ini.</td></tr>
+                <tr><td colspan="{{ header|length|add:3 }}" class="px-4 py-6 text-center text-slate-400 dark:text-slate-500">Tidak ada data untuk filter ini.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -73,7 +128,7 @@
          @click.self="modalOpen = false"
          @keydown.escape.window="modalOpen = false"
          class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/50 px-4 py-8 sm:py-4">
-        <div class="w-full max-w-5xl bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl my-auto">
+        <div :class="modalSempit ? 'max-w-md' : 'max-w-5xl'" class="w-full bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl my-auto">
             <div id="laporan-modal-body"><p class="py-6 text-center text-sm text-slate-400">Memuat…</p></div>
         </div>
     </div>

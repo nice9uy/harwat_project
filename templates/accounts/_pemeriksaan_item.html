@@ -4,11 +4,11 @@ One checklist part as an accordion panel (Jumlah, Kondisi, Foto, Keterangan).
 Expects no, nama, kondisi [(kode, label)], pakai_jumlah and pakai_satuan
 (optionally label_no, shown instead of no); the parent holds `open`.
 {% endcomment %}
-<section data-panel="{{ no }}" x-data="{ jml: '', kondisi: '', foto: null }">
-    <button type="button" @click="open = open === {{ no }} ? null : {{ no }}"
+<section data-panel="{{ no }}" data-nama="{{ label_no|default:no }}. {{ nama }}" x-data="{ jml: '', kondisi: '', foto: null }" style="scroll-margin-top: 4rem">
+    <button type="button" @click="open = open === {{ no }} ? null : {{ no }}; if (open === {{ no }}) $nextTick(() => $el.closest('section').scrollIntoView({ behavior: 'smooth', block: 'start' }))"
             :aria-expanded="open === {{ no }}"
             class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-navy dark:text-slate-100 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700">
-        <span><span class="text-slate-400 dark:text-slate-500">{{ label_no|default:no }}.</span> {{ nama }}</span>
+        <span><span class="text-slate-400 dark:text-slate-500">{{ label_no|default:no }}.</span> <span class="font-bold text-gold">{{ nama }}</span>{% if no in alat_bertanda %}<span class="ml-0.5 font-bold text-red-500" title="Masuk ke Jadwal untuk dicek">*</span>{% endif %}</span>
         <span class="flex items-center gap-2">
             <span x-show="jml !== ''" x-cloak x-text="jml + ' unit'" class="text-xs font-normal text-slate-500 dark:text-slate-400"></span>
             <svg x-show="foto" x-cloak class="h-4 w-4 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-label="Ada foto"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" /></svg>
@@ -42,19 +42,6 @@ Expects no, nama, kondisi [(kode, label)], pakai_jumlah and pakai_satuan
             </div>
         </div>
         {% endif %}
-        <fieldset>
-            <legend class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kondisi</legend>
-            <div class="grid {% if kondisi|length == 5 %}grid-cols-3 sm:grid-cols-5{% elif kondisi|length == 4 %}grid-cols-2 sm:grid-cols-4{% else %}grid-cols-3{% endif %} gap-2">
-                {% for kode, arti in kondisi %}
-                <label class="flex flex-col items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 py-2 text-slate-700 dark:text-slate-200 cursor-pointer
-                    {{ kode|kondisi_warna_dipilih }} has-checked:text-white">
-                    <input type="radio" name="alat_{{ no }}_kondisi" value="{{ kode }}" x-model="kondisi" required class="sr-only">
-                    <span class="text-sm font-semibold">{{ kode }}</span>
-                    <span class="text-[11px] leading-tight">{{ arti }}</span>
-                </label>
-                {% endfor %}
-            </div>
-        </fieldset>
         <div>
             {% include "accounts/_foto_slot.html" with awalan="alat_" kunci=no judul=nama %}
         </div>
@@ -63,5 +50,18 @@ Expects no, nama, kondisi [(kode, label)], pakai_jumlah and pakai_satuan
             <textarea id="alat_{{ no }}_keterangan" name="alat_{{ no }}_keterangan" rows="2" placeholder="Catatan kondisi {{ nama }}"
                       class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"></textarea>
         </div>
+        <fieldset>
+            <legend class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kondisi</legend>
+            <div class="grid {% if kondisi|length == 5 %}grid-cols-3 sm:grid-cols-5{% elif kondisi|length == 4 %}grid-cols-2 sm:grid-cols-4{% else %}grid-cols-3{% endif %} gap-2">
+                {% for kode, arti in kondisi %}
+                <label class="flex flex-col items-center justify-center rounded-xl border border-slate-300 dark:border-slate-600 py-3 text-slate-700 dark:text-slate-200 cursor-pointer
+                    {{ kode|kondisi_warna_dipilih }} has-checked:text-white">
+                    <input type="radio" name="alat_{{ no }}_kondisi" value="{{ kode }}" x-model="kondisi" required class="sr-only">
+                    <span class="text-base font-bold">{{ kode }}</span>
+                    <span class="text-xs leading-tight">{{ arti }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </fieldset>
     </div>
 </section>

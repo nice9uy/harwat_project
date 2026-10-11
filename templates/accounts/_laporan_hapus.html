@@ -1,0 +1,50 @@
+<div>
+    <h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-2">Hapus {{ judul }}</h2>
+    {% if halangan %}
+    <p class="text-sm text-slate-600 dark:text-slate-300">
+        Kendaraan <span class="font-semibold text-navy dark:text-slate-100">{{ vehicle.nopol }}</span> belum bisa dihapus.
+    </p>
+    <div class="mt-3 rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+        Kendaraan ini {{ halangan }}
+    </div>
+    <div class="flex items-center justify-end pt-4">
+        <button type="button" @click="modalOpen = false" class="rounded-md border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">Tutup</button>
+    </div>
+    {% else %}
+    <p class="text-sm text-slate-600 dark:text-slate-300">
+        {% if jenis == "pemeriksaan" %}
+        Yakin ingin menghapus <span class="font-semibold text-navy dark:text-slate-100">{{ jumlah }} pemeriksaan</span> kendaraan
+        <span class="font-semibold text-navy dark:text-slate-100">{{ vehicle.nopol }}</span>? Perbaikan atas pemeriksaan itu dan semua fotonya ikut terhapus.
+        {% elif jenis == "perbaikan" %}
+        Yakin ingin menghapus <span class="font-semibold text-navy dark:text-slate-100">{{ jumlah }} perbaikan</span> kendaraan
+        <span class="font-semibold text-navy dark:text-slate-100">{{ vehicle.nopol }}</span> beserta fotonya? Pemeriksaannya tidak dihapus.
+        {% elif jenis == "rusak" %}
+        Yakin ingin menghapus <span class="font-semibold text-navy dark:text-slate-100">{{ jumlah }} pernyataan rusak/tidak layak pakai</span> kendaraan
+        <span class="font-semibold text-navy dark:text-slate-100">{{ vehicle.nopol }}</span> beserta fotonya? Kendaraannya tidak dihapus; statusnya kembali mengikuti pemeriksaan terakhir.
+        {% else %}
+        Yakin ingin menghapus kendaraan <span class="font-semibold text-navy dark:text-slate-100">{{ vehicle.nopol }}</span> ({{ vehicle.merek }})
+        beserta foto dan jadwalnya?
+        {% endif %}
+        Tindakan ini tidak bisa dibatalkan.
+    </p>
+    <div x-data="{ input: '' }" class="pt-4 space-y-3">
+        <div class="flex items-center justify-center rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 py-3">
+            <span class="font-mono text-3xl font-bold tracking-[0.4em] text-navy dark:text-slate-100 select-none">{{ captcha_kode }}</span>
+        </div>
+        <div>
+            <label class="block text-sm text-slate-600 dark:text-slate-300 mb-1">Masukkan kode di atas untuk konfirmasi:</label>
+            <input type="text" x-model="input" autocomplete="off" inputmode="numeric" maxlength="6" spellcheck="false"
+                   class="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-center font-mono tracking-widest text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-red-500/50">
+        </div>
+        <form method="post" action="{{ url }}" class="flex items-center justify-end gap-3">
+            {% csrf_token %}
+            <input type="hidden" name="captcha" :value="input">
+            <button type="button" @click="modalOpen = false" class="rounded-md border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">Batal</button>
+            <button type="submit"
+                    :disabled="input.length !== 6"
+                    :class="input.length === 6 ? 'bg-red-600 hover:bg-red-700 cursor-pointer' : 'bg-red-300 dark:bg-red-900/50 cursor-not-allowed'"
+                    class="rounded-md px-4 py-2 text-sm font-medium text-white transition-colors">Hapus</button>
+        </form>
+    </div>
+    {% endif %}
+</div>

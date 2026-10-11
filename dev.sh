@@ -34,6 +34,19 @@ if [ ! -e staticfiles ]; then
     ln -s static staticfiles
 fi
 
+# Detect the host's LAN IP so phones/devices on the same network can open the
+# app without touching .env.dev. Shell env vars override --env-file values in
+# podman-compose, so this export wins over whatever DJANGO_ALLOWED_HOSTS the
+# file has.
+LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+# Wildcard so any host (LAN IP, tunnel URL) is allowed in dev.
+export DJANGO_ALLOWED_HOSTS="*"
+# Trust HTTPS tunnel origins for CSRF (localtonet, ngrok, etc.).
+# Set this to your tunnel URL, e.g. https://abc123.localtonet.com
+export DJANGO_CSRF_TRUSTED_ORIGINS="${DJANGO_CSRF_TRUSTED_ORIGINS:-}"
+echo "Dev server: http://localhost:8001${LOCAL_IP:+ | http://$LOCAL_IP:8001}"
+echo "Tunnel (HTTPS): set DJANGO_CSRF_TRUSTED_ORIGINS=https://your-tunnel-url before running"
+
 # Tear down any existing containers for this stack first. dev and prod share
 # service names (postgres/valkey/garage/pgbouncer) from the base compose.yml,
 # so a leftover prod run left running/stopped would otherwise get reused

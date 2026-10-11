@@ -27,7 +27,14 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-@2aj$mn_gi_0+*
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
 _allowed_hosts = os.environ.get('DJANGO_ALLOWED_HOSTS', '')
-ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts.split(',') if h.strip()]
+if _allowed_hosts.strip() == '*':
+    ALLOWED_HOSTS = ['*']
+else:
+    ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts.split(',') if h.strip()] or ["127.0.0.1", "localhost"]
+
+# CSRF: trust any https tunnel (localtonet, ngrok, etc.) when running in dev.
+_csrf_origins = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '')
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_origins.split(',') if o.strip()]
 
 
 # Application definition
@@ -51,6 +58,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'accounts.middleware.VpnAutoLoginMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'accounts.middleware.MenuAccessMiddleware',
     'accounts.middleware.SuperuserOnlyAdminMiddleware',
@@ -82,12 +90,45 @@ WSGI_APPLICATION = 'harwat_main.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# PostgreSQL (the primary, through PgBouncer) when DATABASE_ENGINE=postgresql,
+# which only production sets, else the local SQLite file (development and the
+# tests). DATABASE_URL alone doesn't switch: the dev containers have one too.
+def _database_dari_url(url):
+    from urllib.parse import unquote, urlparse
+
+    u = urlparse(url)
+    return {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': unquote(u.path.lstrip('/')),
+        'USER': unquote(u.username or ''),
+        'PASSWORD': unquote(u.password or ''),
+        'HOST': u.hostname or '',
+        'PORT': str(u.port or 5432),
+        # PgBouncer pools per transaction: no connection is ours between
+        # two of them, so no persistent connections or server-side cursors.
+        'CONN_MAX_AGE': 0,
+        'DISABLE_SERVER_SIDE_CURSORS': True,
     }
-}
+
+
+_database_url = (
+    os.environ.get('DATABASE_URL', '') if os.environ.get('DATABASE_ENGINE', '') == 'postgresql' else ''
+)
+if _database_url:
+    DATABASES = {'default': _database_dari_url(_database_url)}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+
+# The SQLite file production ran on before PostgreSQL, when it is still
+# there: read once by `manage.py impor_sqlite` to carry the data over.
+SQLITE_LAMA = os.environ.get('SQLITE_LAMA', '')
+if SQLITE_LAMA and os.path.exists(SQLITE_LAMA) and _database_url:
+    DATABASES['lama'] = {'ENGINE': 'django.db.backends.sqlite3', 'NAME': SQLITE_LAMA}
 
 
 # Password validation
@@ -134,6 +175,44 @@ MEDIA_URL = 'media/'
 
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Uploaded photos go to Garage (S3) when GARAGE_ENDPOINT is set (production),
+# else to MEDIA_ROOT. Either way the browser gets them from /media/..., which
+# accounts.media serves to signed-in users only.
+GARAGE_ENDPOINT = os.environ.get('GARAGE_ENDPOINT', '')
+if GARAGE_ENDPOINT:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'harwat_main.storage.GarageStorage',
+            'OPTIONS': {
+                'endpoint_url': GARAGE_ENDPOINT,
+                'bucket_name': os.environ['GARAGE_BUCKET'],
+                'access_key': os.environ['GARAGE_ACCESS_KEY'],
+                'secret_key': os.environ['GARAGE_SECRET_KEY'],
+                'region_name': os.environ.get('GARAGE_REGION', 'garage'),
+                'addressing_style': 'path',
+                'signature_version': 's3v4',
+                # Two photos may share a name: keep both (as on disk).
+                'file_overwrite': False,
+                'default_acl': None,
+                'querystring_auth': False,
+            },
+        },
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+
+# Largest request body django-bolt accepts. Its default is 1 MB, which a
+# single phone photo exceeds: the upload is cut off (413) and the form looks
+# like Simpan did nothing. Forms here carry several photos (4 per vehicle, up
+# to 4 per inspected part), compressed only after they arrive (fleet.images).
+# Keep client_max_body_size in podman/nginx.conf in step.
+BOLT_MAX_UPLOAD_SIZE = int(os.environ.get("MAX_UPLOAD_MB", "200")) * 1024 * 1024
+
+# Fields one form may post. Django's default is 1000, and the inspection
+# checklists post more: Kendaraan Diesel has 141 parts with up to nine fields
+# each (Sat, Jml Riil, Jml Nyata, four photos, Keterangan, Kondisi), about
+# 1300 in all, so saving it raised TooManyFieldsSent.
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
+
 LOGIN_URL = 'accounts:login'
 LOGIN_REDIRECT_URL = 'accounts:dashboard'
 
@@ -146,3 +225,36 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+
+# Where the Backup menu keeps the backups it makes (database copies and zips
+# with the photos). Point it at another disk in production: a backup next to
+# the data it copies is lost with it.
+BACKUP_DIR = os.environ.get("BACKUP_DIR", BASE_DIR / "backup")
+
+# Podman API socket the Server menu lists containers from. The app runs in a
+# container itself, so the host's socket has to be mounted there (see
+# podman/compose.dev.yml).
+PODMAN_SOCKET = os.environ.get("PODMAN_SOCKET", "/run/podman/podman.sock")
+
+# WireGuard VPN server config (set via environment variables)
+VPN_SERVER_ENDPOINT = os.environ.get("VPN_SERVER_ENDPOINT", "")
+VPN_DNS = os.environ.get("VPN_DNS", "")
+VPN_ALLOWED_IPS = os.environ.get("VPN_ALLOWED_IPS", "0.0.0.0/0, ::/0")
+# The network the peers get their addresses from: the first host is the
+# server, the rest go to the peers one by one. A /20 holds 4094 addresses,
+# so 4093 peers; widen the prefix for more (a /19 holds 8190).
+VPN_SUBNET = os.environ.get("VPN_SUBNET", "10.13.0.0/20")
+VPN_PORT = int(os.environ.get("VPN_PORT", "51820"))
+# The server's own key. With it the app writes the server's wg0.conf (every
+# peer in the database) into VPN_CONF_DIR, which the wireguard container
+# reads; without it nothing is written.
+VPN_SERVER_PRIVKEY = os.environ.get("VPN_SERVER_PRIVKEY", "")
+VPN_CONF_DIR = os.environ.get("VPN_CONF_DIR", "")
+VPN_SERVER_PUBKEY = os.environ.get("VPN_SERVER_PUBKEY", "")
+if VPN_SERVER_PRIVKEY and not VPN_SERVER_PUBKEY:
+    import base64
+    from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+    VPN_SERVER_PUBKEY = base64.b64encode(
+        X25519PrivateKey.from_private_bytes(base64.b64decode(VPN_SERVER_PRIVKEY)).public_key().public_bytes_raw()
+    ).decode()

@@ -1,0 +1,44 @@
+{% load l10n %}
+{% comment %}
+Inspections and repairs per Satuan from accounts.dashboard._per_satuan
+(variable `g`): two bars per unit for the busiest units, and a table of every
+unit. `kunci` names the chart for its aria-label.
+{% endcomment %}
+<div class="viz space-y-3">
+    {% if g.baris %}
+    <ul class="flex flex-wrap gap-4 text-xs text-slate-600 dark:text-slate-300">
+        <li class="flex items-center gap-1.5"><span class="viz-kunci seri-1"></span>Pemeriksaan</li>
+        <li class="flex items-center gap-1.5"><span class="viz-kunci seri-2"></span>Perbaikan</li>
+    </ul>
+    {% localize off %}{# SVG coordinates need a decimal point, not the Indonesian comma #}
+    <svg viewBox="0 0 {{ g.lebar }} {{ g.tinggi }}" class="w-full h-auto" role="img" aria-label="{{ judul }}">
+        {% for b in g.baris %}
+        <g class="viz-mark">
+            <title>{{ b.nama }}: {{ b.pemeriksaan.nilai }} pemeriksaan, {{ b.perbaikan.nilai }} perbaikan</title>
+            <rect x="0" y="{{ b.y|add:-4 }}" width="{{ g.lebar }}" height="38" class="viz-hit"></rect>
+            <text x="{{ g.x0|add:-10 }}" y="{{ b.y|add:14 }}" class="viz-label" text-anchor="end" dominant-baseline="middle">{{ b.label }}</text>
+            {% if b.pemeriksaan.path %}<path d="{{ b.pemeriksaan.path }}" class="seri-1"></path>{% endif %}
+            <text x="{{ b.pemeriksaan.x_nilai }}" y="{{ b.pemeriksaan.y|add:7 }}" class="viz-nilai" dominant-baseline="middle">{{ b.pemeriksaan.nilai }}</text>
+            {% if b.perbaikan.path %}<path d="{{ b.perbaikan.path }}" class="seri-2"></path>{% endif %}
+            <text x="{{ b.perbaikan.x_nilai }}" y="{{ b.perbaikan.y|add:7 }}" class="viz-nilai" dominant-baseline="middle">{{ b.perbaikan.nilai }}</text>
+        </g>
+        {% endfor %}
+    </svg>
+    {% endlocalize %}
+    {% if g.lainnya %}<p class="text-xs text-slate-500 dark:text-slate-400">Grafik memuat {{ g.baris|length }} satuan teratas; {{ g.lainnya }} satuan lainnya ada di tabel.</p>{% endif %}
+    <details class="text-sm"{% if g.lainnya %} open{% endif %}>
+        <summary class="cursor-pointer text-xs text-slate-500 hover:text-navy dark:text-slate-400 dark:hover:text-gold">Lihat tabel semua satuan ({{ g.tabel|length }})</summary>
+        <div class="mt-2 max-h-72 overflow-auto">
+            <table class="w-full text-left text-sm tabular-nums">
+                <thead class="sticky top-0 bg-white text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400"><tr><th class="py-1 pr-4 font-medium w-10">No</th><th class="py-1 pr-4 font-medium">Satuan</th><th class="py-1 pr-4 font-medium">Pemeriksaan</th><th class="py-1 pr-4 font-medium">Perbaikan</th><th class="py-1 pr-4 font-medium">Total</th></tr></thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                    {% for t in g.tabel %}<tr><td class="py-1 pr-4 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td><td class="py-1 pr-4">{{ t.nama }}</td><td class="py-1 pr-4">{{ t.pemeriksaan }}</td><td class="py-1 pr-4">{{ t.perbaikan }}</td><td class="py-1 pr-4 font-medium">{{ t.total }}</td></tr>{% endfor %}
+                </tbody>
+                <tfoot class="border-t border-slate-300 font-semibold dark:border-slate-600"><tr><td></td><td class="py-1 pr-4">Semua satuan</td><td class="py-1 pr-4">{{ g.total.pemeriksaan }}</td><td class="py-1 pr-4">{{ g.total.perbaikan }}</td><td class="py-1 pr-4">{{ g.total.total }}</td></tr></tfoot>
+            </table>
+        </div>
+    </details>
+    {% else %}
+    <p class="py-8 text-center text-sm text-slate-400 dark:text-slate-500">Belum ada pemeriksaan atau perbaikan dalam 6 bulan terakhir.</p>
+    {% endif %}
+</div>

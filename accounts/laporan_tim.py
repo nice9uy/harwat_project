@@ -10,6 +10,7 @@ from collections import defaultdict
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Count
+from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils.http import urlencode
@@ -17,18 +18,22 @@ from django.utils.http import urlencode
 from fleet.models import Vehicle
 
 from .laporan import _filter, _golongan_dipilih, _keterangan_filter, _render, _rentang
-from .models import Anggota
+from .models import Anggota, Laporan
+from .pimpinan_tim import tim_terlihat
 from .roles import keanggotaan_label
 
 JENIS = ["pemeriksaan", "perbaikan", "penambahan"]
 MAKS_AKTIVITAS = 100
 
 
-def _tim():
-    """[(ketua node, [member nodes])] sorted by username, each node with ``user``."""
+def _tim(terlihat=None):
+    """[(ketua node, [member nodes])] sorted by username, each node with
+    ``user``. ``terlihat``: the Ketua Tim pks a Pimpinan Tim is limited to."""
     nodes = list(Anggota.get_tree().select_related("user"))
     tim = []
     for ketua in sorted((n for n in nodes if n.depth == 1), key=lambda n: n.user.username):
+        if terlihat is not None and ketua.pk not in terlihat:
+            continue
         anggota = sorted(
             (n for n in nodes if n.depth == 2 and n.path.startswith(ketua.path)), key=lambda n: n.user.username,
         )
@@ -67,7 +72,7 @@ def _query_filter(request):
 @login_required
 def laporan_tim(request):
     f = _filter(request)
-    tim = _tim()
+    tim = _tim(tim_terlihat(request.user))
     user_ids = [n.user_id for ketua, anggota in tim for n in (ketua, *anggota)]
     jumlah = _jumlah_per_akun(f, user_ids)
     query = _query_filter(request)
@@ -78,12 +83,13 @@ def laporan_tim(request):
             ketua.user.username, len(anggota), total["pemeriksaan"], total["perbaikan"], total["penambahan"],
             sum(total.values()),
         ))
-        url = reverse("accounts:laporan_tim_detail", args=[ketua.pk])
+        url = reverse("accounts:laporan_tim_detail", args=[ketua.uuid])
         tautan.append(f"{url}?{query}" if query else url)
     header = ["Ketua Tim", "Jumlah Anggota", "Pemeriksaan", "Perbaikan", "Penambahan Kendaraan", "Total Kegiatan"]
     return _render(
         request, "accounts/laporan_tabel.html", "Laporan Tim", header, rows, f, "laporan-tim.xlsx",
-        tautan=tautan, kolom_tanggal=0, kolom_utama=1,
+        tautan=tautan, kolom_tanggal=0, kolom_utama=1, pakai_tanggal=False, pakai_cari=False,
+        pakai_filter=False,
     )
 
 
@@ -126,10 +132,13 @@ def _aktivitas(f, users):
     return daftar[:MAKS_AKTIVITAS]
 
 
-def konteks_tim(request, pk):
+def konteks_tim(request, uid):
     """Everything the team modal and its PDF show."""
     f = _filter(request)
-    ketua = get_object_or_404(Anggota.get_root_nodes().select_related("user"), pk=pk)
+    ketua = get_object_or_404(Anggota.get_root_nodes().select_related("user"), uuid=uid)
+    terlihat = tim_terlihat(request.user)
+    if terlihat is not None and ketua.pk not in terlihat:
+        raise Http404  # a Pimpinan Tim's reports are their own teams'
     anggota = list(ketua.get_children().select_related("user").order_by("user__username"))
     users = list(
         User.objects.filter(pk__in=[n.user_id for n in (ketua, *anggota)]).prefetch_related("groups")
@@ -137,22 +146,56 @@ def konteks_tim(request, pk):
     urutan = {n.user_id: i for i, n in enumerate((ketua, *anggota))}
     users.sort(key=lambda u: urutan[u.pk])
     jumlah = _jumlah_per_akun(f, list(urutan))
+    nip_per_akun = {}
+    nama_per_akun = {}
+    tipe_per_akun = {}
+    pangkat_per_akun = {}
+    jabatan_per_akun = {}
+    for akun_id, nip, nama, tipe, pangkat, jabatan in Laporan.objects.filter(akun__in=list(urutan)).values_list(
+        "akun_id", "nip", "nama", "tipe_identitas", "pangkat", "jabatan",
+    ):
+        nip_per_akun[akun_id] = nip
+        nama_per_akun[akun_id] = nama
+        tipe_per_akun[akun_id] = tipe
+        pangkat_per_akun[akun_id] = pangkat
+        jabatan_per_akun[akun_id] = jabatan
     for u in users:
         u.keanggotaan = keanggotaan_label(u)
         u.jumlah = jumlah[u.pk] if u.pk in jumlah else dict.fromkeys(JENIS, 0)
+        u.nip = nip_per_akun.get(u.pk, "")
+        u.nama = nama_per_akun.get(u.pk, "")
+        u.label_nip = "NRP" if tipe_per_akun.get(u.pk) == "TNI" else "NIP"
+        u.pangkat = pangkat_per_akun.get(u.pk, "")
+        u.jabatan = jabatan_per_akun.get(u.pk, "")
+    # The members only: the Ketua Tim heads the report, they aren't a row
+    # of it (their own work still counts in the totals and the activity).
+    baris_anggota = [u for u in users if u.pk != ketua.user_id]
+    # With a period chosen the table lists who worked in it, not everyone.
+    berperiode = bool(f["dari"] or f["sampai"])
+    if berperiode:
+        baris_anggota = [u for u in baris_anggota if any(u.jumlah.values())]
     return {
         "ketua": ketua.user,
-        "anggota": users,
+        "ketua_uuid": ketua.uuid,
+        # The Ketua Tim with their biodata and own counts, like a member row.
+        "ketua_baris": next(u for u in users if u.pk == ketua.user_id),
+        "anggota": baris_anggota,
+        "berperiode": berperiode,
         "total": _total(jumlah, list(urutan)),
         "aktivitas": _aktivitas(f, users),
         "maks_aktivitas": MAKS_AKTIVITAS,
         "keterangan_filter": _keterangan_filter(f),
         "jumlah_anggota": len(anggota),
-        "url_pdf": f"{reverse('accounts:laporan_tim_pdf', args=[pk])}?{_query_filter(request)}",
+        "url_pdf": f"{reverse('accounts:laporan_tim_pdf', args=[uid])}?{_query_filter(request)}",
+        # For the modal's own date filter, which reloads it in place.
+        "f": f,
+        "url_detail": reverse("accounts:laporan_tim_detail", args=[uid]),
+        "query": _query_filter(request),
+        "tab": "aktivitas" if request.GET.get("tab") == "aktivitas" else "anggota",
     }
 
 
 @login_required
-def laporan_tim_detail(request, pk):
-    return render(request, "accounts/_laporan_tim_detail.html", konteks_tim(request, pk))
+def laporan_tim_detail(request, uid):
+    return render(request, "accounts/_laporan_tim_detail.html", konteks_tim(request, uid))
 

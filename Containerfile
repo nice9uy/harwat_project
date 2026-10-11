@@ -35,6 +35,10 @@ RUN python manage.py collectstatic --noinput
 RUN mkdir -p /app/data && chown app:app /app/data \
     && ln -s data/db.sqlite3 db.sqlite3 && chown -h app:app db.sqlite3
 
+# Where the app writes the WireGuard server's wg0.conf (VPN_CONF_DIR); owned
+# by app so the volume mounted here starts out writable.
+RUN mkdir -p /vpn && chown app:app /vpn
+
 USER app
 
 EXPOSE 8000

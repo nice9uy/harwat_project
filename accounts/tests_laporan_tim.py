@@ -65,25 +65,33 @@ class LaporanTimTests(TestCase):
         self.assertContains(response, f'href="{reverse("accounts:laporan_tim")}"')
         rows = [baris for baris, _ in response.context["halaman"]]
         self.assertEqual(rows, [("alpha", 2, 2, 1, 1, 4), ("bravo", 0, 0, 0, 0, 0)])
-        self.assertContains(response, f'hx-get="{reverse("accounts:laporan_tim_detail", args=[self.node.pk])}"')
+        self.assertContains(response, f'hx-get="{reverse("accounts:laporan_tim_detail", args=[self.node.uuid])}"')
 
     def test_filters_reach_counts_and_modal(self):
         self._pemeriksaan(self.periksa)
         diesel = self.client.get(reverse("accounts:laporan_tim"), {"golongan": "diesel"})
         self.assertEqual(diesel.context["halaman"][0][0][2], 0)
-        detail = reverse("accounts:laporan_tim_detail", args=[self.node.pk])
+        detail = reverse("accounts:laporan_tim_detail", args=[self.node.uuid])
         self.assertContains(diesel, f'hx-get="{detail}?golongan=diesel"')
 
     def test_modal_members_activity_and_pdf(self):
         item = self._pemeriksaan(self.periksa)
         PerbaikanGolonganB.objects.create(teknisi=self._biodata(self.perbaiki), item=item, kondisi="B")
-        response = self.client.get(reverse("accounts:laporan_tim_detail", args=[self.node.pk]))
+        response = self.client.get(reverse("accounts:laporan_tim_detail", args=[self.node.uuid]))
         self.assertContains(response, "Anggota Tim")
         self.assertContains(response, "Aktivitas Tim")
-        self.assertEqual([u.username for u in response.context["anggota"]], ["alpha", "perbaiki1", "periksa1"])
-        self.assertEqual(response.context["anggota"][2].jumlah["pemeriksaan"], 1)
+        # The three activity cards open a popup listing the team's activities of that kind.
+        for jenis in ("Pemeriksaan", "Perbaikan", "Penambahan"):
+            self.assertContains(response, f"""@click="kartu = '{jenis}'\"""")
+        # Both popups show 15 rows a page.
+        self.assertContains(response, "PER_HAL: 15")
+        self.assertContains(response, 'x-for="(a, i) in halamanIni(daftarKartu)"')
+        self.assertContains(response, 'x-for="(a, i) in halamanIni(filteredTab)"')
+        # The Ketua Tim (alpha) heads the modal; the table lists the members only.
+        self.assertEqual([u.username for u in response.context["anggota"]], ["perbaiki1", "periksa1"])
+        self.assertEqual(response.context["anggota"][1].jumlah["pemeriksaan"], 1)
         self.assertEqual([a["kegiatan"] for a in response.context["aktivitas"]], ["Perbaikan", "Pemeriksaan"])
-        pdf = self.client.get(reverse("accounts:laporan_tim_pdf", args=[self.node.pk]))
+        pdf = self.client.get(reverse("accounts:laporan_tim_pdf", args=[self.node.uuid]))
         self.assertEqual(pdf["Content-Type"], "application/pdf")
         self.assertTrue(pdf.content.startswith(b"%PDF"))
 
@@ -93,7 +101,7 @@ class LaporanTimTests(TestCase):
                 self.client.get(url)
             return len(ctx)
         daftar = reverse("accounts:laporan_tim")
-        detail = reverse("accounts:laporan_tim_detail", args=[self.node.pk])
+        detail = reverse("accounts:laporan_tim_detail", args=[self.node.uuid])
         self._pemeriksaan(self.periksa)
         sedikit = (hitung(daftar), hitung(detail))
         for i in range(3):

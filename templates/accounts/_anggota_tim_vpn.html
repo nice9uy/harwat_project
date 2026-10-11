@@ -1,0 +1,58 @@
+<h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-1">Pengaturan VPN</h2>
+<p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{{ target.get_full_name|default:target.username }}</p>
+
+{% if config_text %}
+<div class="mb-5 space-y-3">
+    <div class="flex justify-center">
+        <div class="rounded-lg bg-white p-3 inline-block">
+            {{ qr_img|safe }}
+        </div>
+    </div>
+    <details class="group">
+        <summary class="cursor-pointer text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-navy dark:hover:text-gold select-none">
+            Lihat config teks ▾
+        </summary>
+        <pre class="mt-2 rounded-md bg-slate-900 px-3 py-2 text-xs text-green-400 overflow-x-auto whitespace-pre-wrap break-all">{{ config_text }}</pre>
+    </details>
+    {% if vpn.public_key %}
+    <p class="text-xs text-slate-500 dark:text-slate-400">Public Key: <span class="font-mono break-all">{{ vpn.public_key }}</span></p>
+    {% endif %}
+</div>
+{% elif vpn and not server_configured %}
+<div class="mb-4 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-700 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+    Server VPN belum dikonfigurasi. Set <code>VPN_SERVER_ENDPOINT</code> dan <code>VPN_SERVER_PUBKEY</code> di environment.
+</div>
+{% endif %}
+
+<form method="post"
+      hx-post="{% url 'accounts:anggota_tim_vpn' target.publik.uuid %}"
+      hx-target="this"
+      hx-swap="outerHTML"
+      class="space-y-3">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+    </div>
+    {% endif %}
+    <div>
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Nama Peer</label>
+        {{ form.peer_name }}
+        {% if form.peer_name.errors %}<p class="text-xs text-red-600 mt-1">{{ form.peer_name.errors.0 }}</p>{% endif %}
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kosongkan untuk menghapus akses VPN.</p>
+    </div>
+    <div>
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">IP Client (CIDR)</label>
+        {{ form.client_ip }}
+        {% if form.client_ip.errors %}<p class="text-xs text-red-600 mt-1">{{ form.client_ip.errors.0 }}</p>{% endif %}
+    </div>
+    <div>
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Preshared Key <span class="font-normal text-slate-500">(opsional)</span></label>
+        {{ form.preshared_key }}
+        {% if form.preshared_key.errors %}<p class="text-xs text-red-600 mt-1">{{ form.preshared_key.errors.0 }}</p>{% endif %}
+    </div>
+    <div class="flex items-center gap-3 pt-1">
+        <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400/50">Simpan</button>
+        <button type="button" @click="modalOpen = false" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Batal</button>
+    </div>
+</form>

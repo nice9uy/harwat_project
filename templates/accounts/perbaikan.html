@@ -5,11 +5,11 @@
 {% block content %}
 <form method="post" enctype="multipart/form-data"
       x-data="{
-          step: {% if nopol %}2{% else %}1{% endif %},
           fotoPreview: null,
           scanOpen: false,
           scanError: '',
           simpanError: '',
+          mengirim: false,
           scanner: null,
           async startScan() {
               this.scanError = '';
@@ -38,53 +38,127 @@
           muat(nopol) {
               htmx.ajax('GET', '{% url 'accounts:perbaikan_kendaraan' %}?nopol=' + encodeURIComponent(nopol), '#perbaikan-hasil');
           },
-          simpan() {
-              for (const el of $refs.biodata.querySelectorAll('input, select, textarea')) {
-                  if (!el.checkValidity()) {
-                      this.step = 1;
-                      this.$nextTick(() => el.reportValidity());
-                      return;
-                  }
+          // The form saves itself every 10 seconds, like Form Pemeriksaan: what
+          // was filled in (not the photos) comes back when the vehicle is reopened.
+          draftTimer: null,
+          draftSaved: null,
+          draftSaving: false,
+          draftResumed: false,
+          draftReady: false,
+          draftDirty: false,
+          draftUuid() { return document.querySelector('#perbaikan-hasil input[name=vehicle]')?.value || ''; },
+          draftUrl() { return '{% url 'accounts:perbaikan_draft' '00000000-0000-0000-0000-000000000000' %}'.replace('00000000-0000-0000-0000-000000000000', this.draftUuid()); },
+          draftData() {
+              const data = {};
+              for (const el of document.querySelectorAll('#perbaikan-hasil input, #perbaikan-hasil textarea, #perbaikan-hasil select')) {
+                  if (!el.name || el.name === 'vehicle' || el.type === 'file') continue;
+                  if (el.type === 'radio' || el.type === 'checkbox') { if (el.checked) data[el.name] = el.value; }
+                  else if (el.value) data[el.name] = el.value;
               }
+              return data;
+          },
+          async saveDraft(keepalive = false) {
+              if (!this.draftReady || !this.draftDirty || !this.draftUuid()) return;
+              this.draftDirty = false;
+              this.draftSaving = true;
+              try {
+                  const response = await fetch(this.draftUrl(), {
+                      method: 'POST', keepalive,
+                      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': $root.querySelector('[name=csrfmiddlewaretoken]').value },
+                      body: JSON.stringify(this.draftData()),
+                  });
+                  this.draftSaved = response.ok;
+                  if (!response.ok) this.draftDirty = true;
+              } catch { this.draftSaved = false; this.draftDirty = true; }
+              finally { this.draftSaving = false; }
+          },
+          tandaiDraft() { if (this.draftReady) this.draftDirty = true; },
+          async loadDraft() {
+              this.draftReady = false;
+              this.draftResumed = false;
+              this.draftSaved = null;
+              if (this.draftTimer) clearInterval(this.draftTimer);
+              if (!this.draftUuid()) return;
+              let data = null;
+              try {
+                  const response = await fetch(this.draftUrl());
+                  if (response.ok) data = await response.json();
+              } catch {}
+              const hasil = document.getElementById('perbaikan-hasil');
+              if (data && Object.keys(data).length) {
+                  // First the items that were opened (their fields are required only then).
+                  for (const [name, value] of Object.entries(data)) {
+                      if (!name.endsWith('_aktif') || value !== '1') continue;
+                      const item = hasil.querySelector('[name=' + CSS.escape(name) + ']')?.closest('[data-item]');
+                      if (item) Alpine.$data(item).perbaiki = true;
+                  }
+                  for (const [name, value] of Object.entries(data)) {
+                      if (name.endsWith('_aktif')) continue;
+                      for (const el of hasil.querySelectorAll('[name=' + CSS.escape(name) + ']')) {
+                          if (el.type === 'radio' || el.type === 'checkbox') {
+                              el.checked = el.value === value;
+                              if (el.checked) el.dispatchEvent(new Event('change', { bubbles: true }));
+                          } else if (el.type !== 'file') {
+                              el.value = value;
+                              el.dispatchEvent(new Event('input', { bubbles: true }));
+                          }
+                      }
+                  }
+                  this.draftResumed = true;
+              }
+              this.draftReady = true;
+              this.draftDirty = false;
+              this.draftTimer = setInterval(() => this.saveDraft(), 10000);
+          },
+          simpan() {
               const hasil = document.getElementById('perbaikan-hasil');
               if (!hasil.querySelector('input[name$=_aktif][value=\'1\']')) {
                   this.simpanError = 'Klik Perbaikan pada minimal satu item lalu isi hasilnya.';
                   return;
               }
               this.simpanError = '';
-              // Inputs may sit in a collapsed item; open it so the browser can point at them.
               const invalid = [...hasil.querySelectorAll('input, select, textarea')].find((el) => !el.checkValidity());
               if (invalid) {
                   window.dispatchEvent(new CustomEvent('buka-item', { detail: Number(invalid.closest('[data-item]').dataset.item) }));
                   this.$nextTick(() => invalid.reportValidity());
                   return;
               }
+              // One submit only: a second click while the photos upload saved the repair twice.
+              if (this.mengirim) return;
+              this.mengirim = true;
+              if (this.draftTimer) clearInterval(this.draftTimer);
+              this.draftReady = false;
               $root.requestSubmit();
-          },
-          next() {
-              for (const el of $refs.biodata.querySelectorAll('input, select, textarea')) {
-                  if (!el.reportValidity()) return;
-              }
-              this.step = 2;
           },
       }"
       @htmx:before-swap.window="if ($event.detail.boosted) stopScan()"
+      @htmx:after-swap.window="if ($event.detail.target.id === 'perbaikan-hasil') $nextTick(() => loadDraft())"
+      @input="tandaiDraft()"
+      @change="tandaiDraft()"
+      @click="if ($event.target.closest('#perbaikan-hasil button')) $nextTick(() => tandaiDraft())"
+      @pagehide.window="saveDraft(true)"
+      @visibilitychange.document="document.visibilityState === 'hidden' && saveDraft(true)"
       {% if nopol %}x-init="muat('{{ nopol|escapejs }}')"{% endif %}>
-    {% include "accounts/_breadcrumb_langkah.html" with langkah1="Biodata Pemeriksa" langkah2="Perbaikan" %}
     {% csrf_token %}
-    {% if perbaikan_errors or form.errors %}
+    {% if perbaikan_errors %}
     <div class="max-w-md mx-auto mb-4 rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
         {% for error in perbaikan_errors %}<p>{{ error }}</p>{% endfor %}
-        {% if form.errors %}<p>Periksa kembali isian BIODATA.</p>{% endif %}
     </div>
     {% endif %}
-    <div x-ref="biodata" x-show="step === 1" class="max-w-md mx-auto space-y-4">
-    {% include "accounts/_biodata_fields.html" %}
-    <button type="button" @click="next()" class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
-        Lanjut
-    </button>
+
+    {% if laporan_user %}
+    <div class="max-w-md mx-auto mb-4 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm">
+        <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Teknisi</p>
+        <p class="font-medium text-navy dark:text-slate-100">{{ laporan_user.nama }}</p>
+        <p class="text-slate-500 dark:text-slate-400 tabular-nums text-xs mt-0.5">{{ laporan_user.nip }} · {{ laporan_user.pangkat }}</p>
     </div>
-    <div x-show="step === 2" x-cloak class="max-w-md mx-auto space-y-4">
+    {% else %}
+    <div class="max-w-md mx-auto mb-4 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+        Isi biodata di <a href="{% url 'accounts:info_profile' %}" class="underline font-medium">Info Profil</a> terlebih dahulu sebelum melakukan perbaikan.
+    </div>
+    {% endif %}
+
+    <div class="max-w-md mx-auto space-y-4">
         <button type="button" @click="startScan()"
                 class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -93,9 +167,24 @@
             </svg>
             Scan QR Code Kendaraan
         </button>
+
+        <div class="flex gap-2">
+            <input type="text" id="manual-nopol-perbaikan" placeholder="atau ketik No. Registrasi…"
+                   @keydown.enter.prevent="muat($el.value.trim())"
+                   class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+            <button type="button" @click="muat(document.getElementById('manual-nopol-perbaikan').value.trim())"
+                    class="shrink-0 rounded-md border border-green-500 px-3 py-2 text-sm font-medium text-green-400 hover:bg-green-500/10 focus:outline-none focus:ring-2 focus:ring-green-500/50">Cari</button>
+        </div>
+
         <p x-show="!scanOpen && scanError" x-cloak x-text="scanError"
            class="rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300"></p>
         <div id="perbaikan-hasil" class="space-y-4"></div>
+        <div class="flex items-center gap-2 text-xs">
+            <span x-show="draftResumed" x-cloak class="font-medium text-green-600 dark:text-green-400">&#10003; Draft dilanjutkan</span>
+            <span x-show="draftSaving" x-cloak class="text-slate-400">Menyimpan draft…</span>
+            <span x-show="!draftSaving && draftSaved === true" x-cloak class="text-slate-400">Tersimpan otomatis</span>
+            <span x-show="!draftSaving && draftSaved === false" x-cloak class="text-red-500">Gagal simpan draft</span>
+        </div>
     </div>
 
     {% include "accounts/_qr_scan_modal.html" %}

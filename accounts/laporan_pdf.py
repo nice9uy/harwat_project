@@ -17,7 +17,7 @@ from django.utils import timezone
 from django.utils.text import capfirst, slugify
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
@@ -31,6 +31,7 @@ from . import golongan
 NAVY = colors.HexColor("#0B1F3A")
 GARIS = colors.HexColor("#CBD5E1")
 ZEBRA = colors.HexColor("#F1F5F9")
+SUBKEPALA = colors.HexColor("#DBE4F0")
 WARNA_KONDISI = {
     "B": "#15803D", "ADA": "#0369A1", "RR": "#B45309", "HP": "#B45309",
     "RB": "#B91C1C", "HG": "#B91C1C", "TA": "#475569",
@@ -106,25 +107,19 @@ def _tabel_item(hasil, cfg):
         kepala.append("Jumlah")
     if cfg.pakai_satuan:
         kepala += ["Sat", "Jml Riil", "Jml Nyata"]
-    kepala += ["Kondisi", "Setelah Perbaikan", "Keterangan"]
+    kepala += ["Kondisi", "Keterangan"]
 
     baris = [[Paragraph(k, KEPALA) for k in kepala]]
     for item in hasil.items.all():
-        perbaikan = item.perbaikan.all()
-        terakhir = perbaikan[0] if perbaikan else None
         sel = [_p(item.nomor, TENGAH), _p(item.nama_alat)]
         if cfg.pakai_jumlah:
             sel.append(_p(item.jumlah, TENGAH))
         if cfg.pakai_satuan:
             sel += [_p(item.satuan, TENGAH), _p(item.jumlah_riil, TENGAH), _p(item.jumlah_nyata, TENGAH)]
-        sel += [
-            _kondisi(item.kondisi, item.get_kondisi_display()),
-            _kondisi(terakhir.kondisi, terakhir.get_kondisi_display()) if terakhir else _p("-", TENGAH),
-            _p(item.keterangan),
-        ]
+        sel += [_kondisi(item.kondisi, item.get_kondisi_display()), _p(item.keterangan)]
         baris.append(sel)
 
-    lebar_tetap = {"No": 9, "Jumlah": 16, "Sat": 12, "Jml Riil": 15, "Jml Nyata": 17, "Kondisi": 31, "Setelah Perbaikan": 31}
+    lebar_tetap = {"No": 9, "Jumlah": 16, "Sat": 12, "Jml Riil": 15, "Jml Nyata": 17, "Kondisi": 31}
     sisa = 180 - sum(lebar_tetap.get(k, 0) for k in kepala)
     lentur = [k for k in kepala if k not in lebar_tetap]  # Komponen, Keterangan
     lebar = [lebar_tetap.get(k, sisa / len(lentur)) * mm for k in kepala]
@@ -154,14 +149,17 @@ def _ringkasan(hasil, cfg):
 
 
 def _tanda_tangan(orang, peran, keterangan):
-    """Signature block on the right: ``keterangan`` (e.g. the date), ``peran``, name, rank and NIP."""
-    isi = [
-        [_p(keterangan, TENGAH)],
-        [_p(f"{peran},", TENGAH)],
+    """Signature block on the right: ``keterangan`` (e.g. the date), the
+    signer's jabatan (``peran`` when their biodata has none), name, rank and NIP."""
+    isi = [[_p(keterangan, TENGAH)]] if keterangan else []
+    isi += [
+        [_p(f"{getattr(orang, 'jabatan', '') or peran},", TENGAH)],
         [Spacer(1, 14 * mm)],
-        [Paragraph(f"<u><b>{escape(orang.nama)}</b></u>", TENGAH)],
-        [_p(f"{orang.pangkat} · NIP {orang.nip}", TENGAH)],
+        [_p(orang.nama, TENGAH)],
     ]
+    # A signer without biodata (a bare account) has just the name.
+    if getattr(orang, "nip", ""):
+        isi.append([_p(f"{orang.pangkat} · {orang.label_nip} {orang.nip}", TENGAH)])
     kotak = Table(isi, colWidths=[70 * mm])
     kotak.setStyle(TableStyle([("TOPPADDING", (0, 0), (-1, -1), 1), ("BOTTOMPADDING", (0, 0), (-1, -1), 1)]))
     luar = Table([["", kotak]], colWidths=[110 * mm, 70 * mm])
@@ -170,7 +168,7 @@ def _tanda_tangan(orang, peran, keterangan):
 
 def _biodata(orang):
     return _tabel_kunci_nilai([
-        ("NIP", orang.nip), ("Nama", orang.nama), ("Pangkat", orang.pangkat),
+        (orang.label_nip, orang.nip), ("Nama", orang.nama), ("Pangkat", orang.pangkat),
         ("Jabatan", orang.jabatan), ("Satuan", orang.satuan.nama),
     ])
 
@@ -234,12 +232,12 @@ def _data_kendaraan_qr(vehicle, label_golongan):
 
 def _personil_qr(nama_bagian, orang):
     return (nama_bagian, [
-        ("NIP", orang.nip), ("Nama", orang.nama), ("Pangkat", orang.pangkat),
+        (orang.label_nip, orang.nip), ("Nama", orang.nama), ("Pangkat", orang.pangkat),
         ("Jabatan", orang.jabatan), ("Satuan", orang.satuan.nama),
     ])
 
 
-def _kop(judul, label_golongan, qr_teks=None):
+def _kop(judul, label_golongan, qr_teks=None, lebar=180 * mm):
     """Letterhead; with ``qr_teks`` a QR code of the report's key data sits on the right."""
     logo = settings.BASE_DIR / "static" / "img" / "kemhan_logo.png"
     teks = [
@@ -251,7 +249,7 @@ def _kop(judul, label_golongan, qr_teks=None):
     # Logo in the middle (error level H): printed large enough that this much
     # text stays scannable.
     sel_qr = Image(BytesIO(qr_png_with_logo(qr_teks)), width=36 * mm, height=36 * mm) if qr_teks else ""
-    kop = Table([[sel_logo, teks, sel_qr]], colWidths=[20 * mm, 122 * mm, 38 * mm])
+    kop = Table([[sel_logo, teks, sel_qr]], colWidths=[20 * mm, lebar - 58 * mm, 38 * mm])
     kop.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("ALIGN", (2, 0), (2, 0), "RIGHT"),
@@ -265,16 +263,16 @@ def _kaki(canvas, doc):
     canvas.saveState()
     canvas.setFont("Helvetica", 7.5)
     canvas.setFillColor(colors.HexColor("#64748B"))
-    canvas.drawString(15 * mm, 10 * mm, f"BMN Harwat · dicetak {timezone.localtime():%d-%m-%Y %H:%M}")
-    canvas.drawRightString(195 * mm, 10 * mm, f"Halaman {doc.page}")
+    canvas.drawString(15 * mm, 10 * mm, f"Pemeliharaan dan Perawatan · dicetak {timezone.localtime():%d-%m-%Y %H:%M}")
+    canvas.drawRightString(doc.pagesize[0] - 15 * mm, 10 * mm, f"Halaman {doc.page}")
     canvas.restoreState()
 
 
-def _dokumen(isi, judul):
+def _dokumen(isi, judul, mendatar=False):
     buffer = BytesIO()
     doc = SimpleDocTemplate(
-        buffer, pagesize=A4, leftMargin=15 * mm, rightMargin=15 * mm, topMargin=12 * mm, bottomMargin=16 * mm,
-        title=judul, author="BMN Harwat",
+        buffer, pagesize=landscape(A4) if mendatar else A4, leftMargin=15 * mm, rightMargin=15 * mm, topMargin=12 * mm, bottomMargin=16 * mm,
+        title=judul, author="Pemeliharaan dan Perawatan",
     )
     doc.build(isi, onFirstPage=_kaki, onLaterPages=_kaki)
     return buffer.getvalue()
@@ -411,7 +409,7 @@ def _pdf_response(request, konten, nama_file):
 
 
 @login_required
-def laporan_pemeriksaan_pdf(request, kode, pk):
+def laporan_pemeriksaan_pdf(request, kode, uid):
     cfg = golongan.GOLONGAN.get(kode)
     if cfg is None:
         raise Http404
@@ -419,7 +417,7 @@ def laporan_pemeriksaan_pdf(request, kode, pk):
         cfg.pemeriksaan_model.objects.select_related("vehicle", "pemeriksa__satuan").prefetch_related(
             "items__perbaikan",
         ),
-        pk=pk,
+        uuid=uid,
     )
     lokal = timezone.localtime(hasil.dibuat_pada)
     nama_file = f"laporan-pemeriksaan-{slugify(hasil.vehicle.nopol)}-{lokal:%Y%m%d-%H%M}.pdf"
@@ -427,7 +425,7 @@ def laporan_pemeriksaan_pdf(request, kode, pk):
 
 
 @login_required
-def laporan_perbaikan_pdf(request, kode, pk):
+def laporan_perbaikan_pdf(request, kode, uid):
     cfg = golongan.GOLONGAN.get(kode)
     if cfg is None:
         raise Http404
@@ -435,7 +433,7 @@ def laporan_perbaikan_pdf(request, kode, pk):
         cfg.perbaikan_model.objects.select_related(
             "teknisi__satuan", "item__pemeriksaan__vehicle", "item__pemeriksaan__pemeriksa",
         ).prefetch_related("item__perbaikan__teknisi"),
-        pk=pk,
+        uuid=uid,
     )
     lokal = timezone.localtime(perbaikan.dibuat_pada)
     nama_file = f"laporan-perbaikan-{slugify(perbaikan.item.pemeriksaan.vehicle.nopol)}-{lokal:%Y%m%d-%H%M}.pdf"
@@ -443,9 +441,9 @@ def laporan_perbaikan_pdf(request, kode, pk):
 
 
 @login_required
-def laporan_penambahan_pdf(request, pk):
+def laporan_penambahan_pdf(request, uid):
     vehicle = get_object_or_404(
-        Vehicle.objects.select_related("ditambahkan_oleh", "penambah__satuan").prefetch_related("fotos"), pk=pk,
+        Vehicle.objects.select_related("ditambahkan_oleh", "penambah__satuan").prefetch_related("fotos"), uuid=uid,
     )
     nama_file = f"laporan-penambahan-{slugify(vehicle.nopol)}.pdf"
     return _pdf_response(request, buat_pdf_penambahan(vehicle), nama_file)
@@ -469,10 +467,57 @@ def _tabel_data(kepala, lebar_mm, baris_data):
     return tabel
 
 
+def buat_pdf_tabel(judul, keterangan, kepala, lebar_mm, baris_data):
+    """A plain list as a landscape PDF (267 mm wide): letterhead, one table
+    (with a No column), how many rows."""
+    return _dokumen([
+        _kop(judul, keterangan, lebar=267 * mm),
+        Spacer(1, 4 * mm),
+        _tabel_data(["No", *kepala], lebar_mm, [[n, *b] for n, b in enumerate(baris_data, start=1)]),
+        Spacer(1, 2 * mm),
+        Paragraph(f"Jumlah: {len(baris_data)} data", SUB),
+    ], judul, mendatar=True)
+
+
+def _tabel_kelompok(kepala, lebar_mm, kelompok):
+    """Like _tabel_data, with the rows in groups: ``kelompok`` is a list of
+    (label, rows), each group under a full-width row naming it."""
+    baris = [[Paragraph(k, KEPALA_KECIL) for k in kepala]]
+    judul = []
+    for label, isi in kelompok:
+        judul.append(len(baris))
+        baris.append([_p(f"{label} ({len(isi)})", TEKS_TEBAL)] + [""] * (len(kepala) - 1))
+        baris += [[_p(sel) for sel in b] for b in isi]
+    if not kelompok:
+        baris.append([_p("Tidak ada data.", TENGAH)] + [""] * (len(kepala) - 1))
+    tabel = Table(baris, colWidths=[w * mm for w in lebar_mm], repeatRows=1)
+    gaya = [
+        ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("GRID", (0, 0), (-1, -1), 0.25, GARIS),
+    ]
+    for i in judul or [1]:
+        gaya.append(("SPAN", (0, i), (-1, i)))
+    gaya += [("BACKGROUND", (0, i), (-1, i), SUBKEPALA) for i in judul]
+    tabel.setStyle(TableStyle(gaya))
+    return tabel
+
+
+def _per_golongan(aktivitas):
+    """Activities as [(golongan label, rows)], groups in the order of
+    Vehicle.GroupKendaraan, rows keeping their order (newest first)."""
+    urutan = {label: i for i, label in enumerate(Vehicle.GroupKendaraan.labels)}
+    kelompok = {}
+    for a in aktivitas:
+        kelompok.setdefault(a["golongan"] or "-", []).append(a)
+    return sorted(kelompok.items(), key=lambda kv: urutan.get(kv[0], len(urutan)))
+
+
 def buat_pdf_tim(k):
     """Team report from laporan_tim.konteks_tim()."""
     ketua = k["ketua"]
-    nama_ketua = ketua.get_full_name() or ketua.username
+    kb = k["ketua_baris"]
+    nama_ketua = kb.nama or ketua.get_full_name() or ketua.username
     isi = [
         _kop("LAPORAN TIM", k["keterangan_filter"], _teks_qr("Laporan Tim", [
             ("Tim", [
@@ -480,44 +525,117 @@ def buat_pdf_tim(k):
                 ("Pemeriksaan", k["total"]["pemeriksaan"]), ("Perbaikan", k["total"]["perbaikan"]),
                 ("Penambahan Kendaraan", k["total"]["penambahan"]),
             ]),
-            ("Personil", [(u.keanggotaan, u.get_full_name() or u.username) for u in k["anggota"]]),
+            ("Personil", [(u.keanggotaan, u.nama or u.get_full_name() or u.username) for u in k["anggota"]]),
         ])),
         Paragraph("Ringkasan", BAGIAN),
-        _tabel_kunci_nilai([
-            ("Ketua Tim", nama_ketua), ("Jumlah Anggota", k["jumlah_anggota"]),
-            ("Pemeriksaan", k["total"]["pemeriksaan"]), ("Perbaikan", k["total"]["perbaikan"]),
-            ("Penambahan Kendaraan", k["total"]["penambahan"]),
-            ("Total Kegiatan", sum(k["total"].values())),
-        ]),
+        _tabel_data(
+            ["Ketua Tim", "Jumlah Anggota", "Pemeriksaan", "Perbaikan", "Penambahan Kendaraan", "Total Kegiatan"],
+            [44, 26, 26, 24, 34, 26],
+            [(
+                nama_ketua, k["jumlah_anggota"], k["total"]["pemeriksaan"], k["total"]["perbaikan"],
+                k["total"]["penambahan"], sum(k["total"].values()),
+            )],
+        ),
+        Paragraph("Ketua Tim", BAGIAN),
+        _tabel_data(
+            ["Username", "Nama", kb.label_nip, "Pangkat", "Jabatan"],
+            [30, 48, 34, 30, 38],
+            [(kb.username, nama_ketua, kb.nip, kb.pangkat, kb.jabatan)],
+        ),
         Paragraph("Anggota Tim", BAGIAN),
         _tabel_data(
             ["No", "Username", "Nama", "Keanggotaan", "Pemeriksaan", "Perbaikan", "Penambahan", "Login Terakhir"],
             [8, 24, 28, 27, 22, 19, 22, 30],
             [
-                (i, u.username, u.get_full_name(), u.keanggotaan, u.jumlah["pemeriksaan"], u.jumlah["perbaikan"],
+                (i, u.username, u.nama or u.get_full_name() or u.username, u.keanggotaan, u.jumlah["pemeriksaan"], u.jumlah["perbaikan"],
                  u.jumlah["penambahan"], _tanggal(u.last_login) if u.last_login else "Belum pernah")
                 for i, u in enumerate(k["anggota"], start=1)
             ],
         ),
-        Paragraph("Aktivitas Tim", BAGIAN),
-        _tabel_data(
-            ["No", "Tanggal", "Kegiatan", "Kendaraan", "Rincian", "Personil", "Akun"],
-            [9, 25, 22, 24, 46, 31, 23],
-            [
-                (i, _tanggal(a["waktu"]), a["kegiatan"], a["kendaraan"], a["rincian"],
-                 a["personil"].nama if a["personil"] else "-", a["akun"].username)
-                for i, a in enumerate(k["aktivitas"], start=1)
-            ],
-        ),
     ]
+    # One table per kind of activity, each numbered from 1.
+    for jenis, judul in (
+        ("Perbaikan", "Perbaikan"), ("Pemeriksaan", "Pemeriksaan"), ("Penambahan", "Penambahan Kendaraan"),
+    ):
+        baris = [a for a in k["aktivitas"] if a["kegiatan"] == jenis]
+        isi += [
+            Paragraph(f"Aktivitas Tim — {judul} ({len(baris)})", BAGIAN),
+            _tabel_kelompok(
+                ["No", "Tanggal", "Kendaraan", "Rincian", "Personil", "Akun"],
+                [9, 27, 26, 54, 36, 28],
+                [
+                    (label, [
+                        (i, _tanggal(a["waktu"]), a["kendaraan"], a["rincian"],
+                         a["personil"].nama if a["personil"] else "-", a["akun"].username)
+                        for i, a in enumerate(isi_golongan, start=1)
+                    ])
+                    for label, isi_golongan in _per_golongan(baris)
+                ],
+            ),
+        ]
     if len(k["aktivitas"]) >= k["maks_aktivitas"]:
         isi.append(_p(f"Menampilkan {k['maks_aktivitas']} kegiatan terbaru. Persempit periode untuk yang lebih lama."))
+    from types import SimpleNamespace
+    from .models import Laporan
+    biodata = Laporan.objects.filter(akun=ketua).order_by("-dibuat_pada").first()
+    isi.append(_tanda_tangan(
+        biodata or SimpleNamespace(nama=nama_ketua), "Ketua Tim", "",
+    ))
     return _dokumen(isi, f"Laporan Tim {nama_ketua}")
 
 
 @login_required
-def laporan_tim_pdf(request, pk):
+def laporan_tim_pdf(request, uid):
     from .laporan_tim import konteks_tim  # laporan_tim imports laporan, which is fine; avoid a cycle at import
 
-    k = konteks_tim(request, pk)
+    k = konteks_tim(request, uid)
     return _pdf_response(request, buat_pdf_tim(k), f"laporan-tim-{slugify(k['ketua'].username)}.pdf")
+
+
+def buat_pdf_anggota(k, username):
+    """Per-anggota activity report filtered from konteks_tim()."""
+    ketua = k["ketua"]
+    user = next((u for u in k["anggota"] if u.username == username), None)
+    nama_anggota = (getattr(user, "nama", "") or (user.get_full_name() if user else "")) or username
+    aktivitas_user = [a for a in k["aktivitas"] if a["akun"].username == username]
+    for jenis in ("Pemeriksaan", "Perbaikan", "Penambahan"):
+        pass  # filtered per-jenis below
+    isi = [
+        _kop(
+            f"AKTIVITAS ANGGOTA TIM",
+            k["keterangan_filter"],
+        ),
+        Paragraph("Identitas", BAGIAN),
+        _tabel_kunci_nilai([
+            ("Nama", nama_anggota),
+            ("Username", username),
+            ("Keanggotaan", getattr(user, "keanggotaan", "-") if user else "-"),
+            (getattr(user, "label_nip", "NIP/NRP"), getattr(user, "nip", "-") if user else "-"),
+            ("Tim", ketua.get_full_name() or ketua.username),
+            ("Periode", k["keterangan_filter"]),
+        ]),
+    ]
+    for jenis in ("Pemeriksaan", "Perbaikan", "Penambahan"):
+        rows = [a for a in aktivitas_user if a["kegiatan"] == jenis]
+        isi.append(Paragraph(f"{jenis} ({len(rows)})", BAGIAN))
+        if rows:
+            isi.append(_tabel_data(
+                ["No", "Tanggal", "Kendaraan", "Golongan", "Rincian", "Personil"],
+                [9, 25, 24, 22, 46, 34],
+                [
+                    (i, _tanggal(a["waktu"]), a["kendaraan"], a["golongan"], a["rincian"],
+                     a["personil"].nama if a["personil"] else "-")
+                    for i, a in enumerate(rows, start=1)
+                ],
+            ))
+        else:
+            isi.append(_p("Tidak ada data."))
+    return _dokumen(isi, f"Aktivitas {nama_anggota}")
+
+
+@login_required
+def laporan_anggota_pdf(request, uid, username):
+    from .laporan_tim import konteks_tim
+
+    k = konteks_tim(request, uid)
+    return _pdf_response(request, buat_pdf_anggota(k, username), f"aktivitas-{slugify(username)}.pdf")

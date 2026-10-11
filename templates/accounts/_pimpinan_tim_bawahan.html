@@ -1,0 +1,29 @@
+<h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-1">Pilih Ketua Tim Bawahan</h2>
+<p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
+    Pimpinan Tim <span class="font-semibold text-navy dark:text-slate-100">{{ pimpinan.username }}</span> ·
+    centang Ketua Tim yang berada di bawah{% if sendiri %} Anda{% else %}nya{% endif %}. Dashboard, Anggota Tim dan Laporan Tim hanya menampilkan tim yang dicentang.
+</p>
+<form method="post" action="{% url 'accounts:pimpinan_tim_bawahan' pimpinan.publik.uuid %}">
+    {% csrf_token %}
+    <ul class="max-h-[50vh] space-y-2 overflow-y-auto">
+        {% for k in ketua %}
+        <li>
+            <label class="flex cursor-pointer items-center gap-3 rounded-md border border-slate-300 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
+                <input type="checkbox" name="ketua" value="{{ k.uuid }}"{% if k.dipilih %} checked{% endif %}
+                       class="h-4 w-4 rounded border-slate-300 accent-gold dark:border-slate-600 dark:bg-slate-900">
+                <span class="min-w-0 flex-1">
+                    <span class="font-medium text-navy dark:text-slate-100">{{ k.username }}</span>
+                    {% if k.nama %}<span class="text-slate-500 dark:text-slate-400"> · {{ k.nama }}</span>{% endif %}
+                </span>
+                <span class="shrink-0 text-xs text-slate-500 dark:text-slate-400">{{ k.anggota }} anggota</span>
+            </label>
+        </li>
+        {% empty %}
+        <li class="py-6 text-center text-sm text-slate-400 dark:text-slate-500">Belum ada Ketua Tim.</li>
+        {% endfor %}
+    </ul>
+    <div class="flex items-center justify-end gap-3 pt-4">
+        <button type="button" @click="modalOpen = false" class="rounded-md border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">Batal</button>
+        <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Simpan</button>
+    </div>
+</form>

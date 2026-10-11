@@ -1,6 +1,6 @@
-<h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-4">{% if form.ketua %}Tambah Anggota <span class="font-normal text-slate-500 dark:text-slate-400">· Ketua Tim {{ form.ketua.user.username }}</span>{% else %}Tambah User{% endif %}</h2>
+<h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-4">{% if form.ketua %}Tambah Anggota <span class="font-normal text-slate-500 dark:text-slate-400">· Ketua Tim {{ form.ketua.user.username }}</span>{% elif form.admin %}Tambah Ketua Tim <span class="font-normal text-slate-500 dark:text-slate-400">· Admin {{ form.admin.username }}</span>{% else %}Tambah User{% endif %}</h2>
 <form method="post"
-      hx-post="{% url 'accounts:user_create' %}{% if form.ketua %}?ketua={{ form.ketua.pk }}{% endif %}"
+      hx-post="{% url 'accounts:user_create' %}{% if form.ketua %}?ketua={{ form.ketua.uuid }}{% elif form.admin %}?admin={{ form.admin.publik.uuid }}{% endif %}"
       hx-target="this"
       hx-swap="outerHTML"
       x-data="{ keanggotaan: '{{ form.keanggotaan.value|default_if_none:''|escapejs }}' }"
@@ -20,12 +20,29 @@
         <label for="{{ form.keanggotaan.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Keanggotaan</label>
         {{ form.keanggotaan }}
         {% if form.keanggotaan.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.keanggotaan.errors.0 }}</p>{% endif %}
-        {% if not form.ketua %}<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Anggota Tim Pemeriksaan, Tim Penambahan Data dan Tim Perbaikan ditambahkan lewat tombol <span class="font-semibold">+ Anggota</span> pada baris Ketua Tim.</p>{% endif %}
+        {% if not form.ketua and not form.admin %}<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Anggota Tim Pemeriksaan, Tim Penambahan Data, Tim Perbaikan dan Tim Pemeriksaan Rusak/Tidak Layak ditambahkan lewat tombol <span class="font-semibold">+ Anggota</span> pada baris Ketua Tim; Ketua Tim milik seorang Admin lewat tombol yang sama pada baris Admin itu.</p>{% endif %}
+    </div>
+    <div x-show="['admin', 'ketua_tim', 'pimpinan_tim', 'tim_pemeriksaan', 'tim_penambahan_data', 'tim_perbaikan', 'tim_tidak_layak'].includes(keanggotaan)" x-cloak>
+        <label for="{{ form.matra.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Matra</label>
+        {{ form.matra }}
+        {% if form.matra.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.matra.errors.0 }}</p>{% endif %}
+    </div>
+    <div x-show="keanggotaan === 'pimpinan_tim'" x-cloak>
+        <p class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Ketua Tim Bawahan</p>
+        <div class="max-h-48 space-y-1.5 overflow-y-auto rounded-md border border-slate-300 p-2 dark:border-slate-600">
+            {% for pilihan in form.bawahan %}
+            <label class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700">{{ pilihan.tag }} {{ pilihan.choice_label }}</label>
+            {% empty %}
+            <p class="px-2 py-1 text-sm text-slate-400 dark:text-slate-500">Belum ada Ketua Tim.</p>
+            {% endfor %}
+        </div>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Centang Ketua Tim yang berada di bawah Pimpinan Tim ini (minimal satu).</p>
+        {% if form.bawahan.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.bawahan.errors.0 }}</p>{% endif %}
     </div>
     {% if form.ketua %}{{ form.ketua_tim }}{% endif %}
     <p class="rounded-md bg-slate-100 dark:bg-slate-900 px-3 py-2 text-xs text-slate-600 dark:text-slate-300">Password awal user baru: <span class="font-mono font-semibold">12345</span></p>
     <div class="flex items-center gap-3 pt-2">
-        <button type="submit" class="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white hover:bg-navy-light focus:outline-none focus:ring-2 focus:ring-gold/50">Simpan</button>
+        <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400/50">Simpan</button>
         <button type="button" @click="modalOpen = false" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Batal</button>
     </div>
 </form>

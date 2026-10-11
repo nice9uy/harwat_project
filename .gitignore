@@ -32,3 +32,9 @@ bin/
 .env.dev
 .env.prod
 podman/garage.prod.toml
+
+# Backups made from the Backup menu (settings.BACKUP_DIR)
+/backup/
+
+# Photos copied out of the old prod containers by prod.sh, on their way to Garage
+/migrasi/

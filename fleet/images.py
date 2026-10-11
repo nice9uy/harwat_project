@@ -6,6 +6,7 @@ from PIL import Image, ImageOps
 
 MAX_SIDE = 1600
 JPEG_QUALITY = 75
+NAMA_MAKS = 50
 
 
 def compress_photo(upload):
@@ -26,4 +27,6 @@ def compress_photo(upload):
             img = background
         out = io.BytesIO()
         img.save(out, format="JPEG", quality=JPEG_QUALITY, optimize=True, progressive=True)
-    return ContentFile(out.getvalue(), name=f"{Path(upload.name).stem}.jpg")
+    # A short name: phone and download file names can run past the 100
+    # characters a photo column holds.
+    return ContentFile(out.getvalue(), name=f"{Path(upload.name).stem[:NAMA_MAKS]}.jpg")

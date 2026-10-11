@@ -1,6 +1,6 @@
 <button type="button"
         @click="modalOpen = true"
-        hx-get="{% url 'fleet:vehicle_update' vehicle.pk %}"
+        hx-get="{% url 'fleet:vehicle_update' vehicle.uuid %}"
         hx-target="#vehicle-modal-body"
         hx-swap="innerHTML"
         class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700">
@@ -8,7 +8,7 @@
 </button>
 <button type="button"
         @click="modalOpen = true"
-        hx-get="{% url 'fleet:vehicle_delete_confirm' vehicle.pk %}"
+        hx-get="{% url 'fleet:vehicle_delete_confirm' vehicle.uuid %}"
         hx-target="#vehicle-modal-body"
         hx-swap="innerHTML"
         class="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">

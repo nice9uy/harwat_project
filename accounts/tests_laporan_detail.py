@@ -36,7 +36,7 @@ class LaporanPemeriksaanDetailTests(TestCase):
         return hasil
 
     def _url(self):
-        return reverse("accounts:laporan_pemeriksaan_detail", args=[self.vehicle.pk])
+        return reverse("accounts:laporan_pemeriksaan_detail", args=[self.vehicle.uuid])
 
     def test_report_rows_open_the_detail_modal(self):
         hasil = self._pemeriksaan(self._biodata("1", "Budi"))
@@ -50,11 +50,11 @@ class LaporanPemeriksaanDetailTests(TestCase):
         pertama = self._pemeriksaan(budi, rusak=2)
         self._pemeriksaan(budi_lagi)
         self._pemeriksaan(ani)
-        response = self.client.get(self._url(), {"pemeriksaan": pertama.pk})
+        response = self.client.get(self._url(), {"pemeriksaan": pertama.uuid})
         self.assertContains(response, "Riwayat Pemeriksaan")
         self.assertContains(response, "Personil yang Memeriksa")
         self.assertEqual(len(response.context["riwayat"]), 3)
-        self.assertEqual(response.context["dipilih"], pertama.pk)
+        self.assertEqual(response.context["dipilih"], pertama.uuid)
         self.assertContains(response, "Dipilih", count=1)
         personil = {p["biodata"].nip: p["jumlah"] for p in response.context["personil"]}
         self.assertEqual(personil, {"1": 2, "2": 1})
@@ -86,7 +86,7 @@ class LaporanPemeriksaanDetailTests(TestCase):
         pemeriksa = self._biodata("1", "Budi")
         hasil = self._pemeriksaan(pemeriksa, rusak=2)
         PerbaikanGolonganB.objects.create(teknisi=pemeriksa, item=hasil.items.get(nomor=1), kondisi="B")
-        url = reverse("accounts:laporan_pemeriksaan_pdf", args=["B", hasil.pk])
+        url = reverse("accounts:laporan_pemeriksaan_pdf", args=["B", hasil.uuid])
         modal = self.client.get(self._url())
         self.assertContains(modal, f'href="{url}"')
         response = self.client.get(url)
@@ -94,8 +94,8 @@ class LaporanPemeriksaanDetailTests(TestCase):
         self.assertTrue(response.content.startswith(b"%PDF"))
         self.assertIn("inline", response["Content-Disposition"])
         self.assertIn("attachment", self.client.get(url, {"unduh": 1})["Content-Disposition"])
-        self.assertEqual(self.client.get(reverse("accounts:laporan_pemeriksaan_pdf", args=["x", hasil.pk])).status_code, 404)
-        self.assertEqual(self.client.get(reverse("accounts:laporan_pemeriksaan_pdf", args=["diesel", hasil.pk])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("accounts:laporan_pemeriksaan_pdf", args=["x", hasil.uuid])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("accounts:laporan_pemeriksaan_pdf", args=["diesel", hasil.uuid])).status_code, 404)
 
     def test_pdf_for_every_group(self):
         from accounts.models import PemeriksaanBermotor, PemeriksaanBermotorItem, PemeriksaanDiesel, PemeriksaanDieselItem
@@ -113,7 +113,7 @@ class LaporanPemeriksaanDetailTests(TestCase):
             pemeriksaan=diesel, nomor=1, nama_alat="Radiator", satuan="bh", jumlah_riil=1, jumlah_nyata=1, kondisi="ADA",
         )
         for kode, hasil in (("bermotor", bermotor), ("diesel", diesel)):
-            response = self.client.get(reverse("accounts:laporan_pemeriksaan_pdf", args=[kode, hasil.pk]))
+            response = self.client.get(reverse("accounts:laporan_pemeriksaan_pdf", args=[kode, hasil.uuid]))
             self.assertEqual(response.status_code, 200, kode)
             self.assertTrue(response.content.startswith(b"%PDF"), kode)
 
@@ -151,17 +151,17 @@ class LaporanPerbaikanDanPenambahanTests(TestCase):
         budi = self._biodata("1", "Budi")
         pertama, kedua = self._perbaikan(budi, n=2)
         self._perbaikan(self._biodata("2", "Ani"))
-        detail = reverse("accounts:laporan_perbaikan_detail", args=[self.vehicle.pk])
+        detail = reverse("accounts:laporan_perbaikan_detail", args=[self.vehicle.uuid])
         laporan = self.client.get(reverse("accounts:laporan_perbaikan"))
         self.assertContains(laporan, f'hx-get="{detail}"')
         self.assertEqual(len(laporan.context["halaman"].object_list), 1)  # one row per vehicle
-        modal = self.client.get(detail, {"perbaikan": pertama.pk})
+        modal = self.client.get(detail, {"perbaikan": pertama.uuid})
         self.assertContains(modal, "Riwayat Perbaikan")
         self.assertContains(modal, "Personil yang Memperbaiki")
         self.assertEqual(len(modal.context["riwayat"]), 3)
         self.assertContains(modal, "Dipilih", count=1)
         self.assertEqual({p["biodata"].nip: p["jumlah"] for p in modal.context["personil"]}, {"1": 2, "2": 1})
-        pdf = reverse("accounts:laporan_perbaikan_pdf", args=["B", pertama.pk])
+        pdf = reverse("accounts:laporan_perbaikan_pdf", args=["B", pertama.uuid])
         self.assertContains(modal, f'href="{pdf}"')
         response = self.client.get(pdf)
         self.assertEqual(response["Content-Type"], "application/pdf")
@@ -169,7 +169,7 @@ class LaporanPerbaikanDanPenambahanTests(TestCase):
 
     def test_perbaikan_modal_query_count_does_not_grow(self):
         self._perbaikan(self._biodata("1", "Budi"))
-        url = reverse("accounts:laporan_perbaikan_detail", args=[self.vehicle.pk])
+        url = reverse("accounts:laporan_perbaikan_detail", args=[self.vehicle.uuid])
 
         def hitung():
             with CaptureQueriesContext(connection) as ctx:
@@ -189,7 +189,7 @@ class LaporanPerbaikanDanPenambahanTests(TestCase):
         self.assertContains(form, 'hx-include="#form-tambah-biodata"')
         self.assertContains(form, "penambah=1")
         data = {
-            "nopol": "B 7 X", "merek": "Isuzu", "foto": fotos,
+            "kepemilikan": "organik", "nopol": "B 7 X", "merek": "Isuzu", "foto": fotos,
             "penambah-nip": "123", "penambah-nama": "Sari", "penambah-pangkat": "Letda",
             "penambah-jabatan": "Staf", "penambah-satuan": self.satuan.pk,
             "penambah-foto": SimpleUploadedFile("p.gif", TINY_GIF, content_type="image/gif"),
@@ -208,7 +208,7 @@ class LaporanPerbaikanDanPenambahanTests(TestCase):
 
         fotos = [SimpleUploadedFile(f"m{i}.gif", TINY_GIF, content_type="image/gif") for i in range(4)]
         url = reverse("fleet:vehicle_create") + "?group=B&penambah=1"
-        response = self.client.post(url, {"nopol": "B 8 X", "merek": "Isuzu", "foto": fotos}, HTTP_HX_REQUEST="true")
+        response = self.client.post(url, {"kepemilikan": "organik", "nopol": "B 8 X", "merek": "Isuzu", "foto": fotos}, HTTP_HX_REQUEST="true")
         self.assertContains(response, "Biodata pemeriksa belum lengkap")
         self.assertFalse(Vehicle.objects.filter(nopol="B 8 X").exists())
 
@@ -217,19 +217,19 @@ class LaporanPerbaikanDanPenambahanTests(TestCase):
         self.vehicle.ditambahkan_oleh = self.root
         self.vehicle.save()
         lama = Vehicle.objects.create(nopol="B 2 X", merek="Hino")
-        detail = reverse("accounts:laporan_penambahan_detail", args=[self.vehicle.pk])
+        detail = reverse("accounts:laporan_penambahan_detail", args=[self.vehicle.uuid])
         laporan = self.client.get(reverse("accounts:laporan_penambahan"))
         self.assertContains(laporan, f'hx-get="{detail}"')
         modal = self.client.get(detail)
         self.assertContains(modal, "Detail Kendaraan/Barang")
         self.assertContains(modal, "Personil yang Menambahkan")
         self.assertContains(modal, "Sari")
-        self.assertContains(modal, reverse("accounts:laporan_penambahan_pdf", args=[self.vehicle.pk]))
+        self.assertContains(modal, reverse("accounts:laporan_penambahan_pdf", args=[self.vehicle.uuid]))
         self.assertContains(
-            self.client.get(reverse("accounts:laporan_penambahan_detail", args=[lama.pk])), "belum tercatat",
+            self.client.get(reverse("accounts:laporan_penambahan_detail", args=[lama.uuid])), "belum tercatat",
         )
         for v in (self.vehicle, lama):
-            response = self.client.get(reverse("accounts:laporan_penambahan_pdf", args=[v.pk]))
+            response = self.client.get(reverse("accounts:laporan_penambahan_pdf", args=[v.uuid]))
             self.assertTrue(response.content.startswith(b"%PDF"))
 
     def test_laporan_penambahan_role_can_see_the_qr_code(self):
@@ -251,5 +251,88 @@ class QrLaporanTests(TestCase):
             _data_kendaraan_qr(vehicle, "Golongan B"), _personil_qr("Personil yang Memperbaiki", teknisi),
         ])
         for baris in ("Laporan Perbaikan Kendaraan", "No. Registrasi: B 1 X", "No. Mesin: -",
-                      "[Personil yang Memperbaiki]", "NIP: 123", "Nama: Budi", "Satuan: Yonif 202"):
+                      "[Personil yang Memperbaiki]", "NRP: 123", "Nama: Budi", "Satuan: Yonif 202"):
             self.assertIn(baris, teks.split("\n"))
+
+
+class LaporanFilterSatuanTests(TestCase):
+    """The three vehicle reports filter by the Satuan of whoever did the work."""
+
+    def setUp(self):
+        from accounts.models import PemeriksaanGolonganB, PemeriksaanGolonganBItem, PerbaikanGolonganB, Satuan
+        User.objects.create_superuser(username="root", password="rahasia-123")
+        self.client.login(username="root", password="rahasia-123")
+        self.satuan = {}
+        for nama in ("Alfa", "Bravo"):
+            satuan = Satuan.objects.create(nama=nama)
+            self.satuan[nama] = satuan
+            orang = Laporan.objects.create(
+                nip=nama, nama=f"Orang {nama}", pangkat="P", jabatan="J", satuan=satuan, foto="x.jpg",
+            )
+            vehicle = Vehicle.objects.create(nopol=f"B 1 {nama.upper()}", merek="Uji", group_kendaraan="B", penambah=orang)
+            periksa = PemeriksaanGolonganB.objects.create(
+                pemeriksa=orang, vehicle=vehicle, pembagian_kelas="1", eselon_reparasi="1",
+                macam_pemeriksaan="tehnis", buku_jalan="ada",
+            )
+            item = PemeriksaanGolonganBItem.objects.create(pemeriksaan=periksa, nomor=1, nama_alat="Motor", kondisi="RR")
+            PerbaikanGolonganB.objects.create(teknisi=orang, item=item, kondisi="B")
+
+    def test_each_report_has_the_filter_and_narrows_by_it(self):
+        for nama in ("accounts:laporan_pemeriksaan", "accounts:laporan_perbaikan", "accounts:laporan_penambahan"):
+            semua = self.client.get(reverse(nama))
+            self.assertContains(semua, 'name="satuan"')
+            self.assertContains(semua, "Semua satuan")
+            self.assertContains(semua, "B 1 ALFA")
+            self.assertContains(semua, "B 1 BRAVO")
+            alfa = self.client.get(reverse(nama), {"satuan": self.satuan["Alfa"].uuid})
+            self.assertContains(alfa, "B 1 ALFA", msg_prefix=nama)
+            self.assertNotContains(alfa, "B 1 BRAVO", msg_prefix=nama)
+            self.assertContains(alfa, f'value="{self.satuan["Alfa"].uuid}" selected')
+            # An unknown value is ignored.
+            self.assertContains(self.client.get(reverse(nama), {"satuan": "zzz"}), "B 1 BRAVO")
+
+    def test_laporan_tim_has_no_satuan_filter(self):
+        self.assertNotContains(self.client.get(reverse("accounts:laporan_tim")), 'name="satuan"')
+
+
+class FormTambahMatraTests(TestCase):
+    """Form Tambah asks a superadmin the matra; the vehicle keeps it."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        get_user_model().objects.create_superuser(username="root_matra", password="rahasia-123")
+        self.client.login(username="root_matra", password="rahasia-123")
+
+    def test_page_offers_the_three_matra(self):
+        response = self.client.get(reverse("accounts:form_tambah"))
+        for label in ("Matra Darat", "Matra Laut", "Matra Udara"):
+            self.assertContains(response, label)
+        # The vehicle groups show for Matra Darat only; Laut and Udara are empty.
+        self.assertContains(response, """x-show="tab === 'kendaraan' && matra === 'darat'\"""")
+        self.assertContains(response, "Belum ada jenis kendaraan untuk matra ini.")
+
+    def test_others_add_for_their_own_matra(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from accounts.models import AkunPublik
+        user = User.objects.create_user(username="anggota_matra", password="rahasia-123")
+        AkunPublik.objects.update_or_create(user=user, defaults={"matra": "udara"})
+        self.client.login(username="anggota_matra", password="rahasia-123")
+        self.assertNotContains(self.client.get(reverse("accounts:form_tambah")), "Matra Laut")
+        fotos = [SimpleUploadedFile(f"f{i}.gif", TINY_GIF, content_type="image/gif") for i in range(4)]
+        self.client.post(
+            reverse("fleet:vehicle_create") + "?group=B&matra=laut",
+            {"kepemilikan": "organik", "nopol": "B 9 MT", "merek": "Isuzu", "foto": fotos}, HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(Vehicle.objects.get(nopol="B 9 MT").matra, "udara")
+
+    def test_vehicle_keeps_the_matra_picked(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        url = reverse("fleet:vehicle_create") + "?group=B&matra=laut"
+        self.assertContains(self.client.get(url, HTTP_HX_REQUEST="true"), "matra=laut")
+        for nopol, query, matra in (("B 1 MT", "&matra=laut", "laut"), ("B 2 MT", "&matra=angkasa", ""), ("B 3 MT", "", "")):
+            fotos = [SimpleUploadedFile(f"f{i}.gif", TINY_GIF, content_type="image/gif") for i in range(4)]
+            self.client.post(
+                reverse("fleet:vehicle_create") + "?group=B" + query,
+                {"kepemilikan": "organik", "nopol": nopol, "merek": "Isuzu", "foto": fotos}, HTTP_HX_REQUEST="true",
+            )
+            self.assertEqual(Vehicle.objects.get(nopol=nopol).matra, matra)

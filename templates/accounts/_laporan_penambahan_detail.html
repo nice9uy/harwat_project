@@ -19,14 +19,16 @@ who added it (biodata from Form Tambah and the account used).
                         <tr><th class="bg-slate-50 px-3 py-2 font-medium text-slate-500 dark:bg-slate-900 dark:text-slate-400">Merk/Type</th><td class="px-3 py-2">{{ vehicle.merek }}</td></tr>
                         <tr><th class="bg-slate-50 px-3 py-2 font-medium text-slate-500 dark:bg-slate-900 dark:text-slate-400">No. Chasis</th><td class="px-3 py-2">{{ vehicle.no_chasis|default:"-" }}</td></tr>
                         <tr><th class="bg-slate-50 px-3 py-2 font-medium text-slate-500 dark:bg-slate-900 dark:text-slate-400">No. Mesin</th><td class="px-3 py-2">{{ vehicle.no_mesin|default:"-" }}</td></tr>
+                        <tr><th class="bg-slate-50 px-3 py-2 font-medium text-slate-500 dark:bg-slate-900 dark:text-slate-400">Status</th><td class="px-3 py-2">{{ vehicle.get_kepemilikan_display }}</td></tr>
                         <tr><th class="bg-slate-50 px-3 py-2 font-medium text-slate-500 dark:bg-slate-900 dark:text-slate-400">Golongan</th><td class="px-3 py-2">{{ vehicle.get_group_kendaraan_display }}</td></tr>
+                        <tr><th class="bg-slate-50 px-3 py-2 font-medium text-slate-500 dark:bg-slate-900 dark:text-slate-400">Matra</th><td class="px-3 py-2">{{ vehicle.get_matra_display|default:"-" }}</td></tr>
                         <tr><th class="bg-slate-50 px-3 py-2 font-medium text-slate-500 dark:bg-slate-900 dark:text-slate-400">Ditambahkan Pada</th><td class="px-3 py-2 tabular-nums">{{ vehicle.dibuat_pada|date:"d-m-Y H:i"|default:"-" }}</td></tr>
                     </tbody>
                 </table>
             </div>
             <div class="flex shrink-0 flex-col items-center gap-2">
-                <img src="{% url 'fleet:vehicle_qr' vehicle.pk %}?v={{ vehicle.qr_version }}" alt="QR Code {{ vehicle.nopol }}" class="h-36 w-36 rounded-md border border-slate-200 bg-white p-1 dark:border-slate-700">
-                {% url 'accounts:laporan_penambahan_pdf' vehicle.pk as url_pdf %}
+                <img src="{% url 'fleet:vehicle_qr' vehicle.uuid %}?v={{ vehicle.qr_version }}" alt="QR Code {{ vehicle.nopol }}" class="h-36 w-36 rounded-md border border-slate-200 bg-white p-1 dark:border-slate-700">
+                {% url 'accounts:laporan_penambahan_pdf' vehicle.uuid as url_pdf %}
                 {% include "accounts/_tombol_pdf.html" with url=url_pdf judul="Laporan lengkap penambahan kendaraan ini (PDF)" %}
             </div>
         </div>

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Backup — BMN Harwat{% endblock %}
+{% block page_title %}Backup{% endblock %}
+{% block content %}
+<div class="space-y-4" x-data="{ modalOpen: false, sibuk: false }">
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4">
+        <p class="text-sm text-slate-600 dark:text-slate-300">
+            Buat salinan cadangan data aplikasi. Backup disimpan di server pada folder
+            <span class="font-mono text-xs text-navy dark:text-slate-100">{{ folder }}</span>; unduh dan simpan juga di tempat lain.
+        </p>
+        {% comment %}
+        The buttons are disabled a moment after the submit, not during it: a
+        disabled button's name=value (which backup to make) is left out of the form.
+        {% endcomment %}
+        <form method="post" action="{% url 'accounts:backup_buat' %}" @submit="setTimeout(() => sibuk = true)" class="mt-3 flex flex-wrap items-center gap-2">
+            {% csrf_token %}
+            <button type="submit" name="jenis" value="database" :disabled="sibuk"
+                    class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-gold/50">
+                Backup Database
+            </button>
+            <button type="submit" name="jenis" value="lengkap" :disabled="sibuk"
+                    class="rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-gold/50">
+                Backup Database + Foto
+            </button>
+            <span x-show="sibuk" x-cloak class="text-sm text-slate-500 dark:text-slate-400">Membuat backup…</span>
+        </form>
+        <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Database: semua data (user, kendaraan, pemeriksaan, perbaikan, pengaturan). Database + Foto: ditambah semua foto yang diunggah, dalam satu file zip (lebih besar dan lebih lama).</p>
+    </div>
+
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead class="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                <tr>
+                    <th class="py-2 px-4 font-medium w-12">No</th>
+                    <th class="py-2 px-4 font-medium">Nama File</th>
+                    <th class="py-2 px-4 font-medium">Isi</th>
+                    <th class="py-2 px-4 font-medium">Dibuat</th>
+                    <th class="py-2 px-4 font-medium">Ukuran</th>
+                    <th class="py-2 px-4 font-medium">Aksi</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                {% for b in backup_list %}
+                <tr>
+                    <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td>
+                    <td class="py-2 px-4 font-mono text-xs font-medium text-navy dark:text-slate-100 whitespace-nowrap">{{ b.nama }}</td>
+                    <td class="py-2 px-4 whitespace-nowrap">{{ b.jenis }}</td>
+                    <td class="py-2 px-4 whitespace-nowrap tabular-nums">{{ b.waktu|date:"d M Y H:i" }}</td>
+                    <td class="py-2 px-4 whitespace-nowrap tabular-nums">{{ b.ukuran|filesizeformat }}</td>
+                    <td class="py-2 px-4">
+                        <div class="flex items-center gap-2">
+                            <a href="{% url 'accounts:backup_unduh' b.nama %}" download hx-boost="false"
+                               class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700">Unduh</a>
+                            <button type="button" @click="modalOpen = true"
+                                    hx-get="{% url 'accounts:backup_hapus' b.nama %}" hx-target="#backup-modal-body" hx-swap="innerHTML"
+                                    class="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">Hapus</button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="py-6 px-4 text-center text-slate-400 dark:text-slate-500">Belum ada backup.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if backup_list %}
+    <p class="text-sm text-slate-500 dark:text-slate-400">{{ backup_list|length }} backup · total {{ total|filesizeformat }}</p>
+    {% endif %}
+
+    <div x-show="modalOpen" x-cloak @click.self="modalOpen = false" @keydown.escape.window="modalOpen = false"
+         class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/50 px-4 py-8 sm:py-4">
+        <div class="w-full max-w-lg bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl my-auto">
+            <div id="backup-modal-body"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}

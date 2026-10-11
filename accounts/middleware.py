@@ -2,14 +2,17 @@ from functools import wraps
 from inspect import iscoroutinefunction
 
 from django.contrib import messages
+from django.contrib.auth import login
+from django.db.models import Q
 from django.http import Http404, HttpResponseNotFound
 from django.shortcuts import redirect
 
 from . import roles
+from .models import VpnPeer
 
 
 class MenuAccessMiddleware:
-    """Keep Tim users inside their menus (see roles.MENU_PER_KEANGGOTAAN).
+    """Keep users inside their role's menus (see roles.allowed_menus).
 
     Hiding a menu in the sidebar isn't enough: the URL would still work,
     so views belonging to a menu the user may not see redirect to the
@@ -58,7 +61,6 @@ NOT_FOUND = "<h1>Not Found</h1><p>The requested resource was not found on this s
 
 def superuser_only(view):
     """Decorator for the API docs (async Bolt handlers): 404 unless superuser."""
-    # wraps() keeps the handler's signature, which Bolt reads to bind parameters.
     if iscoroutinefunction(view):
         @wraps(view)
         async def wrapper(request, *args, **kwargs):
@@ -72,3 +74,36 @@ def superuser_only(view):
                 return HttpResponseNotFound(NOT_FOUND)
             return view(request, *args, **kwargs)
     return wrapper
+
+
+class VpnAutoLoginMiddleware:
+    """Auto-login anggota tim whose request comes from their registered WireGuard VPN IP.
+
+    Only applies to TIM roles. Skipped if already authenticated or the account is switched off.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from django.conf import settings
+        if not settings.DEBUG and not request.user.is_authenticated:
+            remote_ip = request.META.get("REMOTE_ADDR", "")
+            if remote_ip:
+                peer = self._find_peer(remote_ip)
+                if peer and roles.keanggotaan_kode(peer.user) in roles.TIM:
+                    peer.user.backend = "django.contrib.auth.backends.ModelBackend"
+                    login(request, peer.user)
+        return self.get_response(request)
+
+    def _find_peer(self, remote_ip):
+        peer = (
+            VpnPeer.objects
+            .filter(Q(client_ip=remote_ip) | Q(client_ip__startswith=remote_ip + "/"))
+            .exclude(client_ip="")
+            .filter(user__is_active=True)
+            .select_related("user")
+            .prefetch_related("user__groups")
+            .first()
+        )
+        return peer

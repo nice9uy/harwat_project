@@ -1,0 +1,62 @@
+<h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-4">{% if barang %}Edit{% else %}Tambah{% endif %} {{ group_label }}</h2>
+<form method="post" enctype="multipart/form-data"
+      hx-encoding="multipart/form-data"
+      hx-post="{% if barang %}{% url 'accounts:non_kendaraan_update' barang.uuid %}{% else %}{% url 'accounts:non_kendaraan_create' %}?group={{ group }}{% endif %}"
+      hx-target="this"
+      hx-swap="outerHTML"
+      class="space-y-4">
+    {% csrf_token %}
+    {% if form.kode_barang %}
+    <div>
+        <label for="{{ form.kode_barang.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kode Barang</label>
+        {{ form.kode_barang }}
+        {% if form.kode_barang.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.kode_barang.errors.0 }}</p>{% endif %}
+    </div>
+    {% endif %}
+    <div>
+        <label for="{{ form.nama_barang.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nama Barang</label>
+        {{ form.nama_barang }}
+        {% if form.nama_barang.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.nama_barang.errors.0 }}</p>{% endif %}
+    </div>
+    <div>
+        <label for="{{ form.merek.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Merk/Type <span class="font-normal text-slate-500 dark:text-slate-400">(opsional)</span></label>
+        {{ form.merek }}
+        {% if form.merek.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.merek.errors.0 }}</p>{% endif %}
+    </div>
+    <div>
+        <label for="{{ form.no_seri.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. Seri <span class="font-normal text-slate-500 dark:text-slate-400">(opsional)</span></label>
+        {{ form.no_seri }}
+        {% if form.no_seri.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.no_seri.errors.0 }}</p>{% endif %}
+    </div>
+    {% if form.jumlah %}
+    <div class="grid grid-cols-2 gap-3">
+    <div>
+        <label for="{{ form.jumlah.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Jumlah</label>
+        {{ form.jumlah }}
+        {% if form.jumlah.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.jumlah.errors.0 }}</p>{% endif %}
+    </div>
+    <div>
+        <label for="{{ form.satuan.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Satuan</label>
+        {{ form.satuan }}
+        {% if form.satuan.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.satuan.errors.0 }}</p>{% endif %}
+    </div>
+    </div>
+    {% endif %}
+    {% if form.kondisi %}
+    <div>
+        <label for="{{ form.kondisi.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kondisi</label>
+        {{ form.kondisi }}
+        {% if form.kondisi.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.kondisi.errors.0 }}</p>{% endif %}
+    </div>
+    {% endif %}
+    <div>
+        <label for="{{ form.foto.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Foto <span class="font-normal text-slate-500 dark:text-slate-400">(opsional)</span></label>
+        {{ form.foto }}
+        {% if barang.foto %}<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Sudah ada foto. Pilih file hanya kalau ingin menggantinya.</p>{% endif %}
+        {% if form.foto.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.foto.errors.0 }}</p>{% endif %}
+    </div>
+    <div class="flex items-center gap-3 pt-2">
+        <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400/50">Simpan</button>
+        <button type="button" @click="modalOpen = false" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Batal</button>
+    </div>
+</form>

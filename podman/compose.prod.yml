@@ -7,7 +7,17 @@ services:
     env_file:
       - ../.env.prod
     volumes:
+      # The SQLite file production ran on before PostgreSQL: only read, once,
+      # by `manage.py impor_sqlite` (settings.SQLITE_LAMA).
       - sqlite-data:/app/data
+      # Backups made from the Backup menu, shared by the three app containers.
+      - backup-data:/app/backup
+      # The WireGuard server's wg0.conf, written by the app, read by the
+      # wireguard container (settings.VPN_CONF_DIR).
+      - wireguard-conf:/vpn
+      # Photos copied out of the old containers by prod.sh, for `manage.py
+      # impor_media` to put into Garage (app1 runs the one-time commands).
+      - ../migrasi/media:/app/migrasi-media:ro
     depends_on:
       - postgres
       - pgbouncer
@@ -23,7 +33,14 @@ services:
     env_file:
       - ../.env.prod
     volumes:
+      # The SQLite file production ran on before PostgreSQL: only read, once,
+      # by `manage.py impor_sqlite` (settings.SQLITE_LAMA).
       - sqlite-data:/app/data
+      # Backups made from the Backup menu, shared by the three app containers.
+      - backup-data:/app/backup
+      # The WireGuard server's wg0.conf, written by the app, read by the
+      # wireguard container (settings.VPN_CONF_DIR).
+      - wireguard-conf:/vpn
     depends_on:
       - postgres
       - pgbouncer
@@ -39,7 +56,14 @@ services:
     env_file:
       - ../.env.prod
     volumes:
+      # The SQLite file production ran on before PostgreSQL: only read, once,
+      # by `manage.py impor_sqlite` (settings.SQLITE_LAMA).
       - sqlite-data:/app/data
+      # Backups made from the Backup menu, shared by the three app containers.
+      - backup-data:/app/backup
+      # The WireGuard server's wg0.conf, written by the app, read by the
+      # wireguard container (settings.VPN_CONF_DIR).
+      - wireguard-conf:/vpn
     depends_on:
       - postgres
       - pgbouncer
@@ -71,11 +95,58 @@ services:
       - static-sync
     restart: unless-stopped
 
+  # The primary: the only database the app writes to (through pgbouncer).
+  postgres:
+    environment:
+      REPLIKASI_USER: ${REPLIKASI_USER}
+      REPLIKASI_PASSWORD: ${REPLIKASI_PASSWORD}
+    command: ["sh", "/skrip/primary.sh"]
+    volumes:
+      - ../podman/postgres/primary.sh:/skrip/primary.sh:ro
+      - ../podman/postgres/10-replikasi.sh:/docker-entrypoint-initdb.d/10-replikasi.sh:ro
+
+  # Two read-only hot standbys following the primary by streaming replication,
+  # each on a volume of its own. They copy the primary on their first start.
+  postgres-replica1:
+    image: postgres:17-alpine
+    environment: &replica-env
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REPLIKASI_USER: ${REPLIKASI_USER}
+      REPLIKASI_PASSWORD: ${REPLIKASI_PASSWORD}
+      PRIMARY_HOST: postgres
+    command: ["sh", "/skrip/replica.sh"]
+    volumes:
+      - ../podman/postgres/replica.sh:/skrip/replica.sh:ro
+      - pgdata-replica1:/var/lib/postgresql/data
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  postgres-replica2:
+    image: postgres:17-alpine
+    environment: *replica-env
+    command: ["sh", "/skrip/replica.sh"]
+    volumes:
+      - ../podman/postgres/replica.sh:/skrip/replica.sh:ro
+      - pgdata-replica2:/var/lib/postgresql/data
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  # Holds the uploaded photos (bucket GARAGE_DEFAULT_BUCKET, made on start
+  # together with the app's access key).
   garage:
+    environment:
+      GARAGE_DEFAULT_ACCESS_KEY: ${GARAGE_DEFAULT_ACCESS_KEY}
+      GARAGE_DEFAULT_SECRET_KEY: ${GARAGE_DEFAULT_SECRET_KEY}
+      GARAGE_DEFAULT_BUCKET: ${GARAGE_DEFAULT_BUCKET}
     volumes:
       - ../podman/garage.prod.toml:/etc/garage.toml:ro
-    command: ["/garage", "server"]
+    command: ["/garage", "server", "--single-node", "--default-bucket"]
 
 volumes:
   sqlite-data:
   static-data:
+  backup-data:
+  pgdata-replica1:
+  pgdata-replica2:

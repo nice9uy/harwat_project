@@ -1,0 +1,26 @@
+<fieldset class="rounded-md border border-slate-300 dark:border-slate-600 p-4">
+    <legend class="px-1 text-sm font-semibold text-slate-700 dark:text-slate-200">Kesimpulan Status Kendaraan</legend>
+    <div class="grid grid-cols-3 gap-3 mt-2">
+        <label class="flex flex-col items-center justify-center rounded-xl border border-slate-300 dark:border-slate-600 py-3 cursor-pointer
+            has-checked:border-green-600 has-checked:bg-green-600 has-checked:text-white
+            text-slate-700 dark:text-slate-200">
+            <input type="radio" name="kesimpulan" value="siap_pakai" required class="sr-only">
+            <span class="text-base font-bold">✓</span>
+            <span class="text-xs text-center leading-tight mt-0.5">Siap Pakai</span>
+        </label>
+        <label class="flex flex-col items-center justify-center rounded-xl border border-slate-300 dark:border-slate-600 py-3 cursor-pointer
+            has-checked:border-amber-500 has-checked:bg-amber-500 has-checked:text-white
+            text-slate-700 dark:text-slate-200">
+            <input type="radio" name="kesimpulan" value="perlu_perbaikan" required class="sr-only">
+            <span class="text-base font-bold">⚠</span>
+            <span class="text-xs text-center leading-tight mt-0.5">Perlu Perbaikan</span>
+        </label>
+        <label class="flex flex-col items-center justify-center rounded-xl border border-slate-300 dark:border-slate-600 py-3 cursor-pointer
+            has-checked:border-red-600 has-checked:bg-red-600 has-checked:text-white
+            text-slate-700 dark:text-slate-200">
+            <input type="radio" name="kesimpulan" value="tidak_layak_pakai" required class="sr-only">
+            <span class="text-base font-bold">✗</span>
+            <span class="text-xs text-center leading-tight mt-0.5">Tidak Layak Pakai</span>
+        </label>
+    </div>
+</fieldset>

@@ -1,0 +1,11 @@
+{% comment %}
+One selectable form in the Tambah Form modal. Params: kode, label, punya
+(already given). The field must not be named "form": inside a <form> that
+name shadows the element's own .form, which breaks HTMX's submit handling.
+{% endcomment %}
+<label class="flex items-center gap-3 rounded-md border border-slate-300 dark:border-slate-600 px-3 py-3 text-sm {% if punya %}text-slate-400 dark:text-slate-500{% else %}text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700{% endif %}">
+    <input type="checkbox" name="kode" value="{{ kode }}"{% if punya %} checked disabled{% endif %}
+           class="h-4 w-4 rounded border-slate-300 accent-gold dark:border-slate-600 dark:bg-slate-900">
+    <span class="flex-1">{{ label }}</span>
+    {% if punya %}<span class="text-xs">Sudah ada</span>{% endif %}
+</label>

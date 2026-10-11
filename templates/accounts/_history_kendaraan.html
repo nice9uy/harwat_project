@@ -11,7 +11,7 @@
                 <dt class="text-slate-500 dark:text-slate-400">No. Mesin</dt><dd>{{ vehicle.no_mesin|default:"-" }}</dd>
                 <dt class="text-slate-500 dark:text-slate-400">Group Kendaraan</dt><dd>{{ vehicle.get_group_kendaraan_display }}</dd>
             </dl>
-            <img src="{% url 'fleet:vehicle_qr' vehicle.pk %}?v={{ vehicle.qr_version }}" alt="QR Code {{ vehicle.nopol }}" class="h-24 w-24 shrink-0 rounded bg-white">
+            <img src="{% url 'fleet:vehicle_qr' vehicle.uuid %}?v={{ vehicle.qr_version }}" alt="QR Code {{ vehicle.nopol }}" class="h-24 w-24 shrink-0 rounded bg-white">
         </div>
     </div>
     {% if vehicle.fotos.all %}
@@ -65,6 +65,8 @@
         </div>
         <p class="mt-1 text-slate-600 dark:text-slate-300">
             {{ hasil.ringkasan }}
+            {# The odometer photo taken at the inspection, when there is one. #}
+            {% if hasil.foto_km %}· <a href="{{ hasil.foto_km.url }}" target="_blank" rel="noopener" hx-boost="false" class="font-medium text-blue-600 dark:text-blue-400 hover:underline">Foto KM</a>{% endif %}
         </p>
     </div>
     {% empty %}

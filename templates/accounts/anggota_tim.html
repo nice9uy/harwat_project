@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Anggota Tim — BMN Harwat{% endblock %}
+{% block page_title %}Anggota Tim{% endblock %}
+{% block content %}
+<div x-data="{ modalOpen: false, tutup: {} }">
+
+{% if pilih_bawahan_url %}
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <p class="text-sm text-slate-500 dark:text-slate-400">Tim dari Ketua Tim yang Anda pilih sebagai bawahan.</p>
+    <button type="button"
+            @click="modalOpen = true"
+            hx-get="{{ pilih_bawahan_url }}"
+            hx-target="#anggota-modal-body"
+            hx-swap="innerHTML"
+            class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">Pilih Ketua Tim</button>
+</div>
+{% endif %}
+
+<div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
+    <table class="w-full text-sm text-left">
+        <thead class="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+            <tr>
+                <th class="py-2 px-4 font-medium w-12">No</th>
+                <th class="py-2 px-4 font-medium">Username</th>
+                <th class="py-2 px-4 font-medium">NIP/NRP</th>
+                <th class="py-2 px-4 font-medium">Nama</th>
+                <th class="py-2 px-4 font-medium">Keanggotaan</th>
+                <th class="py-2 px-4 font-medium">VPN Peer</th>
+                {% if dapat_kelola_global %}<th class="py-2 px-4 font-medium">Aksi</th>{% endif %}
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+            {% for b in baris %}
+            <tr{% if b.kedalaman %} x-show="!tutup[{{ b.ketua_pk }}]"{% endif %}>
+                <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td>
+                <td class="py-2 px-4 font-medium text-navy dark:text-slate-100">
+                    {% if b.kedalaman %}
+                    <span class="inline-flex items-center gap-1.5 pl-5 font-normal">
+                        <span class="text-slate-400 dark:text-slate-500" aria-hidden="true">└─</span>{{ b.user.username }}{% if not b.user.is_active %}<span class="rounded-full bg-red-100 px-1.5 py-0.5 text-[11px] font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300">Nonaktif</span>{% endif %}
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center gap-1.5">
+                        {% if b.jumlah_anggota %}
+                        <button type="button"
+                                @click="tutup[{{ b.anggota_pk }}] = !tutup[{{ b.anggota_pk }}]"
+                                :aria-expanded="!tutup[{{ b.anggota_pk }}]"
+                                class="-ml-1 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-navy dark:hover:bg-slate-700 dark:hover:text-gold">
+                            <svg :class="tutup[{{ b.anggota_pk }}] ? '-rotate-90' : ''" class="h-4 w-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
+                        </button>
+                        {% else %}
+                        <span class="w-5" aria-hidden="true"></span>
+                        {% endif %}
+                        <svg class="h-4 w-4 text-gold shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"/></svg>
+                        {{ b.user.username }}
+                        {% if b.jumlah_anggota %}<span class="rounded-full bg-slate-200 dark:bg-slate-700 px-1.5 text-xs font-normal text-slate-600 dark:text-slate-300">{{ b.jumlah_anggota }}</span>{% endif %}
+                    </span>
+                    {% endif %}
+                </td>
+                <td class="py-2 px-4 text-slate-500 dark:text-slate-400 tabular-nums">{{ b.nip|default:"—" }}</td>
+                <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ b.nama|default:"—" }}</td>
+                <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ b.keanggotaan }}</td>
+                <td class="py-2 px-4">
+                    {% with vpn=b.user.vpn_peer %}
+                    {% if vpn %}
+                    <div class="flex items-center gap-1.5">
+                        <span class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/40 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300">{{ vpn.peer_name }}</span>
+                        <button type="button" title="Config WireGuard"
+                                @click="modalOpen = true"
+                                hx-get="{% url 'accounts:vpn_config' b.user.publik.uuid %}"
+                                hx-target="#anggota-modal-body"
+                                hx-swap="innerHTML"
+                                class="shrink-0 rounded p-0.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.5h4.5v4.5h-4.5zM3.75 15h4.5v4.5h-4.5zM15.75 4.5h4.5v4.5h-4.5zM14.25 14.25h2.25v2.25h-2.25zM18 18h2.25v2.25H18zM18 14.25h2.25M14.25 18v2.25M12 4.5v6.75M3.75 12h6"/>
+                            </svg>
+                        </button>
+                    </div>
+                    {% else %}<span class="text-slate-400 dark:text-slate-500">—</span>{% endif %}
+                    {% endwith %}
+                </td>
+                {% if dapat_kelola_global %}
+                <td class="py-2 px-4">
+                    <div class="flex items-center gap-2">
+                    {% if b.dapat_kelola %}
+                        {% if not b.kedalaman %}
+                        <button type="button"
+                                @click="modalOpen = true"
+                                hx-get="{% url 'accounts:anggota_tim_tambah' b.anggota_uuid %}"
+                                hx-target="#anggota-modal-body"
+                                hx-swap="innerHTML"
+                                class="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700">
+                            + Anggota
+                        </button>
+                        {% else %}
+                        <button type="button"
+                                @click="modalOpen = true"
+                                hx-get="{% url 'accounts:anggota_tim_ubah' b.user.publik.uuid %}"
+                                hx-target="#anggota-modal-body"
+                                hx-swap="innerHTML"
+                                class="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600">
+                            Ubah Tim
+                        </button>
+                        {% endif %}
+                    {% endif %}
+                    {% if b.dapat_hapus_vpn %}
+                        <button type="button"
+                                @click="modalOpen = true"
+                                hx-get="{% url 'accounts:anggota_tim_aktif' b.user.publik.uuid %}"
+                                hx-target="#anggota-modal-body"
+                                hx-swap="innerHTML"
+                                class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-white {% if b.user.is_active %}bg-slate-500 hover:bg-slate-600{% else %}bg-green-600 hover:bg-green-700{% endif %}">
+                            {% if b.user.is_active %}Nonaktifkan{% else %}Aktifkan{% endif %}
+                        </button>
+                        {% if b.user.vpn_peer %}
+                        <button type="button"
+                                @click="modalOpen = true"
+                                hx-get="{% url 'accounts:anggota_tim_vpn_hapus' b.user.publik.uuid %}"
+                                hx-target="#anggota-modal-body"
+                                hx-swap="innerHTML"
+                                class="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">
+                            Hapus
+                        </button>
+                        {% endif %}
+                    {% endif %}
+                    </div>
+                </td>
+                {% endif %}
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="{% if dapat_kelola_global %}7{% else %}6{% endif %}" class="py-8 text-center text-slate-400 dark:text-slate-500 text-sm">{% if pilih_bawahan_url %}Belum ada Ketua Tim yang dipilih. Klik "Pilih Ketua Tim".{% else %}Belum ada tim yang dibuat.{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div x-show="modalOpen"
+     x-cloak
+     @click.self="modalOpen = false"
+     @keydown.escape.window="modalOpen = false"
+     class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/50 px-4 py-8 sm:py-4">
+    <div class="w-full max-w-lg bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl my-auto">
+        <div id="anggota-modal-body"></div>
+    </div>
+</div>
+
+</div>
+{% endblock %}

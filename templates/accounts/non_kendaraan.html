@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Non Kendaraan — BMN Harwat{% endblock %}
+{% block page_title %}Non Kendaraan{% endblock %}
+{% block content %}
+{# Laid out like the Kendaraan page: one tab per group, then its table. #}
+<div class="sticky top-16 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 mb-4">
+    <nav class="flex gap-6 -mb-px overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {% for kode, label in groups %}
+        <a href="{% url 'accounts:non_kendaraan' %}?group={{ kode }}"
+           class="inline-flex items-center gap-2 border-b-2 px-1 py-2 text-sm font-medium {% if kode == group %}border-gold text-navy dark:text-gold{% else %}border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200{% endif %}">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.5 19.5h19M12 5.5 4 19.5M12 5.5l8 14M12 5.5V3M9.5 19.5 12 13l2.5 6.5" />
+            </svg>
+            {{ label|upper }}
+        </a>
+        {% endfor %}
+    </nav>
+</div>
+<div class="space-y-4" x-data="{ modalOpen: false, cariBuka: {% if cari %}true{% else %}false{% endif %} }">
+    <div class="flex items-center justify-between gap-3">
+        <p class="text-sm text-slate-500 dark:text-slate-400">Daftar {{ group_label|lower }} dalam inventaris.</p>
+        <div class="flex shrink-0 items-center gap-2">
+            <button type="button"
+                    @click="cariBuka = !cariBuka; if (cariBuka) $nextTick(() => $refs.cari.focus())"
+                    :aria-expanded="cariBuka"
+                    class="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+                Cari
+            </button>
+            <button type="button"
+                    @click="modalOpen = true"
+                    hx-get="{% url 'accounts:non_kendaraan_create' %}?group={{ group }}"
+                    hx-target="#non-kendaraan-modal-body"
+                    hx-swap="innerHTML"
+                    class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
+                + Tambah
+            </button>
+        </div>
+    </div>
+    <form method="get" x-show="cariBuka" x-cloak class="flex gap-2">
+        <input type="hidden" name="group" value="{{ group }}">
+        <input type="search" name="q" value="{{ cari }}" x-ref="cari" placeholder="Cari {% if 'kode_barang' in kolom %}Kode Barang, {% endif %}Nama Barang, Merk/Type, No. Seri…"
+               aria-label="Cari {{ group_label|lower }}"
+               class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+        <button type="submit" class="shrink-0 rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700">Cari</button>
+        {% if cari %}<a href="{% url 'accounts:non_kendaraan' %}?group={{ group }}" class="shrink-0 rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">Reset</a>{% endif %}
+    </form>
+
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead class="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                <tr>
+                    <th class="py-2 px-4 font-medium w-12">No</th>
+                    {% if 'kode_barang' in kolom %}
+                    <th class="py-2 px-4 font-medium">Kode Barang</th>
+                    {% endif %}
+                    <th class="py-2 px-4 font-medium">Nama Barang</th>
+                    <th class="py-2 px-4 font-medium">Merk/Type</th>
+                    <th class="py-2 px-4 font-medium">No. Seri</th>
+                    {% if 'jumlah' in kolom %}
+                    <th class="py-2 px-4 font-medium">Jumlah</th>
+                    {% endif %}
+                    {% if 'satuan' in kolom %}
+                    <th class="py-2 px-4 font-medium">Satuan</th>
+                    {% endif %}
+                    {% if 'kondisi' in kolom %}
+                    <th class="py-2 px-4 font-medium">Kondisi</th>
+                    {% endif %}
+                    <th class="py-2 px-4 font-medium">Foto</th>
+                    <th class="py-2 px-4 font-medium">Aksi</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                {% for b in barang_list %}
+                <tr>
+                    <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ barang_list.start_index|add:forloop.counter0 }}</td>
+                    {% if 'kode_barang' in kolom %}
+                    <td class="py-2 px-4 font-medium text-navy dark:text-slate-100 whitespace-nowrap">{{ b.kode_barang }}</td>
+                    {% endif %}
+                    <td class="py-2 px-4{% if 'kode_barang' not in kolom %} font-medium text-navy dark:text-slate-100{% endif %}">{{ b.nama_barang }}</td>
+                    <td class="py-2 px-4">{{ b.merek|default:"-" }}</td>
+                    <td class="py-2 px-4">{{ b.no_seri|default:"-" }}</td>
+                    {% if 'jumlah' in kolom %}
+                    <td class="py-2 px-4 tabular-nums">{{ b.jumlah }}</td>
+                    {% endif %}
+                    {% if 'satuan' in kolom %}
+                    <td class="py-2 px-4">{{ b.satuan }}</td>
+                    {% endif %}
+                    {% if 'kondisi' in kolom %}
+                    <td class="py-2 px-4 whitespace-nowrap">
+                        {% if b.kondisi == "B" %}<span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/50 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-300">{{ b.get_kondisi_display }}</span>
+                        {% elif b.kondisi == "RR" %}<span class="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">{{ b.get_kondisi_display }}</span>
+                        {% else %}<span class="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/50 px-2 py-0.5 text-xs font-medium text-red-700 dark:text-red-300">{{ b.get_kondisi_display }}</span>{% endif %}
+                    </td>
+                    {% endif %}
+                    <td class="py-2 px-4">
+                        {% if b.foto %}
+                        <a href="{{ b.foto.url }}" target="_blank" rel="noopener" hx-boost="false" title="Lihat foto">
+                            <img src="{{ b.foto.url }}" alt="Foto {{ b.nama_barang }}" loading="lazy" class="h-10 w-14 rounded border border-slate-300 dark:border-slate-600 object-cover">
+                        </a>
+                        {% else %}<span class="text-slate-400 dark:text-slate-500">—</span>{% endif %}
+                    </td>
+                    <td class="py-2 px-4">
+                        <div class="flex items-center gap-2">
+                            <button type="button"
+                                    @click="modalOpen = true"
+                                    hx-get="{% url 'accounts:non_kendaraan_update' b.uuid %}"
+                                    hx-target="#non-kendaraan-modal-body"
+                                    hx-swap="innerHTML"
+                                    class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700">
+                                Edit
+                            </button>
+                            <button type="button"
+                                    @click="modalOpen = true"
+                                    hx-get="{% url 'accounts:non_kendaraan_delete' b.uuid %}"
+                                    hx-target="#non-kendaraan-modal-body"
+                                    hx-swap="innerHTML"
+                                    class="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">
+                                Hapus
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10" class="py-6 px-4 text-center text-slate-400 dark:text-slate-500">{% if cari %}Tidak ada {{ group_label|lower }} yang cocok dengan "{{ cari }}".{% else %}Belum ada data {{ group_label|lower }}.{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "_pagination.html" with halaman=barang_list %}
+
+    <div x-show="modalOpen"
+         x-cloak
+         @click.self="modalOpen = false"
+         @keydown.escape.window="modalOpen = false"
+         class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/50 px-4 py-8 sm:py-4">
+        <div class="w-full max-w-lg bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl my-auto">
+            <div id="non-kendaraan-modal-body"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}

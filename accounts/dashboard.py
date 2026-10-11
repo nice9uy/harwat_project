@@ -1,18 +1,366 @@
-"""Dashboard data: fleet counts, schedule and a feed of the latest activities."""
+"""Dashboard data: fleet counts, schedule and a feed of the latest activities.
+
+Every function takes ``users``: the user pks whose work the viewer may see
+(see cakupan()), or None for everything.
+"""
 from datetime import datetime, timedelta
 
-from django.db.models import Count, Q
+from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
+from django.db.models import Count, Max, Q
 from django.utils import timezone
 
 from fleet.models import Jadwal, Servis, Vehicle
-from fleet.services import get_fleet_summary
 
 from . import golongan
 
-KEGIATAN_MAKS = 15
+# Every vehicle group is Kendaraan, Golongan "B" included. Non Kendaraan has
+# no group of its own yet (its Form Tambah tab isn't available either).
+KENDARAAN_KODE = list(Vehicle.GroupKendaraan.values)
+NON_KENDARAAN_KODE = []
 
 
-def _kegiatan_terbaru():
+def cakupan(user):
+    """User pks whose work ``user`` sees on the dashboard: themselves and
+    everyone under them (Admin > Ketua Tim > Tim; a Pimpinan Tim's are the
+    Ketua Tim they picked), so another Admin's teams stay out. None, meaning
+    everything, for a superuser, Pimpinan and users outside that tree."""
+    from . import roles
+    from .models import Anggota
+
+    kode = roles.keanggotaan_kode(user)
+    if kode not in (roles.ADMIN_ROLE, roles.KETUA_TIM, roles.PIMPINAN_TIM):
+        return None
+    users = {user.pk}
+    if kode == roles.KETUA_TIM:
+        ketua = Anggota.objects.filter(user=user, depth=1)
+    elif kode == roles.PIMPINAN_TIM:
+        ketua = Anggota.objects.filter(pimpinan_tim__pimpinan=user, depth=1)
+    else:
+        ketua = Anggota.objects.filter(admin=user, depth=1)
+    for node in ketua:
+        users.add(node.user_id)
+        users.update(node.get_children().values_list("user_id", flat=True))
+    return users
+
+
+def pengguna_matra(matra):
+    """User pks of one matra: the users with it, plus the Ketua Tim and Tim
+    members made before a matra was asked of them, who follow the one above
+    them (their Admin's, their Ketua Tim's)."""
+    from django.contrib.auth.models import User
+    from .models import Anggota
+
+    users = set(User.objects.filter(publik__matra=matra).values_list("pk", flat=True))
+    ikut = {}  # root path -> the team's matra, for members without their own
+    nodes = list(Anggota.objects.select_related("user__publik", "admin__publik").order_by("depth"))
+    for node in nodes:
+        sendiri = getattr(getattr(node.user, "publik", None), "matra", "")
+        if node.depth == 1:
+            ikut[node.path] = sendiri or getattr(getattr(node.admin, "publik", None), "matra", "")
+        if not sendiri and ikut.get(node.path[:Anggota.steplen]) == matra:
+            users.add(node.user_id)
+    return users
+
+
+def cakupan_matra(user, matra):
+    """cakupan() narrowed to one matra's users ("" for no narrowing)."""
+    users = cakupan(user)
+    if not matra:
+        return users
+    semua = pengguna_matra(matra)
+    return semua if users is None else users & semua
+
+
+def _milik(qs, field, users):
+    """``qs`` narrowed to rows whose ``field`` (a user) is in ``users``."""
+    return qs if users is None else qs.filter(**{f"{field}__in": users})
+
+
+def _kendaraan(users):
+    """Vehicles in scope: those added by one of ``users``."""
+    return _milik(Vehicle.objects.all(), "ditambahkan_oleh", users)
+
+
+# Rows on the dashboard's Sedang Dikerjakan card.
+SEDANG_MAKS = 10
+
+
+def _perlu_servis(kodes, users):
+    """{vehicle pk: reason} of the vehicles in scope that are due a service (km_jadwal.perlu_servis)."""
+    from .km_jadwal import perlu_servis
+
+    return perlu_servis(_kendaraan(users).filter(group_kendaraan__in=kodes))
+
+
+def _fleet_summary_group(kodes, users):
+    status_counts = dict(
+        _kendaraan(users).filter(group_kendaraan__in=kodes).values_list("status").annotate(count=Count("id"))
+    )
+    return {
+        # Not a status: a vehicle can be due a service whatever its condition.
+        "service": len(_perlu_servis(kodes, users)),
+        "total": sum(status_counts.values()),
+        "ready": status_counts.get(Vehicle.Status.SIAP_PAKAI, 0),
+        "in_repair": status_counts.get(Vehicle.Status.DALAM_PERBAIKAN, 0),
+        "due_soon": status_counts.get(Vehicle.Status.PERLU_SERVIS, 0),
+        "repaired": status_counts.get(Vehicle.Status.SUDAH_DIPERBAIKI, 0),
+    }
+
+# The summary cards open a table of their vehicles: card -> (title, statuses or None for all).
+KARTU_KENDARAAN = {
+    "total": ("Semua", None),
+    "siap": ("Siap", [Vehicle.Status.SIAP_PAKAI]),
+    "rusak_ringan": ("Rusak Ringan", [Vehicle.Status.PERLU_SERVIS]),
+    "rusak_berat": ("Rusak Berat", [Vehicle.Status.DALAM_PERBAIKAN]),
+    "sudah_diperbaiki": ("Sudah Diperbaiki", [Vehicle.Status.SUDAH_DIPERBAIKI]),
+    # Any status: picked by km_jadwal.perlu_servis instead.
+    "perlu_servis": ("Perlu Servis", None),
+}
+
+
+def kendaraan_kartu(kartu, non_kendaraan, users, cari=""):
+    """(title, vehicles, reasons) behind one summary card, in the viewer's
+    scope; ``cari`` narrows them by No. Registrasi, Merk/Type, No. Chasis or
+    No. Mesin. ``reasons``: {vehicle pk: why it is due}, for Perlu Servis only."""
+    judul, status = KARTU_KENDARAAN[kartu]
+    kodes = NON_KENDARAAN_KODE if non_kendaraan else KENDARAAN_KODE
+    qs = _kendaraan(users).filter(group_kendaraan__in=kodes)
+    if status is not None:
+        qs = qs.filter(status__in=status)
+    alasan = {}
+    if kartu == "perlu_servis":
+        alasan = _perlu_servis(kodes, users)
+        qs = qs.filter(pk__in=list(alasan))
+    if cari:
+        qs = qs.filter(
+            Q(nopol__icontains=cari) | Q(merek__icontains=cari)
+            | Q(no_chasis__icontains=cari) | Q(no_mesin__icontains=cari)
+        )
+    jenis = "Non Kendaraan" if non_kendaraan else "Kendaraan"
+    return f"{jenis} {judul}", qs.select_related("penambah__satuan").order_by("nopol", "id"), alasan
+
+
+# The card modal's pie chart: this many units as slices, the rest summed up
+# in one more (so the slices stay tellable apart by colour).
+SATUAN_MAKS = 7
+TANPA_SATUAN = "Tanpa satuan"
+PIE_R, PIE_PUSAT = 92, 100
+
+
+def satuan_pie(qs):
+    """Pie chart of the vehicles in ``qs`` per Satuan (the unit of whoever
+    added them, from that biodata): the SATUAN_MAKS biggest, then "Lainnya".
+    Each slice carries the unit's uuid for the modal's filter ("-" for
+    vehicles without one, "" for Lainnya, which isn't a filter), its colour
+    slot (1-8, 8 being Lainnya's grey) and its SVG path ("" for a slice that
+    is the whole pie, drawn as a circle)."""
+    import math
+
+    baris = [
+        (nama or TANPA_SATUAN, str(uid) if uid else "-", n)
+        for nama, uid, n in qs.order_by().values_list("penambah__satuan__nama", "penambah__satuan__uuid")
+        .annotate(n=Count("id")).order_by("-n", "penambah__satuan__nama")
+    ]
+    if len(baris) > SATUAN_MAKS:
+        sisa = baris[SATUAN_MAKS:]
+        baris = baris[:SATUAN_MAKS] + [(f"Lainnya ({len(sisa)} satuan)", "", sum(n for _, _, n in sisa))]
+    total = sum(n for _, _, n in baris)
+    irisan, sudut = [], -math.pi / 2  # from 12 o'clock, clockwise
+    for i, (label, uid, n) in enumerate(baris):
+        lebar = 2 * math.pi * n / total
+        x1, y1 = PIE_PUSAT + PIE_R * math.cos(sudut), PIE_PUSAT + PIE_R * math.sin(sudut)
+        sudut += lebar
+        x2, y2 = PIE_PUSAT + PIE_R * math.cos(sudut), PIE_PUSAT + PIE_R * math.sin(sudut)
+        irisan.append({
+            "nama": label, "uuid": uid, "nilai": n, "persen": round(100 * n / total, 1),
+            "warna": 8 if not uid else i + 1,
+            "path": "" if n == total else (
+                f"M{PIE_PUSAT},{PIE_PUSAT} L{x1:.2f},{y1:.2f} "
+                f"A{PIE_R},{PIE_R} 0 {1 if lebar > math.pi else 0} 1 {x2:.2f},{y2:.2f} Z"
+            ),
+        })
+    return {"irisan": irisan, "total": total, "r": PIE_R, "pusat": PIE_PUSAT, "sisi": 2 * PIE_PUSAT}
+
+
+def _irisan_pie(bagian):
+    """Pie slices for [(label, n, css class)], clockwise from 12 o'clock:
+    each with its share and SVG path ("" for a slice that is the whole pie,
+    drawn as a circle). Parts of 0 are left out."""
+    import math
+
+    bagian = [b for b in bagian if b[1]]
+    total = sum(n for _, n, _ in bagian)
+    irisan, sudut = [], -math.pi / 2
+    for label, n, kelas in bagian:
+        lebar = 2 * math.pi * n / total
+        x1, y1 = PIE_PUSAT + PIE_R * math.cos(sudut), PIE_PUSAT + PIE_R * math.sin(sudut)
+        sudut += lebar
+        x2, y2 = PIE_PUSAT + PIE_R * math.cos(sudut), PIE_PUSAT + PIE_R * math.sin(sudut)
+        irisan.append({
+            "label": label, "nilai": n, "persen": round(100 * n / total, 1), "kelas": kelas,
+            "path": "" if n == total else (
+                f"M{PIE_PUSAT},{PIE_PUSAT} L{x1:.2f},{y1:.2f} "
+                f"A{PIE_R},{PIE_R} 0 {1 if lebar > math.pi else 0} 1 {x2:.2f},{y2:.2f} Z"
+            ),
+        })
+    return irisan
+
+
+def ringkasan_matra(user, kodes):
+    """The dashboard's Semua Matra view: a pie per matra of its vehicles'
+    condition (Siap, Rusak Ringan, Rusak Berat), and a row of detail per matra (its vehicles by condition and those due
+    a service). A last "Tanpa matra" row holds the vehicles of users without
+    one, when there are any."""
+    from . import roles
+
+    def rinci(users):
+        r = _fleet_summary_group(kodes, users)
+        return {
+            "total": r["total"], "siap": r["ready"], "ringan": r["due_soon"], "berat": r["in_repair"],
+            "diperbaiki": r["repaired"], "servis": r["service"],
+        }
+
+    lingkup = cakupan(user)
+    semua = rinci(lingkup)
+    sisa = dict(semua)
+    baris = []
+    for i, (kode, label) in enumerate(roles.MATRA, start=1):
+        r = rinci(cakupan_matra(user, kode))
+        for kunci in sisa:
+            sisa[kunci] -= r[kunci]
+        baris.append({"kode": kode, "label": label, "warna": i, **r})
+    if sisa["total"] > 0:
+        baris.append({"kode": "", "label": "Tanpa matra", "warna": 8, **sisa})
+    for b in baris:
+        # The matra's own pie: its vehicles that are Siap, Rusak Ringan or Rusak Berat.
+        kondisi = [("Siap", b["siap"], "pie-siap"), ("Rusak Ringan", b["ringan"], "pie-ringan"), ("Rusak Berat", b["berat"], "pie-berat")]
+        b["irisan"] = _irisan_pie(kondisi)
+        persen = {i["label"]: i["persen"] for i in b["irisan"]}
+        b["legenda"] = [{"label": l, "nilai": n, "kelas": k, "persen": persen.get(l, 0)} for l, n, k in kondisi]
+    return {
+        "baris": baris, "total": semua,
+        "r": PIE_R, "pusat": PIE_PUSAT, "sisi": 2 * PIE_PUSAT,
+    }
+
+
+def saring_satuan(qs, nilai):
+    """``qs`` narrowed to one unit's vehicles: ``nilai`` is a Satuan uuid, or
+    "-" for the vehicles without a unit. Returns (queryset, the unit's name
+    or "" when not filtered)."""
+    from .models import Satuan
+
+    if nilai == "-":
+        return qs.filter(penambah__satuan=None), TANPA_SATUAN
+    try:
+        satuan = Satuan.objects.filter(uuid=nilai).first() if nilai else None
+    except (ValueError, ValidationError):
+        satuan = None
+    if satuan is None:
+        return qs, ""
+    return qs.filter(penambah__satuan=satuan), satuan.nama
+
+
+# Rows on the dashboard's Rusak/Tidak Bisa Diperbaiki tab.
+RUSAK_MAKS = 200
+
+
+def rusak_berat(users, batas=RUSAK_MAKS):
+    """The Rusak/Tidak Bisa Diperbaiki tab: the vehicles in scope that are
+    Rusak Berat, newest first: declared so with Form Rusak/Tidak Layak Pakai
+    (``v.dinyatakan``: the latest declaration) or by their last inspection
+    concluding Tidak Layak Pakai (``v.periksa``, with how many of its parts
+    are Rusak Berat). Returns (rows, total); ``batas``: how many rows at most
+    (None for all, as the PDF lists them)."""
+    qs = _kendaraan(users).filter(status=Vehicle.Status.DALAM_PERBAIKAN).select_related("penambah__satuan")
+    total = qs.count()
+    vehicles = {v.pk: v for v in qs}
+    from .models import KendaraanRusak
+
+    for v in vehicles.values():
+        v.periksa = v.dinyatakan = None
+    for d in KendaraanRusak.objects.filter(vehicle__in=list(vehicles)).select_related("pelapor").order_by("dibuat_pada", "id"):
+        vehicles[d.vehicle_id].dinyatakan = d  # ends on the newest
+    for cfg in golongan.GOLONGAN.values():
+        terakhir = (
+            cfg.pemeriksaan_model.objects.filter(vehicle__in=list(vehicles))
+            .select_related("pemeriksa").annotate(jumlah_rb=Count("items", filter=Q(items__kondisi="RB")))
+            .order_by("vehicle", "-dibuat_pada", "-id")
+        )
+        for hasil in terakhir:
+            v = vehicles[hasil.vehicle_id]
+            if v.periksa is None or hasil.dibuat_pada > v.periksa.dibuat_pada:
+                v.periksa = hasil
+    for v in vehicles.values():
+        waktu = [x.dibuat_pada for x in (v.periksa, v.dinyatakan) if x is not None]
+        v.waktu_rusak = max(waktu) if waktu else None
+    baris = sorted(
+        vehicles.values(), key=lambda v: (v.waktu_rusak.timestamp() if v.waktu_rusak else 0, v.pk), reverse=True,
+    )
+    return baris[:batas], total
+
+
+def sparepart_rusak(users, batas=RUSAK_MAKS):
+    """The Sparepart half of the Rusak/Tidak Bisa Diperbaiki tab: the parts
+    that are Rusak Berat now, on the vehicles in scope: marked RB in the
+    vehicle's last inspection and not repaired since, or still RB ("Rusak")
+    after their last repair. Newest first. Returns (rows, total); ``batas``:
+    how many rows at most (None for all, as Laporan Rusak lists them)."""
+    baris = []
+    for kode, cfg in golongan.GOLONGAN.items():
+        kendaraan = {
+            v.pk: v for v in _kendaraan(users).filter(group_kendaraan=kode).select_related("penambah__satuan")
+        }
+        if not kendaraan:
+            continue
+        terakhir = {}  # vehicle id -> its newest inspection
+        for hasil in (
+            cfg.pemeriksaan_model.objects.filter(vehicle__in=list(kendaraan))
+            .select_related("pemeriksa").order_by("dibuat_pada", "id")
+        ):
+            terakhir[hasil.vehicle_id] = hasil
+        periksa = {h.pk: h for h in terakhir.values()}
+        # Only a part that was not Baik can be Rusak Berat now.
+        items = cfg.item_model.objects.filter(pemeriksaan__in=list(periksa)).exclude(kondisi__in=cfg.baik)
+        perbaikan = {}  # item id -> its newest repair
+        for p in (
+            cfg.perbaikan_model.objects.filter(item__pemeriksaan__in=list(periksa))
+            .select_related("teknisi").order_by("dibuat_pada", "id")
+        ):
+            perbaikan[p.item_id] = p
+        for item in items:
+            diperbaiki = perbaikan.get(item.pk)
+            if (diperbaiki.kondisi if diperbaiki else item.kondisi) != "RB":
+                continue
+            hasil = periksa[item.pemeriksaan_id]
+            baris.append({
+                "vehicle": kendaraan[hasil.vehicle_id], "item": item, "periksa": hasil, "perbaikan": diperbaiki,
+                "waktu": diperbaiki.dibuat_pada if diperbaiki else hasil.dibuat_pada,
+                "keterangan": (diperbaiki.keterangan if diperbaiki else item.keterangan),
+            })
+    baris.sort(key=lambda b: (b["waktu"], b["item"].pk), reverse=True)
+    return baris[:batas], len(baris)
+
+
+def pemeriksaan_terakhir(vehicles):
+    """{vehicle pk: time of its newest inspection}, over every group's form."""
+    pks = [v.pk for v in vehicles]
+    hasil = {}
+    for cfg in golongan.GOLONGAN.values():
+        for baris in (
+            cfg.pemeriksaan_model.objects.filter(vehicle__in=pks).order_by()
+            .values("vehicle").annotate(waktu=Max("dibuat_pada"))
+        ):
+            hasil[baris["vehicle"]] = max(baris["waktu"], hasil.get(baris["vehicle"], baris["waktu"]))
+    return hasil
+
+
+# Kegiatan Terbaru: the newest KEGIATAN_MAKS activities, KEGIATAN_PER_HALAMAN a page.
+KEGIATAN_MAKS = 100
+KEGIATAN_PER_HALAMAN = 10
+
+
+def _kegiatan_terbaru(users):
     """Latest inspections, repairs, vehicles added, services and schedules, newest first.
 
     Each source is one query (limited to KEGIATAN_MAKS), so the feed's cost
@@ -22,7 +370,8 @@ def _kegiatan_terbaru():
     for kode, cfg in golongan.GOLONGAN.items():
         label = Vehicle.GroupKendaraan(kode).label
         inspeksi = (
-            cfg.pemeriksaan_model.objects.select_related("vehicle", "pemeriksa")
+            _milik(cfg.pemeriksaan_model.objects.all(), "pemeriksa__akun", users)
+            .select_related("vehicle", "pemeriksa")
             .annotate(perlu=Count("items", filter=~Q(items__kondisi__in=cfg.baik)))
             .order_by("-dibuat_pada", "-id")[:KEGIATAN_MAKS]
         )
@@ -32,28 +381,31 @@ def _kegiatan_terbaru():
                 "teks": f"memeriksa {h.vehicle.nopol} ({label})",
                 "detail": f"{h.perlu} item perlu perbaikan" if h.perlu else "Semua item baik",
             })
-        perbaikan = cfg.perbaikan_model.objects.select_related("teknisi", "item__pemeriksaan__vehicle").order_by(
-            "-dibuat_pada", "-id"
-        )[:KEGIATAN_MAKS]
+        perbaikan = (
+            _milik(cfg.perbaikan_model.objects.all(), "teknisi__akun", users)
+            .select_related("teknisi", "item__pemeriksaan__vehicle").order_by("-dibuat_pada", "-id")[:KEGIATAN_MAKS]
+        )
         for p in perbaikan:
             feed.append({
                 "waktu": p.dibuat_pada, "jenis": "perbaikan", "oleh": p.teknisi.nama,
                 "teks": f"memperbaiki {p.item.nama_alat} pada {p.item.pemeriksaan.vehicle.nopol}",
                 "detail": f"Kondisi sekarang: {p.get_kondisi_display()}",
             })
-    for v in Vehicle.objects.exclude(dibuat_pada=None).order_by("-dibuat_pada", "-id")[:KEGIATAN_MAKS]:
+    for v in _kendaraan(users).exclude(dibuat_pada=None).order_by("-dibuat_pada", "-id")[:KEGIATAN_MAKS]:
         feed.append({
             "waktu": v.dibuat_pada, "jenis": "kendaraan", "oleh": "",
             "teks": f"Kendaraan {v.nopol} ({v.merek}) ditambahkan",
             "detail": v.get_group_kendaraan_display(),
         })
-    for s in Servis.objects.select_related("vehicle").order_by("-dibuat_pada", "-id")[:KEGIATAN_MAKS]:
+    servis = _milik(Servis.objects.all(), "vehicle__ditambahkan_oleh", users)
+    for s in servis.select_related("vehicle").order_by("-dibuat_pada", "-id")[:KEGIATAN_MAKS]:
         feed.append({
             "waktu": s.dibuat_pada, "jenis": "servis", "oleh": "",
             "teks": f"Servis {s.jenis_servis} untuk {s.vehicle.nopol} dicatat",
             "detail": s.bengkel or "",
         })
-    for j in Jadwal.objects.select_related("vehicle").order_by("-dibuat_pada", "-id")[:KEGIATAN_MAKS]:
+    jadwal = _milik(Jadwal.objects.all(), "vehicle__ditambahkan_oleh", users)
+    for j in jadwal.select_related("vehicle").order_by("-dibuat_pada", "-id")[:KEGIATAN_MAKS]:
         feed.append({
             "waktu": j.dibuat_pada, "jenis": "jadwal", "oleh": "",
             "teks": f"Jadwal {j.get_kegiatan_display().lower()} {j.vehicle.nopol} dibuat",
@@ -63,21 +415,118 @@ def _kegiatan_terbaru():
     return feed[:KEGIATAN_MAKS]
 
 
-def konteks():
+def _sedang_dikerjakan(users):
+    """Work started but not yet saved, newest first: inspections (auto-saved
+    drafts, with how many parts already have a Kondisi), repairs and
+    additions (PekerjaanAktif)."""
+    from .models import DraftPemeriksaan, Laporan, PekerjaanAktif
+
+    drafts = list(
+        _milik(DraftPemeriksaan.objects.all(), "pemeriksa", users)
+        .select_related("vehicle", "pemeriksa").order_by("-diperbarui_pada")[:SEDANG_MAKS]
+    )
+    lain = list(
+        _milik(PekerjaanAktif.objects.all(), "user", users)
+        .select_related("vehicle", "user").order_by("-dimulai_pada")[:SEDANG_MAKS]
+    )
+    nama = dict(
+        Laporan.objects.filter(akun__in=[d.pemeriksa_id for d in drafts] + [p.user_id for p in lain])
+        .order_by("dibuat_pada").values_list("akun_id", "nama")
+    )
+    hasil = []
+    for d in drafts:
+        cfg = golongan.for_vehicle(d.vehicle)
+        total = len(cfg.form.alat) if cfg else 0
+        terisi = sum(
+            1 for k, v in (d.data or {}).items() if v and k.startswith("alat_") and k.endswith("_kondisi")
+        )
+        hasil.append({
+            "jenis": "Pemeriksaan",
+            "vehicle": d.vehicle,
+            "pemeriksa": nama.get(d.pemeriksa_id) or d.pemeriksa.username,
+            "waktu": d.diperbarui_pada,
+            "terisi": min(terisi, total),
+            "total": total,
+            "persen": round(100 * min(terisi, total) / total) if total else 0,
+        })
+    for p in lain:
+        hasil.append({
+            "jenis": "Perbaikan" if p.jenis == PekerjaanAktif.Jenis.PERBAIKAN else "Penambahan",
+            "vehicle": p.vehicle,
+            # An addition has no vehicle yet, only the form (golongan) opened.
+            "keterangan": p.keterangan,
+            "pemeriksa": nama.get(p.user_id) or p.user.username,
+            "waktu": p.dimulai_pada,
+            "total": 0,
+        })
+    hasil.sort(key=lambda h: h["waktu"], reverse=True)
+    return hasil[:SEDANG_MAKS]
+
+
+def _berlangsung(kodes, users):
+    """How many additions, inspections and repairs are under way right now
+    (started, not saved) for the given vehicle groups."""
+    from . import roles
+    from .models import DraftPemeriksaan, PekerjaanAktif
+
+    # An addition has no vehicle yet: its group is the form that was opened.
+    label = [label for kode, label in roles.FORM_TAMBAH if kode in kodes]
+    aktif = _milik(PekerjaanAktif.objects.all(), "user", users)
+    draft = _milik(DraftPemeriksaan.objects.all(), "pemeriksa", users)
+    return {
+        "penambahan": aktif.filter(jenis=PekerjaanAktif.Jenis.PENAMBAHAN, keterangan__in=label).count(),
+        "pemeriksaan": draft.filter(vehicle__group_kendaraan__in=kodes).count(),
+        "perbaikan": aktif.filter(
+            jenis=PekerjaanAktif.Jenis.PERBAIKAN, vehicle__group_kendaraan__in=kodes,
+        ).count(),
+    }
+
+
+def konteks(users=None, halaman_kegiatan=1):
     hari_ini = timezone.localdate()
     sebulan = timezone.now() - timedelta(days=30)
-    jadwal_aktif = Jadwal.objects.filter(status=Jadwal.Status.TERJADWAL).select_related("vehicle")
+    jadwal_aktif = (
+        _milik(Jadwal.objects.all(), "vehicle__ditambahkan_oleh", users)
+        .filter(status=Jadwal.Status.TERJADWAL).select_related("vehicle")
+    )
+
+    def pemeriksaan(cfgs):
+        return sum(
+            _milik(cfg.pemeriksaan_model.objects.all(), "pemeriksa__akun", users)
+            .filter(dibuat_pada__gte=sebulan).count() for cfg in cfgs
+        )
+
+    def perbaikan(cfgs):
+        return sum(
+            _milik(cfg.perbaikan_model.objects.all(), "teknisi__akun", users)
+            .filter(dibuat_pada__gte=sebulan).count() for cfg in cfgs
+        )
+
+    kendaraan_cfgs = [cfg for kode, cfg in golongan.GOLONGAN.items() if kode in KENDARAAN_KODE]
+    non_kendaraan_cfgs = [cfg for kode, cfg in golongan.GOLONGAN.items() if kode in NON_KENDARAAN_KODE]
+
     return {
-        "fleet_summary": get_fleet_summary(),
-        "pemeriksaan_30_hari": sum(
-            cfg.pemeriksaan_model.objects.filter(dibuat_pada__gte=sebulan).count() for cfg in golongan.GOLONGAN.values()
-        ),
-        "perbaikan_30_hari": sum(
-            cfg.perbaikan_model.objects.filter(dibuat_pada__gte=sebulan).count() for cfg in golongan.GOLONGAN.values()
-        ),
+        "fleet_summary": _fleet_summary_group(list(Vehicle.GroupKendaraan.values), users),
+        "fleet_summary_kendaraan": _fleet_summary_group(KENDARAAN_KODE, users),
+        "fleet_summary_non_kendaraan": _fleet_summary_group(NON_KENDARAAN_KODE, users),
+        "berlangsung_kendaraan": _berlangsung(KENDARAAN_KODE, users),
+        "berlangsung_non_kendaraan": _berlangsung(NON_KENDARAAN_KODE, users),
+        "pemeriksaan_30_hari": pemeriksaan(golongan.GOLONGAN.values()),
+        "pemeriksaan_30_hari_kendaraan": pemeriksaan(kendaraan_cfgs),
+        "pemeriksaan_30_hari_non_kendaraan": pemeriksaan(non_kendaraan_cfgs),
+        "perbaikan_30_hari": perbaikan(golongan.GOLONGAN.values()),
+        "perbaikan_30_hari_kendaraan": perbaikan(kendaraan_cfgs),
+        "perbaikan_30_hari_non_kendaraan": perbaikan(non_kendaraan_cfgs),
         "jadwal_mendatang": list(jadwal_aktif.filter(tanggal__gte=hari_ini).order_by("tanggal", "id")[:5]),
         "jadwal_terlambat": list(jadwal_aktif.filter(tanggal__lt=hari_ini).order_by("tanggal", "id")[:5]),
-        "kegiatan_terbaru": _kegiatan_terbaru(),
+        "jadwal_terlambat_kendaraan": list(
+            jadwal_aktif.filter(tanggal__lt=hari_ini, vehicle__group_kendaraan__in=KENDARAAN_KODE).order_by("tanggal", "id")[:5]
+        ),
+        "jadwal_terlambat_non_kendaraan": list(
+            jadwal_aktif.filter(tanggal__lt=hari_ini, vehicle__group_kendaraan__in=NON_KENDARAAN_KODE).order_by("tanggal", "id")[:5]
+        ),
+        "kegiatan_terbaru": Paginator(_kegiatan_terbaru(users), KEGIATAN_PER_HALAMAN).get_page(halaman_kegiatan),
+        "sedang_dikerjakan": _sedang_dikerjakan(users),
     }
 
 
@@ -174,33 +623,106 @@ def _kolom(label_bulan, seri, format_nilai=str, minimum=4):
     }
 
 
-def _rupiah_singkat(n):
-    n = int(n)
-    if n >= 1_000_000:
-        return f"Rp {n / 1_000_000:.1f} jt".replace(".0 jt", " jt").replace(".", ",")
-    if n >= 1_000:
-        return f"Rp {n // 1_000} rb"
-    return f"Rp {n}"
-
-
 def _bilangan(n):
     return str(int(n)) if float(n).is_integer() else f"{n:.1f}".replace(".", ",")
 
 
-def grafik():
-    from fleet.models import Servis
+def _status_per_satuan(kodes, users):
+    """The summary cards' numbers (Siap, Rusak Ringan, Rusak Berat, Sudah
+    Diperbaiki, Perlu Servis) for every Satuan with vehicles in scope, the
+    unit being that of whoever added the vehicle (their biodata), biggest
+    first. Each number also comes split by vehicle group in ``rinci``
+    ({card: {group code: n}}), for the table a card opens."""
+    kunci = {
+        Vehicle.Status.SIAP_PAKAI: "siap", Vehicle.Status.PERLU_SERVIS: "ringan",
+        Vehicle.Status.DALAM_PERBAIKAN: "berat", Vehicle.Status.SUDAH_DIPERBAIKI: "diperbaiki",
+    }
+    kartu = ("total", "siap", "ringan", "berat", "diperbaiki", "servis")
+    qs = _kendaraan(users).filter(group_kendaraan__in=kodes)
+    baris = {}
 
-    bulan = _enam_bulan()
-    label_bulan = [f"{BULAN[b - 1]} {str(t)[2:]}" for t, b in bulan]
+    def tambah(nama, kolom, golongan, n):
+        b = baris.setdefault(nama or TANPA_SATUAN, {
+            "nama": nama or TANPA_SATUAN, **dict.fromkeys(kartu, 0), "rinci": {k: {} for k in kartu},
+        })
+        b[kolom] += n
+        b["rinci"][kolom][golongan] = b["rinci"][kolom].get(golongan, 0) + n
+
+    per = qs.order_by().values_list("penambah__satuan__nama", "status", "group_kendaraan").annotate(n=Count("id"))
+    for nama, status, golongan_kode, n in per:
+        tambah(nama, "total", golongan_kode, n)
+        if status in kunci:
+            tambah(nama, kunci[status], golongan_kode, n)
+    # Not a status: a vehicle can be due a service whatever its condition.
+    servis = list(_perlu_servis(kodes, users))
+    if servis:
+        per = (
+            qs.filter(pk__in=servis).order_by()
+            .values_list("penambah__satuan__nama", "group_kendaraan").annotate(n=Count("id"))
+        )
+        for nama, golongan_kode, n in per:
+            tambah(nama, "servis", golongan_kode, n)
+    return sorted(baris.values(), key=lambda b: (-b["total"], b["nama"]))
+
+
+# Units drawn on the Grafik tab's per-Satuan chart; its table lists them all.
+SATUAN_GRAFIK_MAKS = 8
+
+
+def _per_satuan(cfgs, bulan, users):
+    """Inspections and repairs of the chart's six months per Satuan (the unit
+    of the inspector's / technician's biodata), busiest first: grouped bars
+    for the SATUAN_GRAFIK_MAKS busiest and a table of every unit."""
+    awal = timezone.make_aware(datetime(bulan[0][0], bulan[0][1], 1))
+    jumlah = {}  # unit name -> [inspections, repairs]
+    for cfg in cfgs:
+        for i, (model, orang) in enumerate((
+            (cfg.pemeriksaan_model, "pemeriksa"), (cfg.perbaikan_model, "teknisi"),
+        )):
+            qs = _milik(model.objects.filter(dibuat_pada__gte=awal), f"{orang}__akun", users)
+            for nama, n in qs.order_by().values_list(f"{orang}__satuan__nama").annotate(n=Count("id")):
+                jumlah.setdefault(nama or "Tanpa satuan", [0, 0])[i] += n
+    tabel = sorted(
+        ({"nama": nama, "pemeriksaan": a, "perbaikan": b, "total": a + b} for nama, (a, b) in jumlah.items()),
+        key=lambda t: (-t["total"], t["nama"]),
+    )
+    digambar = tabel[:SATUAN_GRAFIK_MAKS]
+    maks = max((max(t["pemeriksaan"], t["perbaikan"]) for t in digambar), default=0) or 1
+    lebar_label, ujung = 230, LEBAR - 40
+
+    def batang(n, y):
+        w = (ujung - lebar_label) * n / maks
+        return {"nilai": n, "y": y, "path": _batang_horizontal(lebar_label, y, w, 13) if n else "", "x_nilai": round(lebar_label + w + 6, 1)}
+
+    return {
+        "baris": [
+            {
+                "label": t["nama"] if len(t["nama"]) <= 30 else t["nama"][:29] + "…", "nama": t["nama"],
+                "y": 6 + i * 44, "pemeriksaan": batang(t["pemeriksaan"], 6 + i * 44),
+                "perbaikan": batang(t["perbaikan"], 6 + i * 44 + 15),
+            }
+            for i, t in enumerate(digambar)
+        ],
+        "tinggi": 6 + len(digambar) * 44, "lebar": LEBAR, "x0": lebar_label,
+        "tabel": tabel, "lainnya": len(tabel) - len(digambar),
+        "total": {
+            "pemeriksaan": sum(t["pemeriksaan"] for t in tabel), "perbaikan": sum(t["perbaikan"] for t in tabel),
+            "total": sum(t["total"] for t in tabel),
+        },
+    }
+
+
+def _grafik_untuk_grup(cfgs, vehicle_kodes, label_bulan, bulan, users):
     pemeriksaan = [0] * 6
     perbaikan = [0] * 6
-    for cfg in golongan.GOLONGAN.values():
-        pemeriksaan = [a + b for a, b in zip(pemeriksaan, _per_bulan(cfg.pemeriksaan_model.objects, "dibuat_pada", bulan))]
-        perbaikan = [a + b for a, b in zip(perbaikan, _per_bulan(cfg.perbaikan_model.objects, "dibuat_pada", bulan))]
-    biaya = _per_bulan(Servis.objects, "tanggal", bulan, nilai="biaya")
+    for cfg in cfgs:
+        pemeriksaan = [a + b for a, b in zip(pemeriksaan, _per_bulan(_milik(cfg.pemeriksaan_model.objects.all(), "pemeriksa__akun", users), "dibuat_pada", bulan))]
+        perbaikan = [a + b for a, b in zip(perbaikan, _per_bulan(_milik(cfg.perbaikan_model.objects.all(), "teknisi__akun", users), "dibuat_pada", bulan))]
 
-    per_golongan = dict(Vehicle.objects.values_list("group_kendaraan").annotate(n=Count("id")))
-    baris = [(label, per_golongan.get(kode, 0)) for kode, label in Vehicle.GroupKendaraan.choices]
+    per_golongan = dict(
+        _kendaraan(users).filter(group_kendaraan__in=vehicle_kodes).values_list("group_kendaraan").annotate(n=Count("id"))
+    )
+    baris = [(label, per_golongan.get(kode, 0)) for kode, label in Vehicle.GroupKendaraan.choices if kode in vehicle_kodes]
     maks = max((n for _, n in baris), default=0) or 1
     lebar_label, ujung = 170, LEBAR - 48
     golongan_bar = [
@@ -216,9 +738,29 @@ def grafik():
             ("Pemeriksaan", "seri-1", pemeriksaan),
             ("Perbaikan", "seri-2", perbaikan),
         ], _bilangan),
-        "biaya": _kolom(label_bulan, [("Biaya servis", "seri-1", biaya)], _rupiah_singkat, minimum=1_000_000),
         "golongan": {"bar": golongan_bar, "tinggi": 8 + len(baris) * 40, "lebar": LEBAR, "x0": lebar_label},
-        "total_biaya": sum(biaya),
+        "satuan": _per_satuan(cfgs, bulan, users),
+        "status_satuan": _status_per_satuan(vehicle_kodes, users),
+    }
+
+
+def grafik(users=None):
+    bulan = _enam_bulan()
+    label_bulan = [f"{BULAN[b - 1]} {str(t)[2:]}" for t, b in bulan]
+
+    all_cfgs = list(golongan.GOLONGAN.values())
+    all_kode = [kode for kode, _ in Vehicle.GroupKendaraan.choices]  # all groups
+    kendaraan_cfgs = [cfg for kode, cfg in golongan.GOLONGAN.items() if kode in KENDARAAN_KODE]
+    non_kendaraan_cfgs = [cfg for kode, cfg in golongan.GOLONGAN.items() if kode in NON_KENDARAAN_KODE]
+
+    semua = _grafik_untuk_grup(all_cfgs, all_kode, label_bulan, bulan, users)
+    kendaraan = _grafik_untuk_grup(kendaraan_cfgs, KENDARAAN_KODE, label_bulan, bulan, users)
+    non_kendaraan = _grafik_untuk_grup(non_kendaraan_cfgs, NON_KENDARAAN_KODE, label_bulan, bulan, users)
+
+    return {
+        **semua,
+        "kendaraan": kendaraan,
+        "non_kendaraan": non_kendaraan,
     }
 
 

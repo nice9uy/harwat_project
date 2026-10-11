@@ -1,0 +1,160 @@
+{% comment %}
+Rusak/Tidak Bisa Diperbaiki tab of the dashboard (accounts.dashboard.rusak_berat):
+the vehicles whose last inspection concluded Tidak Layak Pakai.
+{% endcomment %}
+<style>
+    /* Row numbers count the rows the filter leaves. */
+    .tabel-rusak tbody { counter-reset: baris; }
+    .tabel-rusak tr[data-baris] td:first-child::before { counter-increment: baris; content: counter(baris); }
+</style>
+<div x-data="{
+         sub: 'sparepart', dari: '', sampai: '', nopol: '',
+         lolos(tgl, reg) {
+             if (this.nopol.trim() && !reg.toLowerCase().includes(this.nopol.trim().toLowerCase())) return false;
+             if (!this.dari && !this.sampai) return true;
+             if (!tgl) return false;
+             return !(this.dari && tgl < this.dari) && !(this.sampai && tgl > this.sampai);
+         },
+         jumlah(jenis) {
+             return [...$root.querySelectorAll('tr[data-baris=' + jenis + ']')].filter((tr) => this.lolos(tr.dataset.tgl, tr.dataset.reg)).length;
+         },
+         pdf() {
+             const q = new URLSearchParams({ jenis: this.sub, dari: this.dari, sampai: this.sampai, nopol: this.nopol.trim() });
+             return '{% url 'accounts:dashboard_rusak_pdf' %}?{% if matra_dashboard %}matra={{ matra_dashboard }}&{% endif %}' + q.toString();
+         },
+     }">
+<div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+<div class="inline-flex overflow-hidden rounded-md border border-slate-200 text-sm font-medium dark:border-slate-700">
+    <button type="button" @click="sub = 'sparepart'"
+            :class="sub === 'sparepart' ? 'bg-navy text-white dark:bg-gold dark:text-navy' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'"
+            class="flex items-center gap-2 px-5 py-2">Sparepart <span class="rounded-full bg-black/10 px-1.5 text-xs tabular-nums dark:bg-white/15">{{ sparepart_rusak.1 }}</span></button>
+    <button type="button" @click="sub = 'kendaraan'"
+            :class="sub === 'kendaraan' ? 'bg-navy text-white dark:bg-gold dark:text-navy' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'"
+            class="flex items-center gap-2 border-l border-slate-200 px-5 py-2 dark:border-slate-700">Kendaraan <span class="rounded-full bg-black/10 px-1.5 text-xs tabular-nums dark:bg-white/15">{{ rusak_berat.1 }}</span></button>
+</div>
+{# Narrows both tables as it is typed, and the PDF with them. #}
+<div class="flex flex-wrap items-end gap-3">
+    <div>
+        <label for="rusak-dari" class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Dari tanggal</label>
+        <input type="date" id="rusak-dari" x-model="dari" class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+    </div>
+    <div>
+        <label for="rusak-sampai" class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Sampai tanggal</label>
+        <input type="date" id="rusak-sampai" x-model="sampai" class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+    </div>
+    <div>
+        <label for="rusak-nopol" class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">No. Registrasi</label>
+        <input type="search" id="rusak-nopol" x-model="nopol" placeholder="Cari No. Registrasi" class="w-48 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+    </div>
+    <button type="button" x-show="dari || sampai || nopol" x-cloak @click="dari = ''; sampai = ''; nopol = ''"
+            class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Reset</button>
+    <a :href="pdf()" target="_blank" rel="noopener" hx-boost="false"
+       class="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+        Export ke PDF
+    </a>
+</div>
+</div>
+
+{# Sparepart: the parts that are Rusak Berat now (accounts.dashboard.sparepart_rusak). #}
+{% with daftar=sparepart_rusak.0 total=sparepart_rusak.1 %}
+<section x-show="sub === 'sparepart'" class="rounded-lg border border-slate-200 bg-white p-4 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+    <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+            <h2 class="text-sm font-semibold">Sparepart Rusak / Tidak Bisa Diperbaiki <span class="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium tabular-nums text-red-700 dark:bg-red-900/50 dark:text-red-300">{{ total }}</span></h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Komponen yang sekarang Rusak Berat: begitu pada pemeriksaan terakhir kendaraannya dan belum diperbaiki, atau masih Rusak setelah diperbaiki</p>
+        </div>
+        {% if total > daftar|length %}<p class="text-xs text-slate-500 dark:text-slate-400">Menampilkan {{ daftar|length }} yang terbaru dari {{ total }}.</p>{% endif %}
+    </div>
+    <div class="max-h-[36rem] overflow-auto rounded-md border border-slate-200 dark:border-slate-700">
+        <table class="tabel-rusak w-full text-left text-sm">
+            <thead class="sticky top-0 border-b border-slate-200 bg-slate-50 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                <tr>
+                    <th class="w-10 px-3 py-2 font-medium">No</th>
+                    <th class="px-3 py-2 font-medium">Sparepart / Komponen</th>
+                    <th class="px-3 py-2 font-medium">No. Registrasi</th>
+                    <th class="px-3 py-2 font-medium">Merk/Type</th>
+                    <th class="px-3 py-2 font-medium">Golongan</th>
+                    <th class="px-3 py-2 font-medium">Satuan</th>
+                    <th class="px-3 py-2 font-medium">Sumber</th>
+                    <th class="px-3 py-2 font-medium">Tanggal</th>
+                    <th class="px-3 py-2 font-medium">Oleh</th>
+                    <th class="px-3 py-2 font-medium">Keterangan</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                {% for b in daftar %}
+                <tr data-baris="sparepart" data-tgl="{{ b.waktu|date:'Y-m-d' }}" data-reg="{{ b.vehicle.nopol }}" x-show="lolos($el.dataset.tgl, $el.dataset.reg)">
+                    <td class="px-3 py-2 tabular-nums text-slate-500 dark:text-slate-400"></td>
+                    <td class="px-3 py-2 font-medium text-navy dark:text-slate-100">{{ b.item.nomor }}. {{ b.item.nama_alat }}</td>
+                    <td class="whitespace-nowrap px-3 py-2">{{ b.vehicle.nopol }}</td>
+                    <td class="px-3 py-2">{{ b.vehicle.merek }}</td>
+                    <td class="whitespace-nowrap px-3 py-2">{{ b.vehicle.get_group_kendaraan_display }}</td>
+                    <td class="px-3 py-2">{{ b.vehicle.penambah.satuan.nama|default:"—" }}</td>
+                    <td class="whitespace-nowrap px-3 py-2">{% if b.perbaikan %}<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">Perbaikan</span>{% else %}<span class="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">Pemeriksaan</span>{% endif %}</td>
+                    <td class="whitespace-nowrap px-3 py-2 tabular-nums">{{ b.waktu|date:"d-m-Y H:i" }}</td>
+                    <td class="px-3 py-2">{% if b.perbaikan %}{{ b.perbaikan.teknisi.nama }}{% else %}{{ b.periksa.pemeriksa.nama }}{% endif %}</td>
+                    <td class="px-3 py-2">{{ b.keterangan|default:"—" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="10" class="px-3 py-8 text-center text-slate-400 dark:text-slate-500">Tidak ada sparepart rusak berat.</td></tr>
+                {% endfor %}
+                {% if daftar %}<tr x-show="jumlah('sparepart') === 0" x-cloak><td colspan="10" class="px-3 py-8 text-center text-slate-400 dark:text-slate-500">Tidak ada sparepart untuk filter ini.</td></tr>{% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endwith %}
+
+{% with daftar=rusak_berat.0 total=rusak_berat.1 %}
+<section x-show="sub === 'kendaraan'" x-cloak class="rounded-lg border border-slate-200 bg-white p-4 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+    <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+            <h2 class="text-sm font-semibold">Kendaraan Rusak / Tidak Bisa Diperbaiki <span class="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium tabular-nums text-red-700 dark:bg-red-900/50 dark:text-red-300">{{ total }}</span></h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Kendaraan berstatus Rusak Berat: dinyatakan lewat Form Rusak/Tidak Layak Pakai, atau pemeriksaan terakhirnya menyimpulkan Tidak Layak Pakai</p>
+        </div>
+        {% if total > daftar|length %}<p class="text-xs text-slate-500 dark:text-slate-400">Menampilkan {{ daftar|length }} yang terbaru dari {{ total }}.</p>{% endif %}
+    </div>
+    <div class="max-h-[36rem] overflow-auto rounded-md border border-slate-200 dark:border-slate-700">
+        <table class="tabel-rusak w-full text-left text-sm">
+            <thead class="sticky top-0 border-b border-slate-200 bg-slate-50 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                <tr>
+                    <th class="w-10 px-3 py-2 font-medium">No</th>
+                    <th class="px-3 py-2 font-medium">No. Registrasi</th>
+                    <th class="px-3 py-2 font-medium">Merk/Type</th>
+                    <th class="px-3 py-2 font-medium">Golongan</th>
+                    <th class="px-3 py-2 font-medium">Satuan</th>
+                    <th class="px-3 py-2 font-medium">Kepemilikan</th>
+                    <th class="px-3 py-2 font-medium">Sumber</th>
+                    <th class="px-3 py-2 font-medium">Tanggal</th>
+                    <th class="px-3 py-2 font-medium">Oleh</th>
+                    <th class="px-3 py-2 text-right font-medium">Komponen Rusak Berat</th>
+                    <th class="px-3 py-2 font-medium">Keterangan</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                {% for v in daftar %}
+                <tr data-baris="kendaraan" data-tgl="{{ v.waktu_rusak|date:'Y-m-d' }}" data-reg="{{ v.nopol }}" x-show="lolos($el.dataset.tgl, $el.dataset.reg)">
+                    <td class="px-3 py-2 tabular-nums text-slate-500 dark:text-slate-400"></td>
+                    <td class="whitespace-nowrap px-3 py-2 font-medium text-navy dark:text-slate-100">{{ v.nopol }}</td>
+                    <td class="px-3 py-2">{{ v.merek }}</td>
+                    <td class="whitespace-nowrap px-3 py-2">{{ v.get_group_kendaraan_display }}</td>
+                    <td class="px-3 py-2">{{ v.penambah.satuan.nama|default:"—" }}</td>
+                    <td class="whitespace-nowrap px-3 py-2">{{ v.get_kepemilikan_display }}</td>
+                    {# The declaration when there is one (it is what made the vehicle Rusak Berat), else the inspection. #}
+                    <td class="whitespace-nowrap px-3 py-2">{% if v.dinyatakan %}<span class="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/50 dark:text-red-300">Form Rusak</span>{% else %}<span class="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">Pemeriksaan</span>{% endif %}</td>
+                    <td class="whitespace-nowrap px-3 py-2 tabular-nums">{% if v.waktu_rusak %}{{ v.waktu_rusak|date:"d-m-Y H:i" }}{% else %}—{% endif %}</td>
+                    <td class="px-3 py-2">{% if v.dinyatakan %}{{ v.dinyatakan.pelapor.nama }}{% else %}{{ v.periksa.pemeriksa.nama|default:"—" }}{% endif %}</td>
+                    <td class="px-3 py-2 text-right tabular-nums font-semibold text-red-600 dark:text-red-400">{% if v.periksa %}{{ v.periksa.jumlah_rb }}{% else %}—{% endif %}</td>
+                    <td class="px-3 py-2">{% if v.dinyatakan %}{{ v.dinyatakan.alasan }}{% else %}{{ v.periksa.keterangan|default:"—" }}{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="11" class="px-3 py-8 text-center text-slate-400 dark:text-slate-500">Tidak ada kendaraan rusak berat.</td></tr>
+                {% endfor %}
+                {% if daftar %}<tr x-show="jumlah('kendaraan') === 0" x-cloak><td colspan="11" class="px-3 py-8 text-center text-slate-400 dark:text-slate-500">Tidak ada kendaraan untuk filter ini.</td></tr>{% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endwith %}
+</div>

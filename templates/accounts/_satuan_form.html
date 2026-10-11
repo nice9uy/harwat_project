@@ -1,6 +1,6 @@
 <h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-4">{% if satuan %}Edit Satuan{% else %}Tambah Satuan{% endif %}</h2>
 <form method="post"
-      hx-post="{% if satuan %}{% url 'accounts:satuan_update' satuan.pk %}{% else %}{% url 'accounts:satuan_create' %}{% endif %}"
+      hx-post="{% if satuan %}{% url 'accounts:satuan_update' satuan.uuid %}{% else %}{% url 'accounts:satuan_create' %}{% endif %}"
       hx-target="this"
       hx-swap="outerHTML"
       class="space-y-4">
@@ -11,11 +11,16 @@
         {% if form.nama.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.nama.errors.0 }}</p>{% endif %}
     </div>
     <div>
+        <label for="{{ form.matra.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Matra</label>
+        {{ form.matra }}
+        {% if form.matra.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.matra.errors.0 }}</p>{% endif %}
+    </div>
+    <div>
         <label for="{{ form.keterangan.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Keterangan <span class="font-normal text-slate-500 dark:text-slate-400">(opsional)</span></label>
         {{ form.keterangan }}
     </div>
     <div class="flex items-center gap-3 pt-2">
-        <button type="submit" class="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white hover:bg-navy-light focus:outline-none focus:ring-2 focus:ring-gold/50">Simpan</button>
+        <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400/50">Simpan</button>
         <button type="button" @click="modalOpen = false" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Batal</button>
     </div>
 </form>

@@ -4,7 +4,22 @@ PEMBAGIAN_KELAS = ["1", "2", "3", "4", "5", "6"]
 ESELON_REPARASI = ["1", "2", "3", "4"]
 MACAM_PEMERIKSAAN = [("tehnis", "Tehnis"), ("tiba_tiba", "Tiba-tiba")]
 BUKU_JALAN = [("ada", "Ada"), ("tidak", "Tidak")]
-KONDISI = [("B", "Baik"), ("RR", "Rusak Ringan"), ("RB", "Rusak Berat")]
+KONDISI = [("B", "Baik"), ("RR", "Rusak Ringan"), ("RB", "Rusak Berat"), ("ADA", "Ada"), ("TA", "Tidak Ada")]
+
+# What a repair leaves a part in (Form Perbaikan), on every vehicle group.
+# Stored under the inspection codes B / RR / RB, so the rest (a part still
+# not Baik stays on the repair list) works as before; a repair saved before
+# these names may still hold ADA or TA.
+KONDISI_PERBAIKAN = [("B", "Baik"), ("RR", "Perlu Servis"), ("RB", "Rusak")]
+KONDISI_PERBAIKAN_LAMA = [("ADA", "Ada"), ("TA", "Tidak Ada")]
+# The letters on the form's three buttons.
+SINGKATAN_PERBAIKAN = {"B": "B", "RR": "PS", "RB": "R"}
+
+KESIMPULAN = [
+    ("siap_pakai", "Siap Pakai"),
+    ("perlu_perbaikan", "Perlu Perbaikan"),
+    ("tidak_layak_pakai", "Tidak Layak Pakai"),
+]
 
 # Numbered as on the paper form. On the paper sheet "Carburator" and "Busi"
 # are struck through, leaving Injeksi Pump and Nozzle.
@@ -22,12 +37,13 @@ ALAT = [
 ALAT_BERNOMOR = list(enumerate(ALAT, start=1))
 
 
-# --- Kendaraan Bermotor (paper form with 63 components) ---
+# --- Motor (62 components: the paper form's, less Minyak Kopling / Minyak Rem) ---
 
 KONDISI_BERMOTOR = [
     ("B", "Baik"),
-    ("HP", "Harus Diperbaiki"),
-    ("HG", "Harus Diganti"),
+    ("RR", "Rusak Ringan"),
+    ("RB", "Rusak Berat"),
+    ("ADA", "Ada"),
     ("TA", "Tidak Ada"),
 ]
 BUKU_HARIAN = BUKU_JALAN
@@ -41,7 +57,7 @@ KOMPONEN_BERMOTOR = [
     "Selang / Hose", "Cooling Fan", "Thermostat", "Reservoir Tank", "Alternator / Regulator", "Accu",
     "Stater Assy", "Bandic Stater", "Transmisi", "Propeler Shaft Dpn / Blkg",
     "Kopling Assy (Plat, Dekrup, Druklaher)", "Master Kopling / Master Rem",
-    "Minyak Kopling / Minyak Rem", "Brake Pad / Brake Shoe",
+    "Brake Pad / Brake Shoe",
     "Oli Mesin", "Oli Persneling / Transmisi", "Oli Gardan", "Filter Set (AC, Oli, BBM, Udara)",
     "Shock Breaker", "Support Shock Breaker", "Lagher Roda", "Rack End, Rack Steering", "Ball Joint",
     "Tie Rod, Long Tie Rod", "Stabilizer, Link Stabilizer", "Lower Arm, Upper Arm", "Power Steering",
@@ -52,6 +68,16 @@ KOMPONEN_BERMOTOR = [
     "Kotak P3K", "Winch",
 ]
 KOMPONEN_BERMOTOR_BERNOMOR = list(enumerate(KOMPONEN_BERMOTOR, start=1))
+
+# The oil parts, marked * on the form: they go into the Jadwal for a check
+# (their intervals are set in Pengaturan > KM).
+KOMPONEN_BERMOTOR_KM = {"Oli Mesin", "Oli Persneling / Transmisi", "Oli Gardan"}
+# Header fields marked * the same way (they have no part number): Golongan
+# B's and Motor's KM Kendaraan, and Km / Mil on Kendaraan Diesel
+# and Jeep Diesel.
+KM_GOLONGAN_B = "KM Kendaraan"
+KM_DIESEL = "Km / Mil"
+BERMOTOR_KM_NOMOR = frozenset(nomor for nomor, nama in KOMPONEN_BERMOTOR_BERNOMOR if nama in KOMPONEN_BERMOTOR_KM)
 
 # Badge colours per kondisi code, for both forms. Full class strings so
 # Tailwind's scanner picks them up from this file.
@@ -161,10 +187,10 @@ BAGIAN_DIESEL = [
 ]
 
 
-def _diesel_bernomor():
+def _diesel_bernomor(bagian):
     """Chapters with their systems and parts, each part numbered 1..n across the form."""
     nomor, bab_list, rata = 0, [], []
-    for bab, judul, sistem_list in BAGIAN_DIESEL:
+    for bab, judul, sistem_list in bagian:
         sistem_out = []
         for huruf, sistem, parts in sistem_list:
             items = []
@@ -177,4 +203,134 @@ def _diesel_bernomor():
     return bab_list, rata
 
 
-DIESEL_BAB, KOMPONEN_DIESEL_BERNOMOR = _diesel_bernomor()
+DIESEL_BAB, KOMPONEN_DIESEL_BERNOMOR = _diesel_bernomor(BAGIAN_DIESEL)
+
+
+# --- Jeep Diesel (same paper layout as Kendaraan Diesel, its own parts) ---
+
+# The paper form has no Baik column; it was asked for, as on Kendaraan Diesel.
+KONDISI_JEEP_DIESEL = [
+    ("B", "Baik"),
+    ("RR", "Rusak Ringan"),
+    ("RB", "Rusak Berat"),
+    ("ADA", "Ada"),
+    ("TA", "Tidak Ada"),
+]
+
+# Names as on the paper form. Its Electrical System is section C of Control
+# System, itself split into I-IV.
+BAGIAN_JEEP_DIESEL = [
+    ("I", "Power Plant", [
+        ("A", "Engine System", ["Block Mesin Assy", "Cylinder Head Assy", "Stik Penduga Oli", "Carter"]),
+        ("B", "Air Cleaner Intake System", ["Rumah Filter Udara", "Element Filter Udara", "Hose Filter Udara"]),
+        ("C", "Exhaust System", ["Muffler", "Tail Pipe Assembly", "Pipe Extension", "Exhaust Pipe", "Packing"]),
+        ("D", "Fuel System", [
+            "Fuel Tank", "Tutup Fuel Tank", "Hose Fuel", "Filter Fuel Tank", "Pompa Injection", "Nozzle",
+        ]),
+        ("E", "Cooling System", [
+            "Radiator Assembly", "Hose Radiator Assembly Outlet", "Hose Inlet Upper", "Radiator Grill Panel",
+            "Radiator Fan", "Radiator Fulley", "Fan Belt", "Thermosthat", "Rumah Thermosthat", "Water Pump",
+        ]),
+        ("F", "Lubrication System", ["Oil Filter Assembly", "Gauge Oil Level"]),
+    ]),
+    ("II", "Power Train", [
+        ("A", "Clutch System", [
+            "Cover Clutch", "Disc Clutch", "Pedal Clutch", "Master Kopling Atas", "Master Kopling Bawah",
+            "Clutch Housing Assy",
+        ]),
+        ("B", "Transmission System", ["Gear Box Assy", "Tuas Gigi Percepatan"]),
+        ("C", "Transfer Case", ["Gear Box Assy", "Tuas Gigi Low / High"]),
+        ("D", "Propeller Shaft System", ["Propeller Shaft Front", "Propeller Shaft Real"]),
+        ("E", "Axle System", ["Axle Depan", "Axle Belakang"]),
+        ("F", "Wheel and Tire", [
+            "Per Depan", "Per Belakang", "Sock Absorber Depan", "Sock Absorber Belakang", "Stabilizer", "Ban",
+            "Velg", "Ban Cadangan & Velg",
+        ]),
+    ]),
+    ("III", "Control System", [
+        ("A", "Steering Sistem", [
+            "Steering Wheel", "Steering Lube", "Power Steering", "Pompa Power Steering",
+            "Tabung Minyak Power Steering", "Rilay Rol", "Therod End", "Stabilizer Steering",
+        ]),
+        ("B", "Brake Sistem", ["Pedal Rem", "Master Rem Atas", "Tabung Minyak Rem", "Boster Rem", "Wheel Master Rem"]),
+        ("C.I", "Electrical System: Sistem Injeksi", ["Stop Engine", "RPM"]),
+        ("C.II", "Electrical System: Sistem Pengisian", ["Alternator", "Regulator", "Battere", "Kabel Battere (+/-)"]),
+        ("C.III", "Electrical System: Sistem Stater", ["Motor Stater", "Rilley Stater", "Konci Kontak"]),
+        ("C.IV", "Electrical System: Aksesoris", [
+            "Head Lamp", "Side Lamp", "Tail Lamp", "Stop Lamp", "Turn Lamp", "Horn", "Dashboard/Assy",
+            "Spedometer", "Fuel Meter", "Temp Meter", "Oil Meter", "Ind Dashboard", "Lampu Kabin", "Turn Switch",
+            "Motor Wiper", "Blade Wiper", "Arm Wiper", "Black Out", "Replector", "Spion Luar", "Spion Dalam", "AC",
+        ]),
+    ]),
+    ("IV", "Frame, Suspension, Body, Cab and Hood", [
+        ("", "", [
+            "Rangka", "Kap Mesin", "Bemper Depan", "Kaca Depan", "Spark Board", "Pintu Kanan", "Pintu Kiri",
+            "Ruang Kabin", "Jok Depan", "Spion Dalam", "Spion Luar", "Kaca Pintu Depan", "Kaca Pintu Kiri", "Body",
+            "Bemper Belakang", "Pintu Belakang",
+        ]),
+    ]),
+]
+
+JEEP_DIESEL_BAB, KOMPONEN_JEEP_DIESEL_BERNOMOR = _diesel_bernomor(BAGIAN_JEEP_DIESEL)
+
+# --- RANTIS (same paper layout as Jeep Diesel, its own parts) ---
+
+# With Baik, as on the other forms of this layout.
+KONDISI_RANTIS = KONDISI_JEEP_DIESEL
+
+# Names as on the paper form. Its Electrical System is section C of Control
+# System, itself split into I-IV.
+BAGIAN_RANTIS = [
+    ("I", "Power Plant", [
+        ("A", "Engine System", ["Block Mesin Assy", "Cylinder Head Assy", "Stik Penduga Oli", "Carter"]),
+        ("B", "Air Cleaner Intake System", ["Rumah Filter Udara", "Element Filter Udara", "Hose Filter Udara"]),
+        ("C", "Exhaust System", ["Muffler", "Tail Pipe Assembly", "Pipe Extension", "Exhaust Pipe", "Packing"]),
+        ("D", "Fuel System", [
+            "Fuel Tank", "Tutup Fuel Tank", "Hose Fuel", "Filter Fuel Tank", "Pompa Injection", "Nozzle",
+            "Pompa Tekanan Tinggi", "Pompa Tekanan Rendah", "Common Rail",
+        ]),
+        ("E", "Cooling System", [
+            "Radiator Assembly", "Hose Radiator Assembly Outlet", "Hose Inlet Upper", "Radiator Grill Panel",
+            "Radiator Fan", "Radiator Fulley", "Fun Belt", "Thermosthat", "Rumah Thermosthat", "Water Pump",
+        ]),
+        ("F", "Lubrication System", ["Oil Filter Assembly", "Gauge Oil Level"]),
+    ]),
+    ("II", "Power Train", [
+        ("A", "Clutch System", [
+            "Cover Clutch", "Disc Clutch", "Pedal Clutch", "Master Kopling Atas", "Master Kopling Bawah",
+            "Clutch Housing Assy",
+        ]),
+        ("B", "Transmission System", ["Gear Box Assy", "Tuas Gigi Percepatan"]),
+        ("C", "Transfer Case", ["Gear Box Assy", "Tuas Gigi Low / High"]),
+        ("D", "Propeller Shaft System", ["Propeller Shaft Front", "Propeller Shaft Real"]),
+        ("E", "Axle System", ["Axle Depan", "Axle Belakang"]),
+        ("F", "Wheel and Tire", [
+            "Per Depan", "Per Belakang", "Sock Absorber Depan", "Sock Absorber Belakang", "Stabilizer", "Ban",
+            "Velg", "Ban Cadangan & Velg",
+        ]),
+    ]),
+    ("III", "Control System", [
+        ("A", "Steering Sistem", [
+            "Steering Wheel", "Steering Lube", "Power Steering", "Pompa Power Steering",
+            "Tabung Minyak Power Steering", "Rilay Rol", "Therod End", "Stabilizer Steering",
+        ]),
+        ("B", "Brake Sistem", ["Pedal Rem", "Master Rem Atas", "Tabung Minyak Rem", "Boster Rem", "Wheel Master Rem"]),
+        ("C.I", "Electrical System: Sistem Injeksi", ["Stop Engine", "RPM"]),
+        ("C.II", "Electrical System: Sistem Pengisian", ["Alternator", "Regulator", "Battere", "Kabel Battere (+/-)"]),
+        ("C.III", "Electrical System: Sistem Stater", ["Motor Stater", "Rilley Stater", "Konci Kontak"]),
+        ("C.IV", "Electrical System: Arus Penolong", [
+            "ECU Assy", "Head Lamp", "Side Lamp", "Tail Lamp", "Stop Lamp", "Turn Lamp", "Horn", "Dashboard/Assy",
+            "Spedometer", "Fuel Meter", "Temp Meter", "Oil Meter", "Ind Dashboard", "Lampu Kabin", "Turn Switch",
+            "Motor Wiper", "Blade Wiper", "Arm Wiper", "Black Out", "Replector", "Spion Luar", "Spion Dalam", "AC",
+        ]),
+    ]),
+    ("IV", "Frame, Suspension, Body, Cab and Hood", [
+        ("", "", [
+            "Rangka", "Kap Mesin", "Bemper Depan", "Kaca Depan", "Spark Board", "Pintu Kanan", "Pintu Kiri",
+            "Ruang Kabin", "Jok Depan", "Spion Dalam", "Spion Luar", "Kaca Pintu Depan", "Kaca Pintu Kiri", "Body",
+            "Bemper Belakang", "Pintu Belakang",
+        ]),
+    ]),
+]
+
+RANTIS_BAB, KOMPONEN_RANTIS_BERNOMOR = _diesel_bernomor(BAGIAN_RANTIS)

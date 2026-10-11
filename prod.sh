@@ -48,9 +48,64 @@ if [ ! -f .env.prod ]; then
     echo ".env.prod created — back it up somewhere safe (it is gitignored)."
 fi
 
+# Settings added after .env.prod was first generated: appended once, so an
+# existing .env.prod (and its secrets) is kept as it is.
+tambah_env() {
+    if ! grep -q "^$1=" .env.prod; then
+        echo "$1=$2" >> .env.prod
+        echo ".env.prod: $1 ditambahkan."
+    fi
+}
 set -a
 source .env.prod
 set +a
+# PostgreSQL: the app on the primary through PgBouncer, plus the role the two
+# replicas stream with.
+tambah_env DATABASE_ENGINE postgresql
+tambah_env DATABASE_URL "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB}"
+tambah_env REPLIKASI_USER replikator
+tambah_env REPLIKASI_PASSWORD "$(openssl rand -hex 16)"
+# Garage: the bucket of the uploaded photos and the key the app reads and
+# writes it with (the same pair under the names Garage and the app each read).
+tambah_env GARAGE_DEFAULT_BUCKET bmn-harwat
+tambah_env GARAGE_DEFAULT_ACCESS_KEY "GK$(openssl rand -hex 12)"
+tambah_env GARAGE_DEFAULT_SECRET_KEY "$(openssl rand -hex 32)"
+set -a
+source .env.prod
+set +a
+tambah_env GARAGE_ENDPOINT http://garage:3900
+tambah_env GARAGE_BUCKET "${GARAGE_DEFAULT_BUCKET}"
+tambah_env GARAGE_ACCESS_KEY "${GARAGE_DEFAULT_ACCESS_KEY}"
+tambah_env GARAGE_SECRET_KEY "${GARAGE_DEFAULT_SECRET_KEY}"
+# The SQLite file of the old setup (kept on its volume), and where backups go.
+tambah_env SQLITE_LAMA /app/data/db.sqlite3
+tambah_env BACKUP_DIR /app/backup
+# WireGuard: the server's key (the app derives the public one and writes
+# wg0.conf into the volume shared with the wireguard container) and the
+# network the peers get their addresses from, a /20 for up to 4093 peers.
+tambah_env VPN_SERVER_PRIVKEY "$(openssl rand -base64 32)"
+tambah_env VPN_CONF_DIR /vpn
+tambah_env VPN_SUBNET 10.13.0.0/20
+tambah_env VPN_PORT 51820
+if ! grep -q "^VPN_SERVER_ENDPOINT=." .env.prod; then
+    echo "PERHATIAN: isi VPN_SERVER_ENDPOINT=<ip-publik>:51820 di .env.prod, tanpa itu config peer tidak bisa dipakai."
+fi
+set -a
+source .env.prod
+set +a
+
+KOMPOS=(podman-compose --env-file "$(pwd)/.env.prod" -f podman/compose.yml -f podman/compose.prod.yml)
+
+# Before the old containers are removed: the photos uploaded so far live
+# inside them (/app/media was never on a volume), so copy them out. Once the
+# photos are in Garage there is nothing left in there and this copies nothing.
+mkdir -p migrasi/media
+for nama in podman_app1_1 podman_app2_1 podman_app3_1; do
+    if podman container exists "$nama" && podman exec "$nama" test -d /app/media 2>/dev/null; then
+        podman cp "$nama:/app/media/." migrasi/media/ 2>/dev/null \
+            && echo "Foto dari $nama disalin ke migrasi/media/." || true
+    fi
+done
 
 # umask 077 also covers this regeneration (podman/garage.prod.toml is
 # rewritten on every run, not just first-run) — re-set here so a run where
@@ -71,4 +126,32 @@ podman-compose --env-file "$(pwd)/.env.prod" -f podman/compose.yml -f podman/com
 # Idempotent — safe to run on every invocation, not just first-run. Nothing
 # else in this stack ever runs migrations, and db.sqlite3 is schemaless on a
 # fresh volume, so skipping this would leave every table missing.
+# The primary may have been created before replication existed (its init
+# script only runs on an empty data directory): make sure the role the
+# replicas use is there, with the current password. Safe to repeat.
+echo "Menunggu PostgreSQL primary..."
+until "${KOMPOS[@]}" exec -T postgres pg_isready -q -U "${POSTGRES_USER}" -d "${POSTGRES_DB}"; do
+    sleep 2
+done
+# (Passed with -c: the role name and password are generated here, hex only.)
+"${KOMPOS[@]}" exec -T postgres psql -v ON_ERROR_STOP=1 -q -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
+    -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${REPLIKASI_USER}') THEN CREATE ROLE \"${REPLIKASI_USER}\" WITH REPLICATION LOGIN; END IF; END \$\$;" \
+    -c "ALTER ROLE \"${REPLIKASI_USER}\" WITH REPLICATION LOGIN PASSWORD '${REPLIKASI_PASSWORD}';"
+
 podman-compose --env-file "$(pwd)/.env.prod" -f podman/compose.yml -f podman/compose.prod.yml exec -T app1 python manage.py migrate --noinput
+# The WireGuard server's config, from the peers now in the database.
+"${KOMPOS[@]}" exec -T app1 python manage.py vpn_server_conf
+# Kodam, Korem, Kodim and Koramil for Pengaturan > Satuan; skips what is there.
+"${KOMPOS[@]}" exec -T app1 python manage.py impor_satuan
+
+# One-time moves from the old setup; each does nothing once it has been done.
+# The data: from the SQLite file into PostgreSQL (only into an empty database).
+"${KOMPOS[@]}" exec -T app1 sh -c 'if [ -f "$SQLITE_LAMA" ]; then python manage.py impor_sqlite; fi'
+# The photos: from the folder rescued above into Garage (existing ones are skipped).
+"${KOMPOS[@]}" exec -T app1 python manage.py impor_media /app/migrasi-media
+# Vehicle statuses follow the inspections and repairs.
+"${KOMPOS[@]}" exec -T app1 python manage.py hitung_status_kendaraan
+
+echo "Replica yang tersambung ke primary (seharusnya 2 baris 'streaming'):"
+"${KOMPOS[@]}" exec -T postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -Atc \
+    "select application_name, client_addr, state from pg_stat_replication" || true

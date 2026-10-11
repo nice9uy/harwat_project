@@ -1,0 +1,25 @@
+<h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-1">Interval KM &amp; Waktu Servis</h2>
+<p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{{ obj.label }} · {{ obj.form }}</p>
+<form method="post"
+      hx-post="{% url 'accounts:km_jadwal_edit' obj.uuid %}"
+      hx-target="this"
+      hx-swap="outerHTML"
+      class="space-y-4">
+    {% csrf_token %}
+    <div>
+        <label for="{{ form.interval_km.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Dicek setiap (km)</label>
+        {{ form.interval_km }}
+        {% if form.interval_km.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.interval_km.errors.0 }}</p>{% endif %}
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kosongkan kalau belum ditentukan.</p>
+    </div>
+    <div>
+        <label for="{{ form.interval_bulan.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Waktu servis: setiap (bulan)</label>
+        {{ form.interval_bulan }}
+        {% if form.interval_bulan.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.interval_bulan.errors.0 }}</p>{% endif %}
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kosongkan kalau belum ditentukan.</p>
+    </div>
+    <div class="flex items-center gap-3 pt-2">
+        <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400/50">Simpan</button>
+        <button type="button" @click="modalOpen = false" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Batal</button>
+    </div>
+</form>

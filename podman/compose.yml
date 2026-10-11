@@ -17,6 +17,9 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       DB_NAME: ${POSTGRES_DB:-bmn_harwat}
       POOL_MODE: transaction
+      # PostgreSQL 17 stores SCRAM passwords; the image's default (md5) can't
+      # log in to it ("server login failed: wrong password type").
+      AUTH_TYPE: scram-sha-256
     depends_on:
       - postgres
     restart: unless-stopped
@@ -40,8 +43,36 @@ services:
       - garage-meta:/var/lib/garage/meta
     restart: unless-stopped
 
+  wireguard:
+    image: lscr.io/linuxserver/wireguard:latest
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: Asia/Jakarta
+      # No PEERS here: the image then makes no peers of its own. The app
+      # writes wg0.conf from the peers in its database into the wireguard-conf
+      # volume (settings.VPN_CONF_DIR) and sinkron.sh runs the server from it,
+      # applying every change.
+      LOG_CONFS: "false"
+    volumes:
+      - wireguard-config:/config
+      - wireguard-conf:/vpn
+      - ../podman/wireguard/sinkron.sh:/custom-services.d/sinkron:ro
+      - /lib/modules:/lib/modules:ro
+    ports:
+      - "${VPN_PORT:-51820}:${VPN_PORT:-51820}/udp"
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv4.ip_forward=1
+    restart: unless-stopped
+
 volumes:
   pgdata:
   valkey-data:
   garage-data:
   garage-meta:
+  wireguard-config:
+  wireguard-conf:

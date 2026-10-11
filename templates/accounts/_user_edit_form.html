@@ -1,6 +1,6 @@
 <h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-4">Ubah Keanggotaan <span class="font-normal text-slate-500 dark:text-slate-400">· {{ akun.username }}</span></h2>
 <form method="post"
-      hx-post="{% url 'accounts:user_edit' akun.pk %}"
+      hx-post="{% url 'accounts:user_edit' akun.publik.uuid %}"
       hx-target="this"
       hx-swap="outerHTML"
       x-data="{ keanggotaan: '{{ form.keanggotaan.value|default_if_none:''|escapejs }}' }"
@@ -15,15 +15,38 @@
         <label for="{{ form.keanggotaan.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Keanggotaan</label>
         {{ form.keanggotaan }}
         {% if form.keanggotaan.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.keanggotaan.errors.0 }}</p>{% endif %}
-        {% if not form.ada_ketua %}<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Tim Pemeriksaan, Tim Penambahan Data dan Tim Perbaikan bisa dipilih setelah ada Ketua Tim.</p>{% endif %}
+        {% if not form.ada_ketua %}<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Tim Pemeriksaan, Tim Penambahan Data, Tim Perbaikan dan Tim Pemeriksaan Rusak/Tidak Layak bisa dipilih setelah ada Ketua Tim.</p>{% endif %}
     </div>
-    <div x-show="['tim_pemeriksaan', 'tim_penambahan_data', 'tim_perbaikan'].includes(keanggotaan)" x-cloak>
+    <div x-show="['admin', 'ketua_tim', 'pimpinan_tim', 'tim_pemeriksaan', 'tim_penambahan_data', 'tim_perbaikan', 'tim_tidak_layak'].includes(keanggotaan)" x-cloak>
+        <label for="{{ form.matra.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Matra</label>
+        {{ form.matra }}
+        {% if form.matra.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.matra.errors.0 }}</p>{% endif %}
+    </div>
+    <div x-show="keanggotaan === 'pimpinan_tim'" x-cloak>
+        <p class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Ketua Tim Bawahan</p>
+        <div class="max-h-48 space-y-1.5 overflow-y-auto rounded-md border border-slate-300 p-2 dark:border-slate-600">
+            {% for pilihan in form.bawahan %}
+            <label class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700">{{ pilihan.tag }} {{ pilihan.choice_label }}</label>
+            {% empty %}
+            <p class="px-2 py-1 text-sm text-slate-400 dark:text-slate-500">Belum ada Ketua Tim.</p>
+            {% endfor %}
+        </div>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Centang Ketua Tim yang berada di bawah Pimpinan Tim ini (minimal satu).</p>
+        {% if form.bawahan.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.bawahan.errors.0 }}</p>{% endif %}
+    </div>
+    <div x-show="['tim_pemeriksaan', 'tim_penambahan_data', 'tim_perbaikan', 'tim_tidak_layak'].includes(keanggotaan)" x-cloak>
         <label for="{{ form.ketua_tim.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Ketua Tim</label>
         {{ form.ketua_tim }}
         {% if form.ketua_tim.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.ketua_tim.errors.0 }}</p>{% endif %}
     </div>
+    <div>
+        <label for="{{ form.vpn_peer_name.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nama Peer VPN</label>
+        {{ form.vpn_peer_name }}
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kosongkan untuk hapus akses VPN.</p>
+        {% if form.vpn_peer_name.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.vpn_peer_name.errors.0 }}</p>{% endif %}
+    </div>
     <div class="flex items-center gap-3 pt-2">
-        <button type="submit" class="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white hover:bg-navy-light focus:outline-none focus:ring-2 focus:ring-gold/50">Simpan</button>
+        <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400/50">Simpan</button>
         <button type="button" @click="modalOpen = false" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Batal</button>
     </div>
 </form>

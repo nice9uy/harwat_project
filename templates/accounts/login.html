@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Masuk — BMN Harwat</title>
+    <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
     {% include "_theme_init.html" %}
     <link rel="stylesheet" href="{% static 'dist/output.css' %}?v={{ css_version }}">
     <link rel="preload" as="image" href="{% static 'img/login-gedung-kemhan.webp' %}" type="image/webp">
@@ -27,11 +29,10 @@
     <div class="relative flex min-h-screen flex-col">
         {# Top bar #}
         <header class="flex items-center justify-between gap-4 px-5 py-4 sm:px-8 sm:py-6">
-            <div class="flex items-center gap-3 motion-safe:animate-[naik_0.6s_ease-out_both]">
+            <div class="flex items-center gap-4 motion-safe:animate-[naik_0.6s_ease-out_both]">
                 <img src="{% static 'img/kemhan_logo.png' %}" alt="Logo Kementerian Pertahanan" class="h-12 w-12 drop-shadow-lg sm:h-14 sm:w-14">
-                <div class="leading-tight">
-                    <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold sm:text-xs">Kementerian Pertahanan</p>
-                    <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-200 sm:text-xs">Republik Indonesia</p>
+                <div class="leading-snug">
+                    <p class="text-sm font-bold uppercase tracking-widest text-gold sm:text-base">Badan Logistik Pertahanan</p>
                 </div>
             </div>
             {% include "_theme_toggle.html" %}
@@ -47,42 +48,18 @@
                     </span>
                     Sistem Online
                 </span>
-                <div class="space-y-2">
-                    <p class="text-sm font-semibold uppercase tracking-[0.3em] text-gold">BMN Harwat</p>
-                    <h1 class="text-3xl font-bold leading-tight tracking-tight text-balance sm:text-4xl lg:text-5xl">
-                        Monitoring
-                        <span class="bg-gradient-to-r from-gold via-amber-200 to-gold bg-clip-text text-transparent">Pemeliharaan &amp; Perawatan</span>
-                        Kendaraan
-                    </h1>
-                </div>
-                <p class="max-w-xl text-base leading-relaxed text-slate-200">
-                    Satu platform terpadu untuk pemeriksaan, perbaikan, dan riwayat kendaraan BMN di lingkungan Kementerian Pertahanan RI.
+                <h1 class="text-4xl font-bold leading-tight tracking-tight lg:text-5xl">
+                    Monitoring
+                    <span class="bg-gradient-to-r from-gold via-amber-200 to-gold bg-clip-text text-transparent">Pemeliharaan &amp; Perawatan</span>
+                    Kendaraan dan Non Kendaraan
+                </h1>
+                <p class="max-w-xl text-sm leading-relaxed text-slate-300">
+                    Satu platform terpadu untuk pemeriksaan, perbaikan, dan riwayat kendaraan di lingkungan Kementerian Pertahanan RI.
                 </p>
-                <div class="flex flex-wrap gap-2">
-                <span class="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-sm text-slate-100 backdrop-blur-sm">
-                    <svg class="h-4 w-4 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z" /></svg>
-                    Scan QR
-                </span>
-                <span class="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-sm text-slate-100 backdrop-blur-sm">
-                    <svg class="h-4 w-4 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08M15.75 18H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192m-11.024 0A48.424 48.424 0 0 0 6.127 3.916C4.996 4.01 4.151 4.973 4.151 6.108V18a2.25 2.25 0 0 0 2.25 2.25h1.5" /></svg>
-                    Pemeriksaan
-                </span>
-                <span class="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-sm text-slate-100 backdrop-blur-sm">
-                    <svg class="h-4 w-4 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085" /></svg>
-                    Perbaikan
-                </span>
-                <span class="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-sm text-slate-100 backdrop-blur-sm">
-                    <svg class="h-4 w-4 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-                    Riwayat
-                </span>
-                </div>
-                <div class="inline-flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-2.5 backdrop-blur-sm">
-                    <svg class="h-5 w-5 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>
-                    <p x-data="{ sekarang: '' }"
-                       x-init="const f = new Intl.DateTimeFormat('id-ID', { dateStyle: 'full', timeStyle: 'medium' }); sekarang = f.format(new Date()); setInterval(() => sekarang = f.format(new Date()), 1000)"
-                       x-text="sekarang"
-                       class="font-mono text-sm tracking-wide text-slate-100"></p>
-                </div>
+                <p x-data="{ sekarang: '' }"
+                   x-init="const f = new Intl.DateTimeFormat('id-ID', { dateStyle: 'full', timeStyle: 'medium' }); sekarang = f.format(new Date()); setInterval(() => sekarang = f.format(new Date()), 1000)"
+                   x-text="sekarang"
+                   class="font-mono text-sm tracking-wide text-slate-300"></p>
             </section>
 
             {# Right: login card #}
@@ -137,7 +114,6 @@
                                     {{ form.remember_me }}
                                     <span>Ingat saya</span>
                                 </label>
-                                <a href="{% url 'accounts:password_reset_placeholder' %}" class="text-navy hover:text-gold dark:text-slate-300 dark:hover:text-gold">Lupa kata sandi?</a>
                             </div>
                             <button type="submit" class="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
                                 Masuk
@@ -149,8 +125,8 @@
             </section>
         </main>
 
-        <footer class="px-5 pb-5 text-center text-xs text-slate-300/80 sm:px-8">
-            &copy; {% now "Y" %} Kementerian Pertahanan Republik Indonesia &middot; BMN Harwat
+        <footer class="px-5 pb-5 text-center text-sm text-slate-300/80 sm:px-8">
+            &copy; {% now "Y" as current_year %}{% if current_year != "2026" %}2026 &ndash; {{ current_year }}{% else %}2026{% endif %} PUSAT BARANG MILIK NEGARA
         </footer>
     </div>
 </body>

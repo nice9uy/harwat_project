@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
 from django_bolt import BoltAPI
-from django_bolt.auth import IsAuthenticated, JWTAuthentication
+from django_bolt.auth import IsAuthenticated, JWTAuthentication, extract_user_id_from_context
 from django_bolt.exceptions import HTTPException
 from django_bolt.serializers import Serializer, field
 from django_bolt.views import CreateMixin, DestroyMixin, ListMixin, RetrieveMixin, UpdateMixin, ViewSet
@@ -72,7 +72,23 @@ class VehicleViewSet(ListMixin, RetrieveMixin, CreateMixin, UpdateMixin, Destroy
     auth = [access_auth]
     guards = [IsAuthenticated()]
 
+    async def _hanya_superuser(self):
+        # Like the Kendaraan menu: vehicles are listed, added, changed and
+        # deleted by a superuser only (any other account would sidestep its
+        # role's menus). Read from the database, not the token: the account
+        # may have changed since the token was issued.
+        from django.contrib.auth import get_user_model
+
+        uid = extract_user_id_from_context(self.request)
+        if not uid or not await get_user_model().objects.filter(pk=uid, is_active=True, is_superuser=True).aexists():
+            raise HTTPException(status_code=403, detail="Superuser only")
+
+    async def get_queryset(self):
+        await self._hanya_superuser()
+        return await super().get_queryset()
+
     async def perform_create(self, obj):
+        await self._hanya_superuser()
         await _save_vehicle(obj)
 
     async def perform_update(self, obj):

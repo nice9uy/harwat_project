@@ -21,6 +21,15 @@
                 </svg>
                 Satuan
             </button>
+            <button type="button" @click="tab = 'km'"
+                    :class="tab === 'km' ? 'border-gold text-navy dark:text-gold' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+                    class="inline-flex items-center gap-2 border-b-2 px-1 py-2 text-sm font-medium">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 17a8 8 0 1 1 15 0M12 13l3.5-4.5" />
+                    <circle cx="12" cy="14" r="1.25" />
+                </svg>
+                KM
+            </button>
         </nav>
     </div>
 
@@ -32,7 +41,7 @@
                     hx-get="{% url 'accounts:user_create' %}"
                     hx-target="#user-modal-body"
                     hx-swap="innerHTML"
-                    class="rounded-md bg-navy px-3 py-2 text-sm font-medium text-white hover:bg-navy-light">
+                    class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
                 + Tambah User
             </button>
         </div>
@@ -45,72 +54,107 @@
                         <th class="py-2 px-4 font-medium">Username</th>
                         <th class="py-2 px-4 font-medium">Email</th>
                         <th class="py-2 px-4 font-medium">Keanggotaan</th>
+                        <th class="py-2 px-4 font-medium">Matra</th>
                         <th class="py-2 px-4 font-medium">Ketua Tim</th>
                         <th class="py-2 px-4 font-medium">Tanggal Dibuat</th>
+                        <th class="py-2 px-4 font-medium">VPN</th>
                         <th class="py-2 px-4 font-medium">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
                     {% for akun in users %}
-                    <tr{% if akun.kedalaman %} x-show="!tutup[{{ akun.ketua_pk }}]"{% endif %}>
+                    <tr{% if akun.kedalaman %} x-show="{% for g in akun.leluhur %}{% if not forloop.first %} && {% endif %}!tutup['{{ g }}']{% endfor %}"{% endif %}>
                         <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ users.start_index|add:forloop.counter0 }}</td>
                         <td class="py-2 px-4 font-medium text-navy dark:text-slate-100">
-                            {% if akun.kedalaman %}
-                            <span class="inline-flex items-center gap-1.5 pl-5 font-normal">
-                                <span class="text-slate-400 dark:text-slate-500" aria-hidden="true">└─</span>{{ akun.username }}
-                            </span>
-                            {% elif akun.keanggotaan == "Ketua Tim" %}
-                            <span class="inline-flex items-center gap-1.5">
+                            <span class="inline-flex items-center gap-1.5{% if akun.kedalaman %} font-normal{% endif %}"{% if akun.kedalaman %} style="padding-left: {% widthratio akun.kedalaman 1 20 %}px"{% endif %}>
+                                {% if akun.kedalaman %}<span class="text-slate-400 dark:text-slate-500" aria-hidden="true">└─</span>{% endif %}
                                 {% if akun.jumlah_anggota %}
-                                <button type="button" @click="tutup[{{ akun.anggota_pk }}] = !tutup[{{ akun.anggota_pk }}]"
-                                        :aria-expanded="!tutup[{{ akun.anggota_pk }}]"
-                                        :title="tutup[{{ akun.anggota_pk }}] ? 'Tampilkan anggota' : 'Sembunyikan anggota'"
+                                <button type="button" @click="tutup['{{ akun.grup }}'] = !tutup['{{ akun.grup }}']"
+                                        :aria-expanded="!tutup['{{ akun.grup }}']"
+                                        :title="tutup['{{ akun.grup }}'] ? 'Tampilkan anggota' : 'Sembunyikan anggota'"
                                         class="-ml-1 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-navy dark:hover:bg-slate-700 dark:hover:text-gold">
-                                    <svg :class="tutup[{{ akun.anggota_pk }}] ? '-rotate-90' : ''" class="h-4 w-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+                                    <svg :class="tutup['{{ akun.grup }}'] ? '-rotate-90' : ''" class="h-4 w-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                                 </button>
-                                {% else %}
+                                {% elif akun.keanggotaan == "Ketua Tim" or akun.keanggotaan == "Admin" %}
                                 <span class="w-5" aria-hidden="true"></span>
                                 {% endif %}
+                                {% if akun.keanggotaan == "Ketua Tim" or akun.keanggotaan == "Admin" %}
                                 <svg class="h-4 w-4 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" /></svg>
+                                {% endif %}
                                 {{ akun.username }}
                                 {% if akun.jumlah_anggota %}<span class="rounded-full bg-slate-200 dark:bg-slate-700 px-1.5 text-xs font-normal text-slate-600 dark:text-slate-300" title="Jumlah anggota">{{ akun.jumlah_anggota }}</span>{% endif %}
                             </span>
-                            {% else %}
-                            {{ akun.username }}
-                            {% endif %}
                         </td>
                         <td class="py-2 px-4">{{ akun.email|default:"—" }}</td>
                         <td class="py-2 px-4">{{ akun.keanggotaan }}</td>
+                        <td class="py-2 px-4 whitespace-nowrap">{{ akun.matra_label|default:"—" }}</td>
                         <td class="py-2 px-4">{{ akun.ketua_tim|default:"—" }}</td>
                         <td class="py-2 px-4">{{ akun.date_joined|date:"d M Y" }}</td>
                         <td class="py-2 px-4">
+                            {% with vpn=akun.vpn_peer %}
+                            {% if vpn %}
+                            <div class="flex items-center gap-1.5">
+                                <span class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/40 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300">{{ vpn.peer_name }}</span>
+                                <button type="button" title="Config WireGuard"
+                                @click="modalOpen = true"
+                                hx-get="{% url 'accounts:vpn_config' akun.publik.uuid %}"
+                                hx-target="#user-modal-body"
+                                hx-swap="innerHTML"
+                                class="shrink-0 rounded p-0.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.5h4.5v4.5h-4.5zM3.75 15h4.5v4.5h-4.5zM15.75 4.5h4.5v4.5h-4.5zM14.25 14.25h2.25v2.25h-2.25zM18 18h2.25v2.25H18zM18 14.25h2.25M14.25 18v2.25M12 4.5v6.75M3.75 12h6"/>
+                            </svg>
+                        </button>
+                            </div>
+                            {% else %}—{% endif %}
+                            {% endwith %}
+                        </td>
+                        <td class="py-2 px-4">
                             <div class="flex items-center gap-2">
-                            {% if akun.anggota_pk %}
+                            {% if akun.tambah_url %}
                             <button type="button"
                                     @click="modalOpen = true"
-                                    hx-get="{% url 'accounts:user_create' %}?ketua={{ akun.anggota_pk }}"
+                                    hx-get="{{ akun.tambah_url }}"
                                     hx-target="#user-modal-body"
                                     hx-swap="innerHTML"
                                     class="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700">
                                 + Anggota
                             </button>
                             {% endif %}
-                            {% if akun.pk != request.user.pk and not akun.is_superuser or akun.pk != request.user.pk and request.user.is_superuser %}
+                            {% if akun.bawahan_url %}
                             <button type="button"
                                     @click="modalOpen = true"
-                                    hx-get="{% url 'accounts:user_edit' akun.pk %}"
+                                    hx-get="{{ akun.bawahan_url }}"
+                                    hx-target="#user-modal-body"
+                                    hx-swap="innerHTML"
+                                    class="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700">
+                                Ketua Tim
+                            </button>
+                            {% endif %}
+                            {% if akun.boleh_ubah %}
+                            <button type="button"
+                                    @click="modalOpen = true"
+                                    hx-get="{% url 'accounts:user_edit' akun.publik.uuid %}"
                                     hx-target="#user-modal-body"
                                     hx-swap="innerHTML"
                                     class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700">
                                 Edit
                             </button>
+                            <button type="button"
+                                    @click="modalOpen = true"
+                                    hx-get="{% url 'accounts:user_reset_password' akun.publik.uuid %}"
+                                    hx-target="#user-modal-body"
+                                    hx-swap="innerHTML"
+                                    class="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-amber-600 px-2 py-1 text-xs font-medium text-white hover:bg-amber-700">
+                                Reset Password
+                            </button>
                             {% endif %}
-                            {% if akun.is_superuser or akun.pk == request.user.pk %}
-                            <span class="text-slate-400 dark:text-slate-500" title="{% if akun.pk == request.user.pk %}Akun sendiri{% else %}Superuser tidak bisa dihapus{% endif %}">—</span>
+                            {% if akun.is_superuser or not akun.boleh_ubah %}
+                            <span class="text-slate-400 dark:text-slate-500" title="{% if akun.pk == request.user.pk %}Akun sendiri{% elif akun.is_superuser %}Superuser tidak bisa dihapus{% else %}Hanya admin di atasnya yang bisa menghapus{% endif %}">—</span>
                             {% else %}
                             <button type="button"
                                     @click="modalOpen = true"
-                                    hx-get="{% url 'accounts:user_delete' akun.pk %}"
+                                    hx-get="{% url 'accounts:user_delete' akun.publik.uuid %}"
                                     hx-target="#user-modal-body"
                                     hx-swap="innerHTML"
                                     class="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">
@@ -122,7 +166,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="py-6 px-4 text-center text-slate-400 dark:text-slate-500">Belum ada data user.</td>
+                        <td colspan="8" class="py-6 px-4 text-center text-slate-400 dark:text-slate-500">Belum ada data user.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -132,16 +176,41 @@
     </div>
 
     <div x-show="tab === 'satuan'" x-cloak class="space-y-4">
+        {# One matra at a time; the count is that matra's units. #}
+        <nav class="inline-flex overflow-hidden rounded-md border border-slate-200 text-sm font-medium dark:border-slate-700" aria-label="Matra">
+            {% for kode, label, jumlah in matra_pilihan %}
+            <a href="{% url 'accounts:pengaturan' %}?tab=satuan&amp;matra={{ kode }}"
+               {% if kode == matra_satuan %}aria-current="page"{% endif %}
+               class="flex items-center gap-2 px-5 py-2{% if not forloop.first %} border-l border-slate-200 dark:border-slate-700{% endif %} {% if kode == matra_satuan %}bg-navy text-white dark:bg-gold dark:text-navy{% else %}text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700{% endif %}">
+                {{ label }}
+                <span class="rounded-full px-1.5 text-xs tabular-nums {% if kode == matra_satuan %}bg-white/20 dark:bg-navy/20{% else %}bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300{% endif %}">{{ jumlah }}</span>
+            </a>
+            {% endfor %}
+        </nav>
         <div class="flex items-center justify-between">
-            <p class="text-sm text-slate-500 dark:text-slate-400">Daftar satuan.</p>
-            <button type="button"
-                    @click="modalOpen = true"
-                    hx-get="{% url 'accounts:satuan_create' %}"
-                    hx-target="#user-modal-body"
-                    hx-swap="innerHTML"
-                    class="rounded-md bg-navy px-3 py-2 text-sm font-medium text-white hover:bg-navy-light">
-                + Tambah Satuan
-            </button>
+            <p class="text-sm text-slate-500 dark:text-slate-400">Daftar satuan {% for kode, label, jumlah in matra_pilihan %}{% if kode == matra_satuan %}{{ label }}{% endif %}{% endfor %}.</p>
+            <div class="flex flex-wrap items-center justify-end gap-2">
+                <a href="{% url 'accounts:satuan_ekspor' %}" download hx-boost="false"
+                   class="rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700">
+                    Export
+                </a>
+                <button type="button"
+                        @click="modalOpen = true"
+                        hx-get="{% url 'accounts:satuan_impor' %}"
+                        hx-target="#user-modal-body"
+                        hx-swap="innerHTML"
+                        class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                    Import
+                </button>
+                <button type="button"
+                        @click="modalOpen = true"
+                        hx-get="{% url 'accounts:satuan_create' %}?matra={{ matra_satuan }}"
+                        hx-target="#user-modal-body"
+                        hx-swap="innerHTML"
+                        class="rounded-md bg-navy px-3 py-2 text-sm font-medium text-white hover:bg-navy-light">
+                    + Tambah Satuan
+                </button>
+            </div>
         </div>
 
         <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
@@ -166,7 +235,7 @@
                             <div class="flex items-center gap-2">
                                 <button type="button"
                                         @click="modalOpen = true"
-                                        hx-get="{% url 'accounts:satuan_update' satuan.pk %}"
+                                        hx-get="{% url 'accounts:satuan_update' satuan.uuid %}"
                                         hx-target="#user-modal-body"
                                         hx-swap="innerHTML"
                                         class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700">
@@ -174,7 +243,7 @@
                                 </button>
                                 <button type="button"
                                         @click="modalOpen = true"
-                                        hx-get="{% url 'accounts:satuan_delete' satuan.pk %}"
+                                        hx-get="{% url 'accounts:satuan_delete' satuan.uuid %}"
                                         hx-target="#user-modal-body"
                                         hx-swap="innerHTML"
                                         class="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">
@@ -192,6 +261,47 @@
             </table>
         </div>
         {% include "_pagination.html" with halaman=satuan_list %}
+    </div>
+
+    <div x-show="tab === 'km'" x-cloak class="space-y-4">
+        <p class="text-sm text-slate-500 dark:text-slate-400">
+            Komponen yang diberi tanda <span class="font-bold text-red-500">*</span> di form pemeriksaan, dan setiap berapa KM atau berapa bulan masing-masing harus dicek.
+        </p>
+        <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                    <tr>
+                        <th class="py-2 px-4 font-medium w-12">No</th>
+                        <th class="py-2 px-4 font-medium">Komponen</th>
+                        <th class="py-2 px-4 font-medium">Form</th>
+                        <th class="py-2 px-4 font-medium">Interval KM</th>
+                        <th class="py-2 px-4 font-medium">Waktu Servis</th>
+                        <th class="py-2 px-4 font-medium">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                    {% for km in km_list %}
+                    <tr>
+                        <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td>
+                        <td class="py-2 px-4 font-medium text-navy dark:text-slate-100">{{ km.label }}<span class="ml-0.5 font-bold text-red-500">*</span></td>
+                        <td class="py-2 px-4">{{ km.form }}</td>
+                        <td class="py-2 px-4 tabular-nums">{% if km.interval_km %}Setiap {{ km.interval_km }} km{% else %}<span class="text-slate-400 dark:text-slate-500">Belum diatur</span>{% endif %}</td>
+                        <td class="py-2 px-4 tabular-nums">{% if km.interval_bulan %}Setiap {{ km.interval_bulan }} bulan{% else %}<span class="text-slate-400 dark:text-slate-500">Belum diatur</span>{% endif %}</td>
+                        <td class="py-2 px-4">
+                            <button type="button"
+                                    @click="modalOpen = true"
+                                    hx-get="{% url 'accounts:km_jadwal_edit' km.uuid %}"
+                                    hx-target="#user-modal-body"
+                                    hx-swap="innerHTML"
+                                    class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700">
+                                Edit
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <div x-show="modalOpen"

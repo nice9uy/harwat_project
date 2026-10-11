@@ -16,6 +16,7 @@ from accounts.models import (
     PerbaikanGolonganB,
     RevokedToken,
 )
+from accounts.roles import keanggotaan_kode
 from fleet.models import Vehicle
 
 
@@ -78,7 +79,7 @@ class LoginViewTests(TestCase):
             {"username": "teknisi1", "password": "salah"},
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Masukkan nama pengguna")
+        self.assertContains(response, "Nama pengguna atau kata sandi salah")
 
     def test_already_authenticated_user_redirects_to_dashboard(self):
         self.client.login(username="teknisi1", password="rahasia-123")
@@ -153,9 +154,9 @@ class UserCreateViewTests(TestCase):
         self.assertContains(response, "Tambah User")
 
     def test_post_valid_data_creates_user(self):
-        response = self.client.post(reverse("accounts:user_create") + f"?ketua={self.ketua.pk}", {
+        response = self.client.post(reverse("accounts:user_create") + f"?ketua={self.ketua.uuid}", {
             "username": "teknisi2",
-            "keanggotaan": "tim_pemeriksaan",
+            "keanggotaan": "tim_pemeriksaan", "matra": "darat",
         })
         self.assertRedirects(response, reverse("accounts:pengaturan"))
         user = User.objects.get(username="teknisi2")
@@ -167,7 +168,7 @@ class UserCreateViewTests(TestCase):
             reverse("accounts:user_create"),
             {
                 "username": "teknisi3",
-                "keanggotaan": "pimpinan",
+                "keanggotaan": "pimpinan", "matra": "darat",
             },
             HTTP_HX_REQUEST="true",
         )
@@ -178,20 +179,14 @@ class UserCreateViewTests(TestCase):
     def _create(self, keanggotaan, ketua=None):
         url = reverse("accounts:user_create")
         if keanggotaan.startswith("tim_"):
-            url += f"?ketua={(ketua or self.ketua).pk}"
-        return self.client.post(url, {"username": "baru", "keanggotaan": keanggotaan})
+            url += f"?ketua={(ketua or self.ketua).uuid}"
+        return self.client.post(url, {"username": "baru", "keanggotaan": keanggotaan, "matra": "darat"})
 
     def test_keanggotaan_is_required(self):
         response = self._create("")
         self.assertEqual(response.status_code, 200)
         self.assertFalse(User.objects.filter(username="baru").exists())
 
-    def test_admin_gets_group_and_staff(self):
-        self._create("admin")
-        user = User.objects.get(username="baru")
-        self.assertTrue(user.is_staff)
-        self.assertFalse(user.is_superuser)
-        self.assertTrue(user.groups.filter(name="Admin").exists())
 
     def test_non_superuser_cannot_create_superuser(self):
         response = self.client.get(reverse("accounts:user_create"))
@@ -213,7 +208,10 @@ class UserCreateViewTests(TestCase):
         response = self.client.get(reverse("accounts:pengaturan"))
         self.assertContains(response, "<th class=\"py-2 px-4 font-medium\">Keanggotaan</th>", html=True)
         self.assertContains(response, "Tim Perbaikan")
-        self.assertContains(response, "Superuser")
+        # Superuser accounts are listed for superusers only.
+        self.assertNotContains(response, "Superuser")
+        self.client.login(username="root", password="rahasia-123")
+        self.assertContains(self.client.get(reverse("accounts:pengaturan")), "Superuser")
 
     def test_all_role_groups_exist(self):
         from django.contrib.auth.models import Group
@@ -221,7 +219,10 @@ class UserCreateViewTests(TestCase):
         from accounts.roles import GROUP_NAMES
         self.assertEqual(
             set(Group.objects.values_list("name", flat=True)) & set(GROUP_NAMES.values()),
-            {"Admin", "Pimpinan", "Ketua Tim", "Tim Pemeriksaan", "Tim Penambahan Data", "Tim Perbaikan"},
+            {
+                "Admin", "Pimpinan", "Pimpinan Tim", "Ketua Tim", "Tim Pemeriksaan", "Tim Penambahan Data",
+                "Tim Perbaikan", "Tim Pemeriksaan Rusak/Tidak Layak",
+            },
         )
 
     def test_new_user_gets_default_password_and_no_email_field(self):
@@ -242,7 +243,7 @@ class UserCreateViewTests(TestCase):
 def _pemeriksaan_data(vehicle, **overrides):
     """POST fields of the PEMERIKSAAN tab for a fully filled-in inspection."""
     data = {
-        "vehicle": vehicle.pk,
+        "vehicle": vehicle.uuid,
         "pembagian_kelas": "2",
         "eselon_reparasi": "3",
         "macam_pemeriksaan": "tehnis",
@@ -310,8 +311,7 @@ class LaporanViewTests(TestCase):
         self.assertContains(response, 'name="pembagian_kelas" value="6"')
         self.assertContains(response, 'name="eselon_reparasi" value="4"')
         self.assertContains(response, 'name="macam_pemeriksaan" value="tiba_tiba"')
-        self.assertContains(response, 'name="buku_jalan" value="ada"')
-        self.assertContains(response, 'name="buku_jalan" value="tidak"')
+        self.assertNotContains(response, 'name="buku_jalan"')  # taken off the form
         self.assertContains(response, 'type="hidden" name="kesatuan"')
         for i in range(1, 9):
             self.assertContains(response, f'name="ban_{i}" min="0" max="100"')
@@ -434,9 +434,15 @@ class DashboardViewTests(TestCase):
 
     def test_dashboard_renders_all_four_blocks_when_authenticated(self):
         self.client.login(username="teknisi1", password="rahasia-123")
+        # No matra picked: the Semua Matra overview, without the tabs.
         response = self.client.get(reverse("accounts:dashboard"))
         self.assertEqual(response.status_code, 200)
-        for text in ("Ringkasan", "Kegiatan Terbaru", "Jadwal Terlambat", "Jadwal Mendatang"):
+        for text in ("Semua Matra", "Kendaraan per Matra", "Rangkuman per Matra"):
+            self.assertContains(response, text)
+        self.assertNotContains(response, "RINGKASAN")
+        # A matra picked: the tabs, with the activity under Kegiatan.
+        response = self.client.get(reverse("accounts:dashboard"), {"matra": "darat"})
+        for text in ("RINGKASAN", "KEGIATAN", "Kegiatan Terbaru", "Jadwal Terlambat", "Jadwal Mendatang"):
             self.assertContains(response, text)
 
     def test_dashboard_has_theme_toggle(self):
@@ -446,7 +452,7 @@ class DashboardViewTests(TestCase):
 
     def test_dashboard_has_no_mock_data(self):
         self.client.login(username="teknisi1", password="rahasia-123")
-        response = self.client.get(reverse("accounts:dashboard"))
+        response = self.client.get(reverse("accounts:dashboard"), {"matra": "darat"})
         for mock in ("Truk Angkut B 9021 XY", "Servis berkala lewat 12 hari", "Siti Amalia"):
             self.assertNotContains(response, mock)
         self.assertContains(response, "Belum ada kegiatan.")
@@ -467,7 +473,7 @@ class DashboardViewTests(TestCase):
         Servis.objects.create(vehicle=truk, tanggal=date.today(), jenis_servis="Ganti oli", bengkel="Bengkel 202")
         Jadwal.objects.create(vehicle=truk, tanggal=date.today() - timedelta(days=2), kegiatan="servis")
         self.client.login(username="teknisi1", password="rahasia-123")
-        response = self.client.get(reverse("accounts:dashboard"))
+        response = self.client.get(reverse("accounts:dashboard_partial"))  # the Kegiatan tab's part
         for text in ("Budi</span> memeriksa B 1 TRK (Golongan B)", "1 item perlu perbaikan",
                      "Budi</span> memperbaiki Motor pada B 1 TRK", "Kendaraan B 1 TRK (Hino) ditambahkan",
                      "Servis Ganti oli untuk B 1 TRK dicatat", "Jadwal servis B 1 TRK dibuat", "lalu</time>"):
@@ -504,9 +510,9 @@ class DashboardViewTests(TestCase):
 
     def test_dashboard_polls_for_updates(self):
         self.client.login(username="teknisi1", password="rahasia-123")
-        response = self.client.get(reverse("accounts:dashboard"))
+        response = self.client.get(reverse("accounts:dashboard"), {"matra": "darat"})
         self.assertContains(response, 'hx-trigger="every 10s"')
-        self.assertContains(response, f'hx-get="{reverse("accounts:dashboard_partial")}"')
+        self.assertContains(response, f'hx-get="{reverse("accounts:dashboard_partial")}?matra=darat&amp;hal_kegiatan=1"')
 
 
 class DashboardPartialViewTests(TestCase):
@@ -570,7 +576,7 @@ class FormTambahViewTests(TestCase):
         self.assertContains(response, "Tambah Kendaraan")
         self.assertContains(response, 'type="radio" name="golongan" value="B"')
         self.assertContains(response, 'Golongan "B"')
-        for kode, label in (("bermotor", "Kendaraan Bermotor"), ("diesel", "Kendaraan Diesel")):
+        for kode, label in (("bermotor", "Motor"), ("diesel", "Kendaraan Diesel")):
             self.assertContains(response, f'type="radio" name="golongan" value="{kode}"')
             self.assertContains(response, label)
         # Prefixed: they are posted together with the vehicle form, which has its own "foto".
@@ -697,13 +703,13 @@ class PemeriksaanGolonganBSaveTests(TestCase):
 
     def test_vehicle_with_inspection_cannot_be_deleted(self):
         self._post()
-        response = self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.pk]), follow=True)
+        response = self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.uuid]), follow=True)
         self.assertTrue(Vehicle.objects.filter(pk=self.vehicle.pk).exists())
         self.assertContains(response, "tidak bisa dihapus karena sudah punya data pemeriksaan")
 
     def test_form_marks_classification_and_kondisi_required(self):
         response = self.client.get(reverse("accounts:pemeriksaan_checklist", args=["B"]))
-        for name in ("pembagian_kelas", "eselon_reparasi", "macam_pemeriksaan", "buku_jalan", "alat_40_kondisi"):
+        for name in ("pembagian_kelas", "eselon_reparasi", "macam_pemeriksaan", "alat_40_kondisi"):
             self.assertRegex(response.content.decode(), rf'name="{name}" value="[^"]+"[^>]*required')
         self.assertContains(self.client.get(reverse("accounts:pemeriksaan")), 'name="vehicle"')
 
@@ -744,7 +750,7 @@ class PemeriksaanCaptchaCheckTests(TestCase):
         self.assertRegex(response.content.decode(), r'<button type="button" @click="kirim\(\)"[^>]*>Konfirmasi &amp; Kirim</button>')
         # Only the scanned group's checklist is loaded, after the scan.
         self.assertContains(response, 'id="checklist"')
-        self.assertContains(response, "golonganDenganForm: ['B', 'bermotor', 'diesel']")
+        self.assertContains(response, "golonganDenganForm: ['B', 'bermotor', 'diesel', 'jeep', 'rantis']")
         self.assertNotContains(response, 'name="alat_1_kondisi"')
         self.assertContains(response, "belum tersedia.")
 
@@ -802,7 +808,7 @@ class HistoryScanTests(TestCase):
         for panel in ("profile", "status", "pemeriksaan", "perbaikan"):
             self.assertContains(response, f"x-show=\"tab === '{panel}'\"")
         # Profile
-        self.assertContains(response, reverse("fleet:vehicle_qr", args=[self.vehicle.pk]))
+        self.assertContains(response, reverse("fleet:vehicle_qr", args=[self.vehicle.uuid]))
         self.assertContains(response, "Golongan B")
         # Status: vehicle status and the parts not in good condition
         self.assertContains(response, "Siap Pakai")
@@ -869,7 +875,7 @@ class PerbaikanSaveTests(HistoryScanTests):
         data = {
             "nip": "2", "nama": "Andi Teknisi", "pangkat": "Serka", "jabatan": "Mekanik", "satuan": _satuan("Bengkel").pk,
             "foto": SimpleUploadedFile("teknisi.gif", TINY_GIF, content_type="image/gif"),
-            "vehicle": self.vehicle.pk,
+            "vehicle": self.vehicle.uuid,
         }
         data.update(fields)
         return self.client.post(reverse("accounts:perbaikan"), data)
@@ -972,12 +978,12 @@ class UserDeleteTests(TestCase):
         response = self.client.get(reverse("accounts:pengaturan"))
         self.assertContains(response, '<th class="py-2 px-4 font-medium w-12">No</th>', html=True)
         self.assertContains(response, '<th class="py-2 px-4 font-medium">Aksi</th>', html=True)
-        self.assertContains(response, f'hx-get="{reverse("accounts:user_delete", args=[self.target.pk])}"')
-        self.assertNotContains(response, reverse("accounts:user_delete", args=[self.root.pk]))
-        self.assertNotContains(response, reverse("accounts:user_delete", args=[self.admin.pk]))
+        self.assertContains(response, f'hx-get="{reverse("accounts:user_delete", args=[self.target.publik.uuid])}"')
+        self.assertNotContains(response, reverse("accounts:user_delete", args=[self.root.publik.uuid]))
+        self.assertNotContains(response, reverse("accounts:user_delete", args=[self.admin.publik.uuid]))
 
     def test_confirm_then_delete(self):
-        url = reverse("accounts:user_delete", args=[self.target.pk])
+        url = reverse("accounts:user_delete", args=[self.target.publik.uuid])
         self.assertContains(self.client.get(url), "Yakin ingin menghapus user")
         self.assertTrue(User.objects.filter(pk=self.target.pk).exists())
         response = self.client.post(url)
@@ -985,17 +991,17 @@ class UserDeleteTests(TestCase):
         self.assertFalse(User.objects.filter(pk=self.target.pk).exists())
 
     def test_superuser_cannot_be_deleted(self):
-        response = self.client.post(reverse("accounts:user_delete", args=[self.root.pk]), follow=True)
+        response = self.client.post(reverse("accounts:user_delete", args=[self.root.publik.uuid]), follow=True)
         self.assertTrue(User.objects.filter(pk=self.root.pk).exists())
         self.assertContains(response, "User root tidak bisa dihapus.")
 
     def test_cannot_delete_own_account(self):
-        self.client.post(reverse("accounts:user_delete", args=[self.admin.pk]))
+        self.client.post(reverse("accounts:user_delete", args=[self.admin.publik.uuid]))
         self.assertTrue(User.objects.filter(pk=self.admin.pk).exists())
 
     def test_requires_login(self):
         self.client.logout()
-        self.client.post(reverse("accounts:user_delete", args=[self.target.pk]))
+        self.client.post(reverse("accounts:user_delete", args=[self.target.publik.uuid]))
         self.assertTrue(User.objects.filter(pk=self.target.pk).exists())
 
 
@@ -1087,9 +1093,9 @@ class SidebarLogoutTests(TestCase):
 
 
 def _bermotor_data(vehicle, **overrides):
-    """POST fields of the PEMERIKSAAN tab for a filled-in Kendaraan Bermotor inspection."""
+    """POST fields of the PEMERIKSAAN tab for a filled-in Motor inspection."""
     data = {
-        "vehicle": vehicle.pk,
+        "vehicle": vehicle.uuid,
         "bbm": "Solar",
         "buku_harian": "ada",
         "macam_pemeriksaan": "tiba_tiba",
@@ -1101,7 +1107,7 @@ def _bermotor_data(vehicle, **overrides):
         "ban_belakang_kanan": "60",
         "ban_cadangan": "100",
     }
-    for nomor in range(1, 64):
+    for nomor in range(1, 63):
         data[f"alat_{nomor}_kondisi"] = "B"
     data.update(overrides)
     return data
@@ -1130,12 +1136,13 @@ class PemeriksaanBermotorTests(TestCase):
 
     def test_page_has_bermotor_checklist(self):
         from accounts.pemeriksaan import KOMPONEN_BERMOTOR
-        self.assertEqual(len(KOMPONEN_BERMOTOR), 63)
+        self.assertEqual(len(KOMPONEN_BERMOTOR), 62)
+        self.assertNotIn("Minyak Kopling / Minyak Rem", KOMPONEN_BERMOTOR)
         response = self.client.get(reverse("accounts:pemeriksaan_checklist", args=["bermotor"]))
         for text in ("BBM, Buku Harian, Macam &amp; Tempat Pemeriksaan, Ban", 'name="bbm"', 'name="tempat_pemeriksaan"',
                      'name="ukuran_ban"', 'name="ban_depan_kiri" min="0" max="100"', 'name="ban_cadangan"',
-                     'name="buku_harian" value="ada"', "1.</span> Mesin / Tune Up / Over Haul", "63.</span> Winch",
-                     'name="alat_63_kondisi" value="TA"', "Harus Diperbaiki", "Harus Diganti", "Tidak Ada"):
+                     'name="buku_harian" value="ada"', "1.</span> Mesin / Tune Up / Over Haul", "62.</span> Winch",
+                     'name="alat_62_kondisi" value="TA"', "Harus Diperbaiki", "Harus Diganti", "Tidak Ada"):
             self.assertContains(response, text)
 
     def test_saves_bermotor_inspection(self):
@@ -1144,7 +1151,7 @@ class PemeriksaanBermotorTests(TestCase):
         hasil = PemeriksaanBermotor.objects.get()
         self.assertEqual((hasil.vehicle, hasil.bbm, hasil.buku_harian, hasil.macam_pemeriksaan, hasil.tempat_pemeriksaan),
                          (self.vehicle, "Solar", "ada", "tiba_tiba", "Bengkel 202"))
-        self.assertEqual(hasil.items.count(), 63)
+        self.assertEqual(hasil.items.count(), 62)
         self.assertEqual(hasil.items.get(nomor=60).nama_alat, "Dongkrak")
         self.assertEqual(
             (hasil.ukuran_ban, hasil.ban_depan_kiri, hasil.ban_depan_kanan, hasil.ban_belakang_kiri,
@@ -1188,7 +1195,7 @@ class PemeriksaanBermotorTests(TestCase):
 
         response = self.client.post(reverse("accounts:perbaikan"), {
             **self._biodata("Andi Teknisi"),
-            "vehicle": self.vehicle.pk,
+            "vehicle": self.vehicle.uuid,
             f"perbaikan_{mesin.pk}_aktif": "1",
             f"perbaikan_{mesin.pk}_kondisi": "B",
         })
@@ -1201,7 +1208,7 @@ class PemeriksaanBermotorTests(TestCase):
 
     def test_vehicle_with_bermotor_inspection_cannot_be_deleted(self):
         self._post_pemeriksaan()
-        self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.pk]))
+        self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.uuid]))
         self.assertTrue(Vehicle.objects.filter(pk=self.vehicle.pk).exists())
 
 
@@ -1240,7 +1247,7 @@ class FormTambahKendaraanModalTests(TestCase):
         url = reverse("fleet:vehicle_create") + "?group=B&next=" + reverse("accounts:form_tambah")
         form = self.client.get(url, HTTP_HX_REQUEST="true")
         self.assertContains(form, "next=/form-tambah/")
-        response = self.client.post(url, {"nopol": "B 5 X", "merek": "Isuzu", "foto": self._photos()},
+        response = self.client.post(url, {"kepemilikan": "organik", "nopol": "B 5 X", "merek": "Isuzu", "foto": self._photos()},
                                     HTTP_HX_REQUEST="true")
         self.assertEqual(response["HX-Redirect"], reverse("accounts:form_tambah"))
         self.assertEqual(Vehicle.objects.get(nopol="B 5 X").group_kendaraan, "B")
@@ -1251,7 +1258,7 @@ class FormTambahKendaraanModalTests(TestCase):
 
     def test_unsafe_next_is_ignored(self):
         url = reverse("fleet:vehicle_create") + "?group=B&next=https://evil.example/"
-        response = self.client.post(url, {"nopol": "B 6 X", "merek": "Isuzu", "foto": self._photos()})
+        response = self.client.post(url, {"kepemilikan": "organik", "nopol": "B 6 X", "merek": "Isuzu", "foto": self._photos()})
         self.assertRedirects(response, reverse("fleet:vehicle_list"), fetch_redirect_response=False)
 
 
@@ -1276,8 +1283,8 @@ class KetuaTimHierarchyTests(TestCase):
     def _post(self, username, keanggotaan, ketua=None):
         url = reverse("accounts:user_create")
         if ketua is not None:
-            url += f"?ketua={ketua.pk}"
-        return self.client.post(url, {"username": username, "keanggotaan": keanggotaan})
+            url += f"?ketua={ketua.uuid}"
+        return self.client.post(url, {"username": username, "keanggotaan": keanggotaan, "matra": "darat"})
 
     def test_tim_roles_hidden_until_a_ketua_exists(self):
         response = self.client.get(reverse("accounts:user_create"))
@@ -1319,14 +1326,14 @@ class KetuaTimHierarchyTests(TestCase):
         ketua_node = _buat_ketua()
         self._post("t1", "tim_perbaikan", ketua_node)
         member = User.objects.get(username="t1")
-        self.client.post(reverse("accounts:user_delete", args=[ketua_node.user.pk]))
+        self.client.post(reverse("accounts:user_delete", args=[ketua_node.user.publik.uuid]))
         self.assertTrue(User.objects.filter(pk=ketua_node.user.pk).exists())
 
-        self.client.post(reverse("accounts:user_delete", args=[member.pk]))
+        self.client.post(reverse("accounts:user_delete", args=[member.publik.uuid]))
         self.assertFalse(User.objects.filter(pk=member.pk).exists())
         ketua_node = Anggota.objects.get(pk=ketua_node.pk)
         self.assertEqual(ketua_node.numchild, 0)
-        self.client.post(reverse("accounts:user_delete", args=[ketua_node.user.pk]))
+        self.client.post(reverse("accounts:user_delete", args=[ketua_node.user.publik.uuid]))
         self.assertFalse(Anggota.objects.exists())
 
     def test_ketua_tim_sees_all_team_menus(self):
@@ -1353,10 +1360,10 @@ class UserEditTests(TestCase):
         self.pemeriksa.groups.add(Group.objects.get(name="Tim Pemeriksaan"))
 
     def _ubah(self, user, keanggotaan, ketua=None):
-        data = {"keanggotaan": keanggotaan}
+        data = {"keanggotaan": keanggotaan, "matra": "darat"}
         if ketua is not None:
             data["ketua_tim"] = ketua.pk
-        return self.client.post(reverse("accounts:user_edit", args=[user.pk]), data)
+        return self.client.post(reverse("accounts:user_edit", args=[user.publik.uuid]), data)
 
     def _node(self, username):
         from accounts.models import Anggota
@@ -1364,10 +1371,10 @@ class UserEditTests(TestCase):
 
     def test_table_has_edit_action(self):
         response = self.client.get(reverse("accounts:pengaturan"))
-        self.assertContains(response, f'hx-get="{reverse("accounts:user_edit", args=[self.pemeriksa.pk])}"')
+        self.assertContains(response, f'hx-get="{reverse("accounts:user_edit", args=[self.pemeriksa.publik.uuid])}"')
 
     def test_existing_member_gets_a_ketua(self):
-        form = self.client.get(reverse("accounts:user_edit", args=[self.pemeriksa.pk]))
+        form = self.client.get(reverse("accounts:user_edit", args=[self.pemeriksa.publik.uuid]))
         self.assertContains(form, '<option value="tim_pemeriksaan" selected>', html=False)
         response = self._ubah(self.pemeriksa, "tim_pemeriksaan", self.ketua_a)
         self.assertRedirects(response, reverse("accounts:pengaturan"))
@@ -1405,7 +1412,7 @@ class UserEditTests(TestCase):
         self._ubah(root, "pimpinan")
         root.refresh_from_db()
         self.assertTrue(root.is_superuser)
-        self.assertNotContains(self.client.get(reverse("accounts:user_edit", args=[self.pemeriksa.pk])), 'value="superuser"')
+        self.assertNotContains(self.client.get(reverse("accounts:user_edit", args=[self.pemeriksa.publik.uuid])), 'value="superuser"')
 
 
 
@@ -1442,11 +1449,11 @@ class TambahAnggotaTests(TestCase):
 
     def test_button_only_on_ketua_rows(self):
         response = self.client.get(reverse("accounts:pengaturan"))
-        self.assertContains(response, f'hx-get="{reverse("accounts:user_create")}?ketua={self.ketua.pk}"')
+        self.assertContains(response, f'hx-get="{reverse("accounts:user_create")}?ketua={self.ketua.uuid}"')
         self.assertContains(response, "+ Anggota", count=1)
 
     def test_modal_is_preset_to_the_ketua_and_tim_roles(self):
-        response = self.client.get(reverse("accounts:user_create"), {"ketua": self.ketua.pk}, HTTP_HX_REQUEST="true")
+        response = self.client.get(reverse("accounts:user_create"), {"ketua": self.ketua.uuid}, HTTP_HX_REQUEST="true")
         self.assertContains(response, "Tambah Anggota")
         self.assertContains(response, "Ketua Tim tes")
         self.assertContains(response, f'type="hidden" name="ketua_tim" value="{self.ketua.pk}"')
@@ -1458,13 +1465,63 @@ class TambahAnggotaTests(TestCase):
     def test_saves_member_under_that_ketua_even_if_ketua_tim_is_tampered(self):
         from accounts.models import Anggota
         lain = _buat_ketua("lain")
-        url = reverse("accounts:user_create") + f"?ketua={self.ketua.pk}"
-        self.client.post(url, {"username": "baru", "keanggotaan": "tim_perbaikan", "ketua_tim": lain.pk})
+        url = reverse("accounts:user_create") + f"?ketua={self.ketua.uuid}"
+        self.client.post(url, {"username": "baru", "keanggotaan": "tim_perbaikan", "matra": "darat", "ketua_tim": lain.pk})
         node = Anggota.objects.get(user__username="baru")
         self.assertEqual(node.get_parent().user.username, "tes")
-        response = self.client.post(url, {"username": "baru2", "keanggotaan": "pimpinan"})
+        response = self.client.post(url, {"username": "baru2", "keanggotaan": "pimpinan", "matra": "darat"})
         self.assertEqual(response.status_code, 200)
         self.assertFalse(User.objects.filter(username="baru2").exists())
+
+
+class UbahTimTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        self.ketua = _buat_ketua("ketua1")
+        self.ketua.user.set_password("12345")
+        self.ketua.user.save()
+        self.anggota = User.objects.create_user(username="anggota1", password="x")
+        self.anggota.groups.add(Group.objects.get(name="Tim Pemeriksaan"))
+        self.ketua.add_child(user=self.anggota)
+        self.url = reverse("accounts:anggota_tim_ubah", args=[self.anggota.publik.uuid])
+
+    def test_ketua_sees_button_and_moves_member_to_another_tim(self):
+        from accounts.models import Anggota
+        self.client.login(username="ketua1", password="12345")
+        self.assertContains(self.client.get(reverse("accounts:anggota_tim")), f'hx-get="{self.url}"')
+        response = self.client.post(self.url, {"keanggotaan": "tim_perbaikan", "matra": "darat"}, HTTP_HX_REQUEST="true")
+        self.assertEqual(response["HX-Redirect"], reverse("accounts:anggota_tim"))
+        self.assertEqual(keanggotaan_kode(self.anggota), "tim_perbaikan")
+        node = Anggota.objects.get(user=self.anggota)
+        self.assertEqual(node.get_parent().pk, self.ketua.pk)
+
+    def test_only_tim_roles_allowed(self):
+        self.client.login(username="ketua1", password="12345")
+        self.assertEqual(self.client.post(self.url, {"keanggotaan": "admin", "matra": "darat"}).status_code, 200)
+        self.assertEqual(keanggotaan_kode(self.anggota), "tim_pemeriksaan")
+
+    def test_member_with_unfinished_inspection_cannot_be_moved(self):
+        from accounts.models import DraftPemeriksaan
+        from fleet.models import Vehicle
+        vehicle = Vehicle.objects.create(nopol="B 7 DR", merek="Uji")
+        DraftPemeriksaan.objects.create(vehicle=vehicle, pemeriksa=self.anggota, data={"alat_1_kondisi": "B"})
+        User.objects.create_superuser(username="root", password="12345")
+        self.client.login(username="root", password="12345")
+        response = self.client.get(self.url)
+        self.assertContains(response, "Tim tidak bisa diubah")
+        self.assertContains(response, "Pemeriksaan B 7 DR")
+        self.assertNotContains(response, 'name="keanggotaan"')
+        response = self.client.post(self.url, {"keanggotaan": "tim_perbaikan", "matra": "darat"}, HTTP_HX_REQUEST="true")
+        self.assertContains(response, "Tim tidak bisa diubah")
+        self.assertEqual(keanggotaan_kode(self.anggota), "tim_pemeriksaan")
+
+    def test_other_ketua_cannot_change(self):
+        lain = _buat_ketua("ketua2")
+        lain.user.set_password("12345")
+        lain.user.save()
+        self.client.login(username="ketua2", password="12345")
+        self.assertEqual(self.client.post(self.url, {"keanggotaan": "tim_perbaikan", "matra": "darat"}).status_code, 403)
+        self.assertEqual(keanggotaan_kode(self.anggota), "tim_pemeriksaan")
 
 
 
@@ -1491,15 +1548,24 @@ class GantiPasswordTests(TestCase):
         self.assertTrue(self.user.check_password("Kendaraan-Aman-2026"))
         self.assertEqual(self.client.get(reverse("accounts:history")).status_code, 200)
 
-    def test_wrong_old_password_or_weak_new_password_rejected(self):
+    def test_wrong_old_password_or_mismatched_confirmation_rejected(self):
         self.client.post(reverse("accounts:ganti_password"), {
             "old_password": "salah", "new_password1": "Kendaraan-Aman-2026", "new_password2": "Kendaraan-Aman-2026",
         })
         self.client.post(reverse("accounts:ganti_password"), {
-            "old_password": "12345", "new_password1": "123456789", "new_password2": "123456789",
+            "old_password": "12345", "new_password1": "abc", "new_password2": "abd",
         })
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("12345"))
+
+    def test_any_new_password_is_accepted(self):
+        response = self.client.get(reverse("accounts:ganti_password"))
+        self.assertNotContains(response, "Minimal 8 karakter")
+        self.client.post(reverse("accounts:ganti_password"), {
+            "old_password": "12345", "new_password1": "1", "new_password2": "1",
+        })
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("1"))
 
     def test_sidebar_order_pengaturan_then_ganti_password(self):
         User.objects.create_superuser(username="root", password="rahasia-123")
@@ -1523,8 +1589,8 @@ class PengaturanCollapseTests(TestCase):
         member.groups.add(Group.objects.get(name="Tim Pemeriksaan"))
         type(ketua).objects.get(pk=ketua.pk).add_child(user=member)
         response = self.client.get(reverse("accounts:pengaturan"))
-        self.assertContains(response, f'@click="tutup[{ketua.pk}] = !tutup[{ketua.pk}]"')
-        self.assertContains(response, f'<tr x-show="!tutup[{ketua.pk}]">')
+        self.assertContains(response, f"@click=\"tutup['u{ketua.user.pk}'] = !tutup['u{ketua.user.pk}']\"")
+        self.assertContains(response, f"<tr x-show=\"!tutup['u{ketua.user.pk}']\">")
         self.assertContains(response, "@click=\"tutup[", count=1)  # the ketua without members has no toggle
         self.assertContains(response, 'title="Jumlah anggota">1</span>')
 
@@ -1532,7 +1598,7 @@ class PengaturanCollapseTests(TestCase):
 
 def _diesel_data(vehicle, **overrides):
     data = {
-        "vehicle": vehicle.pk,
+        "vehicle": vehicle.uuid,
         "km_mil": "120500",
         "km_berfungsi": "ya",
         "jam_mesin": "",
@@ -1620,7 +1686,7 @@ class PemeriksaanDieselTests(TestCase):
         from accounts.models import PemeriksaanDiesel
         block = PemeriksaanDiesel.objects.get().items.get(nomor=1)
         self.client.post(reverse("accounts:perbaikan"), {
-            **self._biodata("Andi"), "vehicle": self.vehicle.pk,
+            **self._biodata("Andi"), "vehicle": self.vehicle.uuid,
             f"perbaikan_{block.pk}_aktif": "1", f"perbaikan_{block.pk}_kondisi": "ADA",
         })
         daftar = self.client.get(reverse("accounts:perbaikan_kendaraan"), {"nopol": "B 3333 DD"})
@@ -1628,9 +1694,80 @@ class PemeriksaanDieselTests(TestCase):
 
     def test_vehicle_with_diesel_inspection_cannot_be_deleted(self):
         self._post()
-        self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.pk]))
+        self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.uuid]))
         self.assertTrue(Vehicle.objects.filter(pk=self.vehicle.pk).exists())
 
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class PemeriksaanRantisTests(TestCase):
+    """RANTIS: the Jeep Diesel layout with its own 116 parts."""
+
+    def setUp(self):
+        user = User.objects.create_user(username="teknisi1", password="rahasia-123")
+        self.client.login(username="teknisi1", password="rahasia-123")
+        self.vehicle = Vehicle.objects.create(nopol="R 1 TS", merek="Maung", group_kendaraan="rantis")
+        # The inspector is the account's own biodata (Info Profil).
+        Laporan.objects.create(akun=user, nip="1", nama="BUDI", pangkat="KAPTEN", jabatan="TEKNISI", satuan=_satuan("ABC"))
+
+    def _post(self, **overrides):
+        self.client.get(reverse("accounts:pemeriksaan"))
+        data = _diesel_data(self.vehicle, kesimpulan="perlu_perbaikan", **overrides)
+        for nomor in range(117, 142):
+            del data[f"alat_{nomor}_kondisi"]
+        return self.client.post(reverse("accounts:pemeriksaan"), {
+            "captcha": self.client.session["laporan_captcha"], **data,
+        })
+
+    def test_checklist_parts(self):
+        from accounts.pemeriksaan import KOMPONEN_RANTIS_BERNOMOR
+        nama = [n for _, n in KOMPONEN_RANTIS_BERNOMOR]
+        self.assertEqual(len(nama), 116)
+        # What the RANTIS sheet has over Jeep Diesel's.
+        for bagian in ("Pompa Tekanan Tinggi", "Pompa Tekanan Rendah", "Common Rail", "ECU Assy"):
+            self.assertIn(bagian, nama)
+        self.assertEqual((nama[0], nama[-1]), ("Block Mesin Assy", "Pintu Belakang"))
+        response = self.client.get(reverse("accounts:pemeriksaan_checklist", args=["rantis"]))
+        for text in ("Common Rail", "Arus Penolong", 'name="alat_116_kondisi" value="B"'):
+            self.assertContains(response, text)
+
+    def test_rusak_or_tidak_ada_needs_photo_or_note(self):
+        from accounts.models import PemeriksaanRantis
+        response = self._post(alat_1_kondisi="RR", alat_2_kondisi="RB", alat_3_kondisi="TA", alat_4_kondisi="ADA")
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(PemeriksaanRantis.objects.exists())
+        for baris in ("1. Block Mesin Assy (Rusak Ringan): sertakan foto atau keterangan.",
+                      "2. Cylinder Head Assy (Rusak Berat): sertakan foto atau keterangan.",
+                      "3. Stik Penduga Oli (Tidak Ada): sertakan foto atau keterangan."):
+            self.assertContains(response, baris)
+        self.assertNotContains(response, "4. Carter (")
+        # A note for one, a photo for another, is enough.
+        response = self._post(
+            alat_1_kondisi="RR", alat_1_keterangan="retak", alat_2_kondisi="RB",
+            alat_2_foto=SimpleUploadedFile("foto.gif", TINY_GIF, content_type="image/gif"),
+            alat_3_kondisi="TA", alat_3_keterangan="hilang",
+        )
+        self.assertRedirects(response, reverse("accounts:pemeriksaan"))
+        self.assertEqual(PemeriksaanRantis.objects.get().items.filter(kondisi__in=["RR", "RB", "TA"]).count(), 3)
+
+    def test_saves_inspection_and_sets_status(self):
+        response = self._post(alat_21_kondisi="RB", alat_21_sat="bh", alat_21_riil="1", alat_21_nyata="0",
+                              alat_21_keterangan="bocor")
+        self.assertRedirects(response, reverse("accounts:pemeriksaan"))
+        from accounts.models import PemeriksaanRantis
+        hasil = PemeriksaanRantis.objects.get()
+        self.assertEqual(hasil.items.count(), 116)
+        rail = hasil.items.get(nomor=21)
+        self.assertEqual((rail.nama_alat, rail.kondisi, rail.satuan, rail.jumlah_riil, rail.jumlah_nyata),
+                         ("Common Rail", "RB", "bh", 1, 0))
+        self.assertEqual(hasil.km_mil, 120500)
+        self.vehicle.refresh_from_db()
+        self.assertEqual(self.vehicle.status, Vehicle.Status.PERLU_SERVIS)
+        # It shows up where the other groups' inspections do.
+        self.assertContains(self.client.get(reverse("accounts:laporan_pemeriksaan")), "R 1 TS")
+        self.assertContains(self.client.get(reverse("accounts:perbaikan_kendaraan"), {"nopol": "R 1 TS"}), "Common Rail")
+        pdf = self.client.get(reverse("accounts:laporan_pemeriksaan_pdf", args=["rantis", hasil.uuid]))
+        self.assertEqual((pdf.status_code, pdf["Content-Type"]), (200, "application/pdf"))
 
 
 class SatuanTests(TestCase):
@@ -1652,13 +1789,13 @@ class SatuanTests(TestCase):
         from accounts.models import Satuan
         response = self.client.post(reverse("accounts:satuan_create"), {"nama": "Kodim 0507", "keterangan": ""},
                                     HTTP_HX_REQUEST="true")
-        self.assertEqual(response["HX-Redirect"], reverse("accounts:pengaturan") + "?tab=satuan")
+        self.assertEqual(response["HX-Redirect"], reverse("accounts:pengaturan") + "?tab=satuan&matra=darat")
         satuan = Satuan.objects.get()
-        self.client.post(reverse("accounts:satuan_update", args=[satuan.pk]), {"nama": "Kodim 0507/Bekasi"})
+        self.client.post(reverse("accounts:satuan_update", args=[satuan.uuid]), {"nama": "Kodim 0507/Bekasi"})
         satuan.refresh_from_db()
         self.assertEqual(satuan.nama, "Kodim 0507/Bekasi")
-        self.assertContains(self.client.get(reverse("accounts:satuan_delete", args=[satuan.pk])), "Yakin ingin menghapus satuan")
-        self.client.post(reverse("accounts:satuan_delete", args=[satuan.pk]))
+        self.assertContains(self.client.get(reverse("accounts:satuan_delete", args=[satuan.uuid])), "Yakin ingin menghapus satuan")
+        self.client.post(reverse("accounts:satuan_delete", args=[satuan.uuid]))
         self.assertFalse(Satuan.objects.exists())
 
     def test_nama_is_required_and_unique(self):
@@ -1711,7 +1848,7 @@ class SatuanDipakaiTests(TestCase):
         from accounts.models import Laporan, Satuan
         kodim = _satuan("Kodim 0507")
         Laporan.objects.create(nip="1", nama="A", pangkat="B", jabatan="C", satuan=kodim, foto="x.gif")
-        response = self.client.post(reverse("accounts:satuan_delete", args=[kodim.pk]), follow=True)
+        response = self.client.post(reverse("accounts:satuan_delete", args=[kodim.uuid]), follow=True)
         self.assertTrue(Satuan.objects.filter(pk=kodim.pk).exists())
         self.assertContains(response, "masih dipakai")
 
@@ -1739,7 +1876,7 @@ class LaporanMenuTests(TestCase):
             pemeriksa=self.pemeriksa, vehicle=self.motor, buku_harian="ada", macam_pemeriksaan="tiba_tiba",
         )
         from accounts.models import PemeriksaanBermotorItem
-        for nomor in range(1, 64):
+        for nomor in range(1, 63):
             PemeriksaanBermotorItem.objects.create(
                 pemeriksaan=motor_hasil, nomor=nomor, nama_alat=f"K {nomor}", kondisi="HP" if nomor == 1 else "B",
             )
@@ -1756,7 +1893,7 @@ class LaporanMenuTests(TestCase):
         response = self.client.get(reverse("accounts:laporan_pemeriksaan"))
         self.assertContains(response, ">2</span> data")
         # One row per inspected vehicle; searching instead of a date filter.
-        for text in ("B 1 TRK", "B 2 MTR", "Golongan B", "Kendaraan Bermotor", 'id="q" name="q"'):
+        for text in ("B 1 TRK", "B 2 MTR", "Golongan B", "Motor", 'id="q" name="q"'):
             self.assertContains(response, text)
         self.assertNotContains(response, 'id="dari"')
         response = self.client.get(reverse("accounts:laporan_pemeriksaan"), {"golongan": "bermotor"})
@@ -1779,27 +1916,17 @@ class LaporanMenuTests(TestCase):
         self.assertContains(self.client.get(reverse("accounts:laporan_perbaikan"), {"q": "1 trk"}), "B 1 TRK")
         self.assertNotContains(self.client.get(reverse("accounts:laporan_perbaikan"), {"q": "zzz"}), "B 1 TRK")
 
-    def test_laporan_penambahan_and_excel(self):
-        from io import BytesIO
-
-        from openpyxl import load_workbook
+    def test_laporan_penambahan_has_no_excel_download(self):
         response = self.client.get(reverse("accounts:laporan_penambahan"), {"golongan": "B"})
         self.assertContains(response, "B 1 TRK")
         self.assertNotContains(response, "B 2 MTR")
-        self.assertContains(response, "Unduh Excel")
-        excel = self.client.get(reverse("accounts:laporan_penambahan"), {"golongan": "B", "unduh": "excel"})
-        self.assertEqual(excel["Content-Type"], "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        self.assertIn('filename="laporan-penambahan-kendaraan.xlsx"', excel["Content-Disposition"])
-        ws = load_workbook(BytesIO(excel.content)).active
-        self.assertEqual(ws["A1"].value, "Laporan Penambahan Kendaraan/Barang")
-        self.assertIn("Golongan B", ws["A2"].value)
-        self.assertEqual(
-            [c.value for c in ws[4]],
-            ["No", "No. Registrasi", "Merk/Type", "No. Chasis", "No. Mesin", "Golongan"],
-        )
-        self.assertEqual([ws["A5"].value, ws["B5"].value, ws["C5"].value], [1, "B 1 TRK", "Hino"])
         self.assertNotContains(response, "Ditambahkan</th>")
-        self.assertEqual(ws.max_row, 5)
+        for nama in ("accounts:laporan_penambahan", "accounts:laporan_pemeriksaan", "accounts:laporan_perbaikan"):
+            self.assertNotContains(self.client.get(reverse(nama)), "Unduh Excel")
+            # The old download address just shows the page.
+            self.assertEqual(self.client.get(reverse(nama), {"unduh": "excel"})["Content-Type"], "text/html; charset=utf-8")
+        # Laporan Tim keeps its download.
+        self.assertContains(self.client.get(reverse("accounts:laporan_tim")), "Unduh Excel")
 
     def test_tim_users_cannot_open_reports(self):
         from django.contrib.auth.models import Group
@@ -1817,14 +1944,19 @@ class DashboardGrafikTests(TestCase):
     def test_tabs_and_charts(self):
         from datetime import date
         from fleet.models import Servis
-        truk = Vehicle.objects.create(nopol="B 1 TRK", merek="Hino")
-        Vehicle.objects.create(nopol="B 2 MTR", merek="Honda", group_kendaraan="bermotor")
+        # The tabs show for a matra, so the vehicles belong to someone of that matra.
+        from accounts.models import AkunPublik
+        pemilik = User.objects.create_user(username="pemilik", password="x")
+        AkunPublik.objects.filter(user=pemilik).update(matra="darat")
+        truk = Vehicle.objects.create(nopol="B 1 TRK", merek="Hino", ditambahkan_oleh=pemilik)
+        Vehicle.objects.create(nopol="B 2 MTR", merek="Honda", group_kendaraan="bermotor", ditambahkan_oleh=pemilik)
         Servis.objects.create(vehicle=truk, tanggal=date.today(), jenis_servis="Oli", biaya=1_500_000)
-        response = self.client.get(reverse("accounts:dashboard"))
-        for text in ("RINGKASAN", "GRAFIK", "Pemeriksaan &amp; Perbaikan per Bulan", "Biaya Servis per Bulan",
-                     "Kendaraan per Golongan", "Golongan B: 1 kendaraan", "Kendaraan Bermotor: 1 kendaraan",
-                     "Biaya servis · ", "Rp 1,5 jt", "Lihat tabel", "Total 6 bulan: Rp 1.500.000"):
+        response = self.client.get(reverse("accounts:dashboard"), {"matra": "darat"})
+        for text in ("RINGKASAN", "PERBAIKAN DAN PEMERIKSAAN", "Pemeriksaan &amp; Perbaikan per Bulan",
+                     "Kendaraan per Golongan", "Golongan B: 1 kendaraan", "Motor: 1 kendaraan", "Lihat tabel"):
             self.assertContains(response, text)
+        # The service-cost chart is gone.
+        self.assertNotContains(response, "Biaya Servis per Bulan")
 
     def test_svg_numbers_use_a_decimal_point_under_indonesian_locale(self):
         import re
@@ -1845,5 +1977,247 @@ class StaticScriptVersionTests(TestCase):
         User.objects.create_user(username="u", password="rahasia-123")
         self.client.login(username="u", password="rahasia-123")
         content = self.client.get(reverse("accounts:dashboard")).content.decode()
-        for nama in ("js/qr-scan.js", "js/autocomplete.js"):
+        for nama in ("js/qr-scan.js", "js/autocomplete.js", "js/datepicker.js", "js/kompres-foto.js"):
             self.assertRegex(content, rf"{nama}\?v=\d+")
+
+
+class AdminKetuaTimTests(TestCase):
+    """An Admin adds Ketua Tim ("+ Anggota" on their row) and manages
+    only those Ketua Tim and their Tim members; a Ketua Tim adds the Tim."""
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        # "pusat" is a superuser now: the level above the Admins.
+        self.pusat = User.objects.create_superuser(username="pusat", password="rahasia-123")
+        self.cabang = User.objects.create_user(username="cabang", password="rahasia-123")
+        self.cabang.groups.add(Group.objects.get(name="Admin"))
+        self.cabang_lain = User.objects.create_user(username="cabang2", password="rahasia-123")
+        self.cabang_lain.groups.add(Group.objects.get(name="Admin"))
+        self.client.login(username="cabang", password="rahasia-123")
+
+    def _tambah_ketua(self, cabang, username="ketua1"):
+        return self.client.post(
+            reverse("accounts:user_create") + f"?admin={cabang.publik.uuid}",
+            {"username": username, "keanggotaan": "ketua_tim", "matra": "darat"},
+        )
+
+    def _ketua_milik(self, cabang, username):
+        from django.contrib.auth.models import Group
+        from accounts.models import Anggota
+        user = User.objects.create_user(username=username, password="rahasia-123")
+        user.groups.add(Group.objects.get(name="Ketua Tim"))
+        return Anggota.add_root(user=user, admin=cabang)
+
+    def test_admin_adds_ketua_tim_under_themselves(self):
+        from accounts.models import Anggota
+        pengaturan = self.client.get(reverse("accounts:pengaturan"))
+        self.assertContains(pengaturan, f"?admin={self.cabang.publik.uuid}")
+        self.assertNotContains(pengaturan, f"?admin={self.cabang_lain.publik.uuid}")
+        response = self.client.get(
+            reverse("accounts:user_create") + f"?admin={self.cabang.publik.uuid}", HTTP_HX_REQUEST="true",
+        )
+        self.assertContains(response, "Tambah Ketua Tim")
+        self.assertContains(response, 'value="ketua_tim"')
+        self.assertNotContains(response, 'value="pimpinan"')
+        self._tambah_ketua(self.cabang)
+        node = Anggota.objects.get(user__username="ketua1")
+        self.assertTrue(node.is_root())
+        self.assertEqual(node.admin, self.cabang)
+
+    def test_not_under_another_admin_nor_from_tambah_user(self):
+        self._tambah_ketua(self.cabang_lain)
+        self.assertFalse(User.objects.filter(username="ketua1").exists())
+        self.assertNotContains(self.client.get(reverse("accounts:user_create")), 'value="ketua_tim"')
+
+    def test_superuser_adds_ketua_tim_under_an_admin(self):
+        from accounts.models import Anggota
+        self.client.login(username="pusat", password="rahasia-123")
+        self.assertContains(self.client.get(reverse("accounts:pengaturan")), f"?admin={self.cabang.publik.uuid}")
+        self._tambah_ketua(self.cabang)
+        self.assertEqual(Anggota.objects.get(user__username="ketua1").admin, self.cabang)
+
+    def test_admin_manages_only_own_ketua_and_their_members(self):
+        milik = self._ketua_milik(self.cabang, "milik")
+        lain = self._ketua_milik(self.cabang_lain, "lain")
+        response = self.client.get(reverse("accounts:pengaturan"))
+        self.assertContains(response, f"?ketua={milik.uuid}")
+        self.assertNotContains(response, f"?ketua={lain.uuid}")
+        self.assertContains(response, reverse("accounts:user_edit", args=[milik.user.publik.uuid]))
+        self.assertNotContains(response, reverse("accounts:user_edit", args=[lain.user.publik.uuid]))
+        self.client.post(
+            reverse("accounts:user_create") + f"?ketua={lain.uuid}",
+            {"username": "t1", "keanggotaan": "tim_perbaikan", "matra": "darat"},
+        )
+        self.assertFalse(User.objects.filter(username="t1").exists())
+        self.client.post(
+            reverse("accounts:user_create") + f"?ketua={milik.uuid}",
+            {"username": "t1", "keanggotaan": "tim_perbaikan", "matra": "darat"},
+        )
+        self.assertEqual(keanggotaan_kode(User.objects.get(username="t1")), "tim_perbaikan")
+
+    def test_tree_admin_ketua_tim(self):
+        from accounts.models import Anggota
+        milik = self._ketua_milik(self.cabang, "milik")
+        anggota = User.objects.create_user(username="tim1", password="x")
+        Anggota.objects.get(pk=milik.pk).add_child(user=anggota)
+        self.client.login(username="pusat", password="rahasia-123")
+        content = self.client.get(reverse("accounts:pengaturan")).content.decode()
+        u = lambda user: f"!tutup['u{user.pk}']"
+        self.assertIn(f'x-show="{u(self.cabang)} && {u(milik.user)}"', content)
+        self.assertEqual(content.count("tim1"), 1)
+
+    def test_anggota_tim_page_shows_only_own_teams(self):
+        milik = self._ketua_milik(self.cabang, "milik")
+        lain = self._ketua_milik(self.cabang_lain, "lain")
+        response = self.client.get(reverse("accounts:anggota_tim"))
+        self.assertContains(response, reverse("accounts:anggota_tim_tambah", args=[milik.uuid]))
+        self.assertNotContains(response, reverse("accounts:anggota_tim_tambah", args=[lain.uuid]))
+        self.assertEqual(
+            self.client.post(
+                reverse("accounts:anggota_tim_tambah", args=[lain.uuid]),
+                {"username": "t1", "keanggotaan": "tim_perbaikan", "matra": "darat"},
+            ).status_code,
+            403,
+        )
+
+    def test_ketua_tim_adds_the_three_tim_roles(self):
+        from accounts.models import Anggota
+        milik = self._ketua_milik(self.cabang, "milik")
+        self.client.login(username="milik", password="rahasia-123")
+        url = reverse("accounts:anggota_tim_tambah", args=[milik.uuid])
+        response = self.client.get(url)
+        for kode in ("tim_pemeriksaan", "tim_penambahan_data", "tim_perbaikan"):
+            self.assertContains(response, f'value="{kode}"')
+        for i, kode in enumerate(("tim_pemeriksaan", "tim_penambahan_data", "tim_perbaikan")):
+            self.client.post(url, {"username": f"t{i}", "keanggotaan": kode, "matra": "darat"})
+            user = User.objects.get(username=f"t{i}")
+            self.assertEqual(keanggotaan_kode(user), kode)
+            self.assertEqual(Anggota.objects.get(user=user).get_parent().pk, milik.pk)
+
+    def test_admin_with_ketua_cannot_be_deleted_or_demoted(self):
+        self._ketua_milik(self.cabang, "milik")
+        self.client.login(username="pusat", password="rahasia-123")
+        self.client.get(reverse("accounts:user_delete", args=[self.cabang.publik.uuid]))
+        self.assertNotIn(f"delete_captcha_{self.cabang.pk}", self.client.session)
+        self.client.post(reverse("accounts:user_edit", args=[self.cabang.publik.uuid]), {"keanggotaan": "pimpinan", "matra": "darat"})
+        self.assertEqual(keanggotaan_kode(self.cabang), "admin")
+
+
+class SatuAdminTests(TestCase):
+    """There is one admin role, Admin: Admin Pusat and Admin Cabang are gone."""
+
+    def test_roles(self):
+        from django.contrib.auth.models import Group
+        from accounts import roles
+        self.assertEqual(roles.ADMIN, {"admin"})
+        self.assertEqual(dict(roles.KEANGGOTAAN)["admin"], "Admin")
+        self.assertFalse(Group.objects.filter(name__in=["Admin Pusat", "Admin Cabang"]).exists())
+
+    def test_superuser_makes_an_admin_and_an_admin_makes_none(self):
+        from django.contrib.auth.models import Group
+        User.objects.create_superuser(username="root", password="rahasia-123")
+        self.client.login(username="root", password="rahasia-123")
+        form = self.client.get(reverse("accounts:user_create"), HTTP_HX_REQUEST="true")
+        self.assertContains(form, 'value="admin"')
+        self.assertNotContains(form, "Admin Pusat")
+        self.assertNotContains(form, "Admin Cabang")
+        # An Admin needs a matra.
+        tanpa = self.client.post(reverse("accounts:user_create"), {"username": "a1", "keanggotaan": "admin"})
+        self.assertContains(tanpa, "Pilih matra untuk user ini.")
+        self.assertFalse(User.objects.filter(username="a1").exists())
+        for kode, label in (("darat", "Matra Darat"), ("laut", "Matra Laut"), ("udara", "Matra Udara")):
+            self.assertContains(form, f'<option value="{kode}">{label}</option>', html=True)
+        self.client.post(reverse("accounts:user_create"), {"username": "a1", "keanggotaan": "admin", "matra": "laut"})
+        a1 = User.objects.get(username="a1")
+        self.assertEqual(a1.publik.matra, "laut")
+        self.assertTrue(a1.is_staff and a1.groups.filter(name="Admin").exists())
+        a1.set_password("rahasia-123")
+        a1.save()
+        self.client.login(username="a1", password="rahasia-123")
+        self.assertNotContains(self.client.get(reverse("accounts:user_create")), 'value="admin"')
+        self.client.post(reverse("accounts:user_create"), {"username": "a2", "keanggotaan": "admin", "matra": "darat"})
+        self.assertFalse(User.objects.filter(username="a2").exists())
+
+    def test_matra_column_and_edit(self):
+        from django.contrib.auth.models import Group
+        from accounts.models import Anggota
+        User.objects.create_superuser(username="root", password="rahasia-123")
+        self.client.login(username="root", password="rahasia-123")
+        self.client.post(reverse("accounts:user_create"), {"username": "a1", "keanggotaan": "admin", "matra": "udara"})
+        a1 = User.objects.get(username="a1")
+        ketua = User.objects.create_user(username="k1", password="x")
+        ketua.groups.add(Group.objects.get(name="Ketua Tim"))
+        Anggota.add_root(user=ketua, admin=a1)
+        pimpinan = User.objects.create_user(username="p1", password="x")
+        pimpinan.groups.add(Group.objects.get(name="Pimpinan"))
+        response = self.client.get(reverse("accounts:pengaturan"))
+        self.assertContains(response, '<th class="py-2 px-4 font-medium">Matra</th>', html=True)
+        label = {u.username: u.matra_label for u in response.context["users"]}
+        # The Admin's matra, shown on the Ketua Tim under them too; nobody else has one.
+        self.assertEqual((label["a1"], label["k1"], label["p1"], label["root"]), ("Matra Udara", "Matra Udara", "", ""))
+        # A Ketua Tim and a Tim member pick their own, starting on that of whoever they are under.
+        form = self.client.get(reverse("accounts:user_create") + f"?admin={a1.publik.uuid}", HTTP_HX_REQUEST="true")
+        self.assertContains(form, '<option value="udara" selected>Matra Udara</option>', html=True)
+        tambah = reverse("accounts:user_create") + f"?admin={a1.publik.uuid}"
+        self.assertContains(self.client.post(tambah, {"username": "k2", "keanggotaan": "ketua_tim"}), "Pilih matra untuk user ini.")
+        self.client.post(tambah, {"username": "k2", "keanggotaan": "ketua_tim", "matra": "laut"})
+        k2 = Anggota.objects.get(user__username="k2")
+        anggota = reverse("accounts:anggota_tim_tambah", args=[k2.uuid])
+        self.assertContains(self.client.get(anggota), '<option value="laut" selected>Matra Laut</option>', html=True)
+        self.assertContains(self.client.post(anggota, {"username": "t2", "keanggotaan": "tim_perbaikan"}), "Pilih matra untuk user ini.")
+        self.client.post(anggota, {"username": "t2", "keanggotaan": "tim_perbaikan", "matra": "darat"})
+        label = {u.username: u.matra_label for u in self.client.get(reverse("accounts:pengaturan")).context["users"]}
+        self.assertEqual((label["k2"], label["t2"]), ("Matra Laut", "Matra Darat"))
+        # Edit changes it; another role drops it.
+        edit = reverse("accounts:user_edit", args=[a1.publik.uuid])
+        self.assertContains(self.client.get(edit), '<option value="udara" selected>Matra Udara</option>', html=True)
+        self.client.post(edit, {"keanggotaan": "admin", "matra": "darat"})
+        a1.publik.refresh_from_db()
+        self.assertEqual(a1.publik.matra, "darat")
+        Anggota.objects.filter(admin=a1).update(admin=None)
+        self.client.post(edit, {"keanggotaan": "pimpinan", "matra": "darat"})
+        a1.publik.refresh_from_db()
+        self.assertEqual(a1.publik.matra, "")
+
+
+class UserResetPasswordTests(TestCase):
+    def setUp(self):
+        User.objects.create_superuser(username="root", password="rahasia-123")
+        self.target = User.objects.create_user(username="teknisi9", password="lama-123")
+        self.url = reverse("accounts:user_reset_password", args=[self.target.publik.uuid])
+
+    def test_button_confirm_then_reset_to_default(self):
+        self.client.login(username="root", password="rahasia-123")
+        self.assertContains(self.client.get(reverse("accounts:pengaturan")), f'hx-get="{self.url}"')
+        self.assertContains(self.client.get(self.url), "Reset password user")
+        self.target.refresh_from_db()
+        self.assertTrue(self.target.check_password("lama-123"))
+        self.assertRedirects(self.client.post(self.url), reverse("accounts:pengaturan"))
+        self.target.refresh_from_db()
+        self.assertTrue(self.target.check_password("12345"))
+
+    def test_not_for_a_user_one_may_not_edit(self):
+        from django.contrib.auth.models import Group
+        pusat = User.objects.create_user(username="pusat", password="lama-123")
+        pusat.groups.add(Group.objects.get(name="Admin"))
+        cabang = User.objects.create_user(username="cabang", password="rahasia-123")
+        cabang.groups.add(Group.objects.get(name="Admin"))
+        self.client.login(username="cabang", password="rahasia-123")
+        url = reverse("accounts:user_reset_password", args=[pusat.publik.uuid])
+        self.assertNotContains(self.client.get(reverse("accounts:pengaturan")), url)
+        self.client.post(url)
+        pusat.refresh_from_db()
+        self.assertTrue(pusat.check_password("lama-123"))
+
+
+class HistoryCariManualTests(TestCase):
+    def test_typed_no_registrasi_is_looked_up_directly(self):
+        User.objects.create_superuser(username="root", password="rahasia-123")
+        self.client.login(username="root", password="rahasia-123")
+        content = self.client.get(reverse("accounts:history")).content.decode()
+        # The typed text isn't QR text, so it must not go through the QR parser.
+        self.assertIn("@click=\"cari(document.getElementById('manual-nopol-history').value.trim())\"", content)
+        self.assertIn('@keydown.enter.prevent="cari($el.value.trim())"', content)
+        Vehicle.objects.create(nopol="B 12345 999", merek="TOYOTA")
+        response = self.client.get(reverse("accounts:history_kendaraan"), {"nopol": "B 12345 999"})
+        self.assertContains(response, "B 12345 999")

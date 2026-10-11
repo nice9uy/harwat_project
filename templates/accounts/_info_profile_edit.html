@@ -1,0 +1,26 @@
+<div x-data="{ fotoPreview: null }">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-semibold text-navy dark:text-slate-100">Edit Profil</h2>
+        <button type="button" @click="modalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" aria-label="Tutup">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+        </button>
+    </div>
+    <form hx-post="{% url 'accounts:info_profile_edit' %}"
+          hx-encoding="multipart/form-data"
+          hx-target="#profile-modal-body"
+          hx-swap="innerHTML"
+          class="space-y-4">
+        {% csrf_token %}
+        {% include "accounts/_biodata_fields.html" %}
+        {% if laporan and laporan.foto %}
+        <div>
+            <p class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Foto Tersimpan</p>
+            <img src="{{ laporan.foto.url }}" alt="Foto profil" class="max-h-40 rounded-md border border-slate-300 dark:border-slate-600 object-contain bg-slate-900">
+        </div>
+        {% endif %}
+        <div class="flex gap-2 pt-1">
+            <button type="submit" class="flex-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Simpan</button>
+            <button type="button" @click="modalOpen = false" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Batal</button>
+        </div>
+    </form>
+</div>

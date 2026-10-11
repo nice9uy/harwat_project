@@ -23,6 +23,16 @@ class AdminSuperuserOnlyTests(TestCase):
         for path in ("/admin/", "/admin/fleet/vehicle/"):
             self.assertEqual(self.client.get(path).status_code, 404, path)
 
+    def test_admin_panel_menu_is_for_superusers_only(self):
+        from django.urls import reverse
+        staff = User.objects.create_user(username="staf", password="rahasia-123", is_staff=True)
+        staff.groups.add(Group.objects.get(name="Admin"))
+        self.client.login(username="staf", password="rahasia-123")
+        self.assertNotContains(self.client.get(reverse("accounts:dashboard")), "Admin Panel")
+        User.objects.create_superuser(username="root", password="rahasia-123")
+        self.client.login(username="root", password="rahasia-123")
+        self.assertContains(self.client.get(reverse("accounts:dashboard")), "Admin Panel")
+
 
 class _Request:
     def __init__(self, user):

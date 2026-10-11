@@ -1,6 +1,6 @@
 {% comment %}
 Inspection checklist for Golongan B vehicles (paper form), shown after a
-Golongan B vehicle is scanned. Kendaraan Bermotor has _pemeriksaan_bermotor.html.
+Golongan B vehicle is scanned. Motor has _pemeriksaan_bermotor.html.
 {% endcomment %}
 <div x-data="{ open: 'klasifikasi' }" @buka-panel.window="open = $event.detail" class="divide-y divide-slate-200 dark:divide-slate-700 rounded-md border border-slate-300 dark:border-slate-600 overflow-hidden">
     {# Panel: klasifikasi #}
@@ -16,7 +16,7 @@ Golongan B vehicle is scanned. Kendaraan Bermotor has _pemeriksaan_bermotor.html
                 <legend class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Pembagian Kelas</legend>
                 <div class="grid grid-cols-6 gap-2">
                     {% for kelas in pembagian_kelas %}
-                    <label class="flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 py-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-blue-600 has-checked:bg-blue-600 has-checked:text-white">
+                    <label class="flex flex-col items-center justify-center rounded-xl border border-slate-300 dark:border-slate-600 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-navy has-checked:bg-navy has-checked:text-white dark:has-checked:border-gold dark:has-checked:bg-slate-700 dark:has-checked:text-gold">
                         <input type="radio" name="pembagian_kelas" value="{{ kelas }}" required class="sr-only">{{ kelas }}
                     </label>
                     {% endfor %}
@@ -26,7 +26,7 @@ Golongan B vehicle is scanned. Kendaraan Bermotor has _pemeriksaan_bermotor.html
                 <legend class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Eselon Reparasi</legend>
                 <div class="grid grid-cols-4 gap-2">
                     {% for eselon in eselon_reparasi %}
-                    <label class="flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 py-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-blue-600 has-checked:bg-blue-600 has-checked:text-white">
+                    <label class="flex flex-col items-center justify-center rounded-xl border border-slate-300 dark:border-slate-600 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-navy has-checked:bg-navy has-checked:text-white dark:has-checked:border-gold dark:has-checked:bg-slate-700 dark:has-checked:text-gold">
                         <input type="radio" name="eselon_reparasi" value="{{ eselon }}" required class="sr-only">{{ eselon }}
                     </label>
                     {% endfor %}
@@ -36,22 +36,23 @@ Golongan B vehicle is scanned. Kendaraan Bermotor has _pemeriksaan_bermotor.html
                 <legend class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Macam Pemeriksaan</legend>
                 <div class="grid grid-cols-2 gap-2">
                     {% for value, label in macam_pemeriksaan %}
-                    <label class="flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 py-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-blue-600 has-checked:bg-blue-600 has-checked:text-white">
+                    <label class="flex flex-col items-center justify-center rounded-xl border border-slate-300 dark:border-slate-600 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-navy has-checked:bg-navy has-checked:text-white dark:has-checked:border-gold dark:has-checked:bg-slate-700 dark:has-checked:text-gold">
                         <input type="radio" name="macam_pemeriksaan" value="{{ value }}" required class="sr-only">{{ label }}
                     </label>
                     {% endfor %}
                 </div>
             </fieldset>
-            <fieldset>
-                <legend class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Buku Jalan</legend>
-                <div class="grid grid-cols-2 gap-2">
-                    {% for value, label in buku_jalan %}
-                    <label class="flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 py-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer has-checked:border-blue-600 has-checked:bg-blue-600 has-checked:text-white">
-                        <input type="radio" name="buku_jalan" value="{{ value }}" required class="sr-only">{{ label }}
-                    </label>
-                    {% endfor %}
-                </div>
-            </fieldset>
+            <div x-data="{ pratinjau: null }">
+                <label for="km_kendaraan" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">KM Kendaraan<span class="ml-0.5 font-bold text-red-500" title="Masuk ke Jadwal untuk dicek">*</span> <span class="font-normal text-slate-500 dark:text-slate-400">(opsional)</span></label>
+                <input type="number" id="km_kendaraan" name="km_kendaraan" min="0" inputmode="numeric" placeholder="Angka odometer"
+                       class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+                <label for="foto_km" class="block text-xs text-slate-500 dark:text-slate-400 mt-2 mb-1">Foto KM Kendaraan (odometer)</label>
+                <input type="file" id="foto_km" name="foto_km" accept="image/*" capture="environment"
+                       @change="pratinjau = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : null"
+                       class="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 shadow-sm file:mr-2 file:rounded file:border-0 file:bg-green-600 file:px-2 file:py-1 file:text-xs file:font-medium file:text-white hover:file:bg-green-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400"><span class="font-bold text-red-500">*</span> Masuk ke Jadwal untuk dicek.</p>
+                <img x-show="pratinjau" x-cloak :src="pratinjau" alt="Pratinjau foto KM kendaraan" class="mt-1 aspect-[4/3] w-40 rounded-md border border-slate-300 dark:border-slate-600 object-cover">
+            </div>
             <div>
                 <label for="kesatuan" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kesatuan</label>
                 {% include "_autocomplete.html" with nama="kesatuan" id_teks="kesatuan" id_opsi="opsi-kesatuan" opsi=satuan_opsi nilai="" wajib=False label_data="kesatuan" placeholder="Ketik nama kesatuan (opsional)" %}

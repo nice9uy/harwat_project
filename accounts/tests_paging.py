@@ -48,8 +48,6 @@ class PagingTests(TestCase):
         self.assertEqual(self._jumlah(jadwal, "jadwal_list"), PER_HALAMAN)
         servis = self.client.get(reverse("operasional:servis_list"), {"page": 2})
         self.assertEqual(self._jumlah(servis, "servis_list"), 5)
-        # The total covers every page, not just the one shown.
-        self.assertEqual(servis.context["total_biaya"], 20000)
 
     def test_pengaturan_tabs_page_independently(self):
         for i in range(PER_HALAMAN + 3):
@@ -58,7 +56,7 @@ class PagingTests(TestCase):
         self.assertEqual(self._jumlah(response, "satuan_list"), 3)
         self.assertEqual(response.context["users"].number, 1)
         self.assertEqual(response.context["tab"], "satuan")
-        self.assertContains(response, "tab=satuan&amp;hal_satuan=1")
+        self.assertContains(response, "tab=satuan&amp;matra=darat&amp;hal_satuan=1")
 
     def test_laporan_penambahan_pages(self):
         response = self.client.get(reverse("accounts:laporan_penambahan"))

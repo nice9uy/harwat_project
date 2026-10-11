@@ -1,0 +1,17 @@
+<h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-2">Hapus Form</h2>
+<p class="text-sm text-slate-600 dark:text-slate-300">
+    Yakin ingin menghapus form <span class="font-semibold text-navy dark:text-slate-100">{{ label }}</span>
+    dari {% if ketua %}Ketua Tim{% else %}anggota{% endif %} <span class="font-semibold text-navy dark:text-slate-100">{{ akun.username }}</span>?
+    {% if ketua and jumlah %}Form ini juga dihapus dari {{ jumlah }} anggotanya.{% endif %}
+    Form bisa ditambahkan lagi lewat Tambah Form.
+</p>
+<form hx-post="{% url 'accounts:form_group_hapus' akun.publik.uuid %}" class="flex items-center justify-end gap-3 pt-4">
+    {% csrf_token %}
+    <input type="hidden" name="kode" value="{{ kode }}">
+    <button type="button"
+            hx-get="{% url 'accounts:form_group_hapus' akun.publik.uuid %}"
+            hx-target="#form-group-modal-body"
+            hx-swap="innerHTML"
+            class="rounded-md border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">Batal</button>
+    <button type="submit" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Hapus</button>
+</form>

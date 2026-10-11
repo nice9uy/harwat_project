@@ -2,14 +2,15 @@
 Up to 4 photo slots for one checked or repaired part, all posted under the
 same name (the server takes at most 4). Each slot opens the camera on phones.
 Params: awalan and kunci (the input name is <awalan><kunci>_foto),
-judul (part name, for alt text). Sets the enclosing `foto` flag
+judul (part name, for alt text), sisi (optional: name the slots Depan,
+Belakang, Kiri, Kanan instead of Foto 1-4). Sets the enclosing `foto` flag
 when any slot has a photo.
 {% endcomment %}
 <p class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Foto <span class="font-normal text-slate-500 dark:text-slate-400">(maksimal 4)</span></p>
 <div class="grid grid-cols-2 gap-2">
     {% for slot in "1234" %}
     <div x-data="{ pratinjau: null }">
-        <label for="{{ awalan }}{{ kunci }}_foto_{{ slot }}" class="block text-xs text-slate-500 dark:text-slate-400 mb-1">Foto {{ slot }}</label>
+        <label for="{{ awalan }}{{ kunci }}_foto_{{ slot }}" class="block text-xs text-slate-500 dark:text-slate-400 mb-1">{% if sisi %}{% cycle "Depan" "Belakang" "Kiri" "Kanan" %}{% else %}Foto {{ slot }}{% endif %}</label>
         <input type="file" id="{{ awalan }}{{ kunci }}_foto_{{ slot }}" name="{{ awalan }}{{ kunci }}_foto" accept="image/*" capture="environment"
                @change="pratinjau = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : null; foto = pratinjau || foto"
                class="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 shadow-sm file:mr-2 file:rounded file:border-0 file:bg-green-600 file:px-2 file:py-1 file:text-xs file:font-medium file:text-white hover:file:bg-green-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">

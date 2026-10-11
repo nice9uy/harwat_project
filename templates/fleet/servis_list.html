@@ -5,19 +5,12 @@
 {% block content %}
 <div x-data="{ modalOpen: false }" class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
-        <p class="text-sm text-slate-500 dark:text-slate-400">Catatan servis kendaraan: tanggal, jenis servis, bengkel dan biaya.</p>
-        <button type="button"
-                @click="modalOpen = true"
-                hx-get="{% url 'operasional:servis_create' %}"
-                hx-target="#catatan-modal-body"
-                hx-swap="innerHTML"
-                class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
-            + Tambah Servis
-        </button>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Catatan servis kendaraan, termasuk perbaikan dari Form Perbaikan (kecuali yang hasilnya Rusak).</p>
+        <a href="{% url 'operasional:servis_export' %}" hx-boost="false"
+           class="rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
+            Export ke Excel
+        </a>
     </div>
-    {% if servis_list %}
-    <p class="text-sm text-slate-600 dark:text-slate-300">Total biaya servis: <span class="font-semibold tabular-nums text-navy dark:text-gold">{{ total_biaya|rupiah }}</span></p>
-    {% endif %}
 
     <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
         <table class="w-full text-sm text-left">
@@ -26,9 +19,9 @@
                     <th class="py-2 px-4 font-medium w-12">No</th>
                     <th class="py-2 px-4 font-medium">Tanggal</th>
                     <th class="py-2 px-4 font-medium">Kendaraan</th>
+                    <th class="py-2 px-4 font-medium">Satuan</th>
                     <th class="py-2 px-4 font-medium">Jenis Servis</th>
                     <th class="py-2 px-4 font-medium">Bengkel / Tempat</th>
-                    <th class="py-2 px-4 font-medium"><span class="block text-right">Biaya</span></th>
                     <th class="py-2 px-4 font-medium">Keterangan</th>
                     <th class="py-2 px-4 font-medium">Aksi</th>
                 </tr>
@@ -39,19 +32,24 @@
                     <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ servis_list.start_index|add:forloop.counter0 }}</td>
                     <td class="py-2 px-4 whitespace-nowrap font-medium text-navy dark:text-slate-100">{{ obj.tanggal|date:"d M Y" }}</td>
                     <td class="py-2 px-4">{{ obj.vehicle.nopol }} <span class="text-slate-500 dark:text-slate-400">· {{ obj.vehicle.merek }}</span></td>
+                    <td class="py-2 px-4">{{ obj.satuan|default:"—" }}</td>
                     <td class="py-2 px-4">{{ obj.jenis_servis }}</td>
-                    <td class="py-2 px-4">{{ obj.bengkel|default:"—" }}</td>
-                    <td class="py-2 px-4 whitespace-nowrap text-right tabular-nums">{{ obj.biaya|rupiah }}</td>
+                    <td class="py-2 px-4">{% if obj.servis %}{{ obj.bengkel|default:"—" }}{% else %}<span class="text-slate-500 dark:text-slate-400">Teknisi:</span> {{ obj.teknisi }}{% endif %}</td>
                     <td class="py-2 px-4">{{ obj.keterangan|default:"—"|truncatechars:80 }}</td>
                     <td class="py-2 px-4">
+                        {% if obj.servis %}
                         <div class="flex items-center gap-2">
                             <button type="button" @click="modalOpen = true"
-                                    hx-get="{% url 'operasional:servis_update' obj.pk %}" hx-target="#catatan-modal-body" hx-swap="innerHTML"
+                                    hx-get="{% url 'operasional:servis_update' obj.servis.uuid %}" hx-target="#catatan-modal-body" hx-swap="innerHTML"
                                     class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700">Edit</button>
                             <button type="button" @click="modalOpen = true"
-                                    hx-get="{% url 'operasional:servis_delete' obj.pk %}" hx-target="#catatan-modal-body" hx-swap="innerHTML"
+                                    hx-get="{% url 'operasional:servis_delete' obj.servis.uuid %}" hx-target="#catatan-modal-body" hx-swap="innerHTML"
                                     class="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">Hapus</button>
                         </div>
+                        {% else %}
+                        {# A repair is recorded in Form Perbaikan, not edited here. #}
+                        <span class="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300 whitespace-nowrap">Form Perbaikan</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}

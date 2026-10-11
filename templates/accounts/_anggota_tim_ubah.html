@@ -1,0 +1,18 @@
+<h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-4">Ubah Tim <span class="font-normal text-slate-500 dark:text-slate-400">· {{ target.username }}</span></h2>
+<form method="post"
+      hx-post="{% url 'accounts:anggota_tim_ubah' target.publik.uuid %}"
+      hx-target="this"
+      hx-swap="outerHTML"
+      class="space-y-4">
+    {% csrf_token %}
+    <p class="text-sm text-slate-600 dark:text-slate-300">Ketua Tim: <span class="font-medium">{{ ketua.user.username }}</span></p>
+    <div>
+        <label for="{{ form.keanggotaan.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tim</label>
+        {{ form.keanggotaan }}
+        {% if form.keanggotaan.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.keanggotaan.errors.0 }}</p>{% endif %}
+    </div>
+    <div class="flex items-center gap-3 pt-2">
+        <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400/50">Simpan</button>
+        <button type="button" @click="modalOpen = false" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Batal</button>
+    </div>
+</form>

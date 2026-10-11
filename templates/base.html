@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}BMN Harwat{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
     {% include "_theme_init.html" %}
     {% comment %}
     htmx "settles" an element that keeps its id across a boosted page swap by
@@ -16,9 +18,12 @@
     <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
     <script src="{% static 'js/qr-scan.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/autocomplete.js' %}?v={{ js_version }}" defer></script>
+    <script src="{% static 'js/datepicker.js' %}?v={{ js_version }}" defer></script>
+    <script src="{% static 'js/kompres-foto.js' %}?v={{ js_version }}" defer></script>
+    <script src="{% static 'js/skeleton.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'vendor/alpinejs.min.js' %}" defer></script>
 </head>
-<body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100" x-data="{ sidebarOpen: false, logoutOpen: false }">
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100" x-data="{ sidebarOpen: false, logoutOpen: false, profilPopup: false }">
     {% include "_page_loading_bar.html" %}
     <div class="flex min-h-screen">
         <div x-show="sidebarOpen"
@@ -28,11 +33,14 @@
 
         <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
                class="fixed inset-y-0 left-0 z-50 w-64 shrink-0 bg-navy text-slate-100 flex flex-col transition-transform duration-200 ease-in-out md:sticky md:top-0 md:h-screen md:translate-x-0 md:flex">
-            <div class="h-16 shrink-0 px-6 flex items-center justify-between border-b border-white/10">
-                <span class="flex items-center gap-3 text-lg font-semibold tracking-wide">
+            <div class="h-16 shrink-0 px-4 flex items-center justify-between border-b border-white/10">
+                <a href="{% url 'accounts:dashboard' %}" class="flex items-center gap-3 font-semibold text-slate-100 hover:text-white">
                     <img src="{% static 'img/kemhan_logo.png' %}" alt="Logo Kementerian Pertahanan" class="h-9 w-9 shrink-0">
-                    BMN Harwat
-                </span>
+                    <span class="leading-tight">
+                        <span class="block whitespace-nowrap text-sm font-bold uppercase tracking-widest text-gold">Baloghan</span>
+                        <span class="block whitespace-nowrap text-[12px]">Pemeliharaan dan Perawatan</span>
+                    </span>
+                </a>
                 <button type="button" @click="sidebarOpen = false" class="md:hidden text-slate-300 hover:text-white p-1" aria-label="Tutup menu">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -41,7 +49,7 @@
             </div>
             <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1 text-sm" hx-boost="true" @click="sidebarOpen = false">
                 {% comment %}Section headings show only when the user sees a menu under them.{% endcomment %}
-                {% if 'dashboard' in menu_boleh or 'armada' in menu_boleh or 'jadwal' in menu_boleh or 'servis' in menu_boleh %}
+                {% if 'dashboard' in menu_boleh or 'armada' in menu_boleh or 'non_kendaraan' in menu_boleh or 'jadwal' in menu_boleh or 'servis' in menu_boleh %}
                 <p class="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Menu Utama</p>
                 {% endif %}
                 {% if 'dashboard' in menu_boleh %}
@@ -53,7 +61,13 @@
                 {% if 'armada' in menu_boleh %}
                 <a href="{% url 'fleet:vehicle_list' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.namespace == 'fleet' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
                     {% include "_menu_icon.html" with kunci="armada" %}
-                    Armada
+                    Kendaraan
+                </a>
+                {% endif %}
+                {% if 'non_kendaraan' in menu_boleh %}
+                <a href="{% url 'accounts:non_kendaraan' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:non_kendaraan' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                    {% include "_menu_icon.html" with kunci="armada" %}
+                    Non Kendaraan
                 </a>
                 {% endif %}
                 {% if 'jadwal' in menu_boleh %}
@@ -68,34 +82,62 @@
                     Servis
                 </a>
                 {% endif %}
-                {% if 'pemeriksaan' in menu_boleh or 'form_tambah' in menu_boleh or 'perbaikan' in menu_boleh or 'history' in menu_boleh %}
+                {% if 'info_profile' in menu_boleh %}
+                <a href="{% url 'accounts:info_profile' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:info_profile' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                    {% include "_menu_icon.html" with kunci="info_profile" %}
+                    Info Profil
+                </a>
+                {% endif %}
+                {% if 'pemeriksaan' in menu_boleh or 'form_tambah' in menu_boleh or 'perbaikan' in menu_boleh or 'rusak' in menu_boleh or 'history' in menu_boleh or 'status' in menu_boleh %}
                 <p class="px-3 pt-4 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Kegiatan</p>
                 {% endif %}
                 {% if 'pemeriksaan' in menu_boleh %}
-                <a href="{% url 'accounts:pemeriksaan' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:pemeriksaan' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                <a href="{% url 'accounts:pemeriksaan' %}"
+                   {% if profil_belum_isi %}@click="$event.preventDefault(); profilPopup = true"{% endif %}
+                   class="flex items-center gap-2 rounded-md px-3 py-2 {% if profil_belum_isi %}text-slate-500 opacity-50 cursor-not-allowed{% elif request.resolver_match.view_name == 'accounts:pemeriksaan' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
                     {% include "_menu_icon.html" with kunci="pemeriksaan" %}
                     Form Pemeriksaan
                 </a>
                 {% endif %}
                 {% if 'form_tambah' in menu_boleh %}
-                <a href="{% url 'accounts:form_tambah' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:form_tambah' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                <a href="{% url 'accounts:form_tambah' %}"
+                   {% if profil_belum_isi %}@click="$event.preventDefault(); profilPopup = true"{% endif %}
+                   class="flex items-center gap-2 rounded-md px-3 py-2 {% if profil_belum_isi %}text-slate-500 opacity-50 cursor-not-allowed{% elif request.resolver_match.view_name == 'accounts:form_tambah' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
                     {% include "_menu_icon.html" with kunci="form_tambah" %}
                     Form Tambah
                 </a>
                 {% endif %}
                 {% if 'perbaikan' in menu_boleh %}
-                <a href="{% url 'accounts:perbaikan' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:perbaikan' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                <a href="{% url 'accounts:perbaikan' %}"
+                   {% if profil_belum_isi %}@click="$event.preventDefault(); profilPopup = true"{% endif %}
+                   class="flex items-center gap-2 rounded-md px-3 py-2 {% if profil_belum_isi %}text-slate-500 opacity-50 cursor-not-allowed{% elif request.resolver_match.view_name == 'accounts:perbaikan' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
                     {% include "_menu_icon.html" with kunci="perbaikan" %}
                     Form Perbaikan
                 </a>
                 {% endif %}
+                {% if 'rusak' in menu_boleh %}
+                <a href="{% url 'accounts:rusak' %}"
+                   {% if profil_belum_isi %}@click="$event.preventDefault(); profilPopup = true"{% endif %}
+                   class="flex items-center gap-2 rounded-md px-3 py-2 {% if profil_belum_isi %}text-slate-500 opacity-50 cursor-not-allowed{% elif request.resolver_match.view_name == 'accounts:rusak' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                    {% include "_menu_icon.html" with kunci="rusak" %}
+                    Form Rusak/Tidak Layak Pakai
+                </a>
+                {% endif %}
                 {% if 'history' in menu_boleh %}
-                <a href="{% url 'accounts:history' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:history' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                <a href="{% url 'accounts:history' %}"
+                   {% if profil_belum_isi %}@click="$event.preventDefault(); profilPopup = true"{% endif %}
+                   class="flex items-center gap-2 rounded-md px-3 py-2 {% if profil_belum_isi %}text-slate-500 opacity-50 cursor-not-allowed{% elif request.resolver_match.view_name == 'accounts:history' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
                     {% include "_menu_icon.html" with kunci="history" %}
                     History
                 </a>
                 {% endif %}
-                {% if 'laporan_pemeriksaan' in menu_boleh or 'laporan_perbaikan' in menu_boleh or 'laporan_penambahan' in menu_boleh or 'laporan_tim' in menu_boleh %}
+                {% if 'status' in menu_boleh %}
+                <a href="{% url 'accounts:status' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:status' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                    {% include "_menu_icon.html" with kunci="status" %}
+                    Status
+                </a>
+                {% endif %}
+                {% if 'laporan_pemeriksaan' in menu_boleh or 'laporan_perbaikan' in menu_boleh or 'laporan_rusak' in menu_boleh or 'laporan_penambahan' in menu_boleh or 'laporan_tim' in menu_boleh %}
                 <p class="px-3 pt-4 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Laporan</p>
                 {% endif %}
                 {% if 'laporan_pemeriksaan' in menu_boleh %}
@@ -110,6 +152,12 @@
                     Laporan Perbaikan
                 </a>
                 {% endif %}
+                {% if 'laporan_rusak' in menu_boleh %}
+                <a href="{% url 'accounts:laporan_rusak' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:laporan_rusak' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                    {% include "_menu_icon.html" with kunci="laporan_perbaikan" %}
+                    Laporan Rusak/Tidak Layak Pakai
+                </a>
+                {% endif %}
                 {% if 'laporan_penambahan' in menu_boleh %}
                 <a href="{% url 'accounts:laporan_penambahan' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:laporan_penambahan' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
                     {% include "_menu_icon.html" with kunci="laporan_penambahan" %}
@@ -122,6 +170,14 @@
                     Laporan Tim
                 </a>
                 {% endif %}
+                {% if 'anggota_tim' in menu_boleh %}
+                <a href="{% url 'accounts:anggota_tim' %}"
+                   {% if profil_belum_isi %}@click="$event.preventDefault(); profilPopup = true"{% endif %}
+                   class="flex items-center gap-2 rounded-md px-3 py-2 {% if profil_belum_isi %}text-slate-500 opacity-50 cursor-not-allowed{% elif request.resolver_match.view_name == 'accounts:anggota_tim' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                    {% include "_menu_icon.html" with kunci="laporan_tim" %}
+                    Anggota Tim
+                </a>
+                {% endif %}
 
                 <p class="px-3 pt-4 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Settings</p>
 
@@ -131,11 +187,39 @@
                     Pengaturan
                 </a>
                 {% endif %}
+                {% if 'form_group' in menu_boleh %}
+                <a href="{% url 'accounts:form_group' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:form_group' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                    {% include "_menu_icon.html" with kunci="form_group" %}
+                    Form Group
+                </a>
+                {% endif %}
+                {% if 'server' in menu_boleh %}
+                <a href="{% url 'accounts:server' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:server' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                    {% include "_menu_icon.html" with kunci="server" %}
+                    Server
+                </a>
+                {% endif %}
+                {% if 'backup' in menu_boleh %}
+                <a href="{% url 'accounts:backup' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:backup' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                    {% include "_menu_icon.html" with kunci="backup" %}
+                    Backup
+                </a>
+                {% endif %}
                 {# Every user can change their own password. #}
                 <a href="{% url 'accounts:ganti_password' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:ganti_password' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
                     {% include "_menu_icon.html" with kunci="ganti_password" %}
                     Ganti Password
                 </a>
+                {# Django admin is for superusers only (SuperuserOnlyAdminMiddleware), so is its menu. #}
+                {% if request.user.is_superuser %}
+                <a href="{% url 'admin:index' %}" class="flex items-center gap-2 rounded-md px-3 py-2 text-slate-200 hover:bg-white/5" target="_blank">
+                    <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 0 1 1.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.559.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.894.149c-.424.07-.764.383-.929.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 0 1-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.398.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 0 1-.12-1.45l.527-.737c.25-.35.272-.806.108-1.204-.165-.397-.506-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.108-1.204l-.526-.738a1.125 1.125 0 0 1 .12-1.45l.773-.773a1.125 1.125 0 0 1 1.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894Z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                    </svg>
+                    Admin Panel
+                </a>
+                {% endif %}
             </nav>
             <div class="shrink-0 border-t border-white/10 px-3 py-3">
                 <button type="button" @click="logoutOpen = true" class="w-full flex items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-200 hover:bg-white/5 hover:text-gold">
@@ -177,6 +261,26 @@
                 {% endif %}
                 {% block content %}{% endblock %}
             </main>
+        </div>
+    </div>
+
+    <div x-show="profilPopup"
+         x-cloak
+         @click.self="profilPopup = false"
+         @keydown.escape.window="profilPopup = false"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+        <div class="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+            <div class="flex items-center gap-3 mb-3">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
+                    <svg class="h-5 w-5 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
+                </span>
+                <h2 class="text-base font-semibold text-navy dark:text-slate-100">Profil Belum Diisi</h2>
+            </div>
+            <p class="text-sm text-slate-600 dark:text-slate-300">Harap isi profil terlebih dahulu sebelum mengakses menu ini.</p>
+            <div class="flex items-center justify-end gap-3 pt-4">
+                <button type="button" @click="profilPopup = false" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Tutup</button>
+                <a href="{% url 'accounts:info_profile' %}" @click="profilPopup = false" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Isi Profil</a>
+            </div>
         </div>
     </div>
 

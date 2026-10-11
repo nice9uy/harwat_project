@@ -1,0 +1,48 @@
+{% comment %}Form Rusak/Tidak Layak Pakai for the scanned vehicle (accounts.rusak.rusak_kendaraan_view).{% endcomment %}
+{% if vehicle %}
+<div class="space-y-4">
+    <div class="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-4">
+        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+            <dt class="text-slate-500 dark:text-slate-400">No. Registrasi</dt><dd class="font-semibold text-navy dark:text-slate-100">{{ vehicle.nopol }}</dd>
+            <dt class="text-slate-500 dark:text-slate-400">Merk/Type</dt><dd>{{ vehicle.merek }}</dd>
+            <dt class="text-slate-500 dark:text-slate-400">No. Chasis</dt><dd>{{ vehicle.no_chasis|default:"-" }}</dd>
+            <dt class="text-slate-500 dark:text-slate-400">No. Mesin</dt><dd>{{ vehicle.no_mesin|default:"-" }}</dd>
+            <dt class="text-slate-500 dark:text-slate-400">Golongan</dt><dd>{{ vehicle.get_group_kendaraan_display }}</dd>
+            <dt class="text-slate-500 dark:text-slate-400">Status sekarang</dt><dd>{# Named as on the dashboard. #}{% if vehicle.status == "siap_pakai" %}Siap{% elif vehicle.status == "perlu_servis" %}Rusak Ringan{% elif vehicle.status == "sudah_diperbaiki" %}Sudah Diperbaiki{% else %}Rusak Berat{% endif %}</dd>
+        </dl>
+    </div>
+
+    {% if riwayat %}
+    <div class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
+        <p class="font-semibold">Kendaraan ini sudah pernah dinyatakan Rusak/Tidak Layak Pakai:</p>
+        <ul class="mt-1 space-y-1">
+            {% for r in riwayat %}
+            <li>{{ r.dibuat_pada|date:"d-m-Y H:i" }} oleh {{ r.pelapor.nama }} — {{ r.alasan }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" action="{% url 'accounts:rusak' %}"
+          x-data="{ foto: null, sibuk: false }" @submit="setTimeout(() => sibuk = true)"
+          class="space-y-4 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-4">
+        {% csrf_token %}
+        <input type="hidden" name="vehicle" value="{{ vehicle.uuid }}">
+        <div>
+            <label for="rusak-alasan" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Alasan / Keterangan Kerusakan <span class="text-red-500">*</span></label>
+            <textarea id="rusak-alasan" name="alasan" rows="4" required placeholder="Jelaskan kerusakannya dan kenapa tidak layak dipakai lagi"
+                      class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"></textarea>
+        </div>
+        <div>
+            {% include "accounts/_foto_slot.html" with awalan="" kunci="rusak" judul="kerusakan" sisi=True %}
+        </div>
+        <div class="flex items-center justify-end">
+            <button type="submit" :disabled="sibuk"
+                    class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    x-text="sibuk ? 'Menyimpan…' : 'Nyatakan Rusak/Tidak Layak Pakai'">Nyatakan Rusak/Tidak Layak Pakai</button>
+        </div>
+    </form>
+</div>
+{% else %}
+<p class="rounded-md border border-dashed border-slate-300 dark:border-slate-600 px-3 py-6 text-center text-sm text-slate-500 dark:text-slate-400">Kendaraan tidak ditemukan.</p>
+{% endif %}

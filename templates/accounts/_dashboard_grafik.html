@@ -16,30 +16,70 @@
     .viz .viz-hit { fill: transparent; }
     .viz .viz-mark:hover path { opacity: .8; }
 </style>
-<div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+<div class="inline-flex rounded-md border border-slate-200 dark:border-slate-700 overflow-hidden text-sm font-medium mb-4">
+    <button type="button"
+            @click="subtabGrafik = 'kendaraan'"
+            :class="subtabGrafik === 'kendaraan' ? 'bg-navy text-white dark:bg-gold dark:text-navy' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'"
+            class="px-5 py-2">Kendaraan</button>
+    <button type="button"
+            @click="subtabGrafik = 'non_kendaraan'"
+            :class="subtabGrafik === 'non_kendaraan' ? 'bg-navy text-white dark:bg-gold dark:text-navy' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'"
+            class="px-5 py-2 border-l border-slate-200 dark:border-slate-700">Non Kendaraan</button>
+</div>
+
+{# Kendaraan charts #}
+<div x-show="subtabGrafik === 'kendaraan'" x-cloak class="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
     <section class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
         <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Pemeriksaan &amp; Perbaikan per Bulan</h2>
-        <p class="mb-3 text-xs text-slate-500 dark:text-slate-400">6 bulan terakhir, semua golongan</p>
-        {% include "accounts/_grafik_kolom.html" with g=grafik.aktivitas judul="Pemeriksaan dan perbaikan per bulan" %}
+        <p class="mb-3 text-xs text-slate-500 dark:text-slate-400">6 bulan terakhir, semua golongan kendaraan</p>
+        {% include "accounts/_grafik_kolom.html" with g=grafik.kendaraan.aktivitas judul="Pemeriksaan dan perbaikan kendaraan per bulan" %}
     </section>
-
     <section class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-        <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Biaya Servis per Bulan</h2>
-        <p class="mb-3 text-xs text-slate-500 dark:text-slate-400">Total 6 bulan: {{ grafik.total_biaya|rupiah }}</p>
-        {% include "accounts/_grafik_kolom.html" with g=grafik.biaya judul="Biaya servis per bulan" %}
+        <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Pemeriksaan &amp; Perbaikan per Satuan</h2>
+        <p class="mb-3 text-xs text-slate-500 dark:text-slate-400">6 bulan terakhir, menurut satuan pemeriksa dan teknisi</p>
+        {% include "accounts/_grafik_satuan.html" with g=grafik.kendaraan.satuan judul="Pemeriksaan dan perbaikan kendaraan per satuan" %}
     </section>
-
     <section class="viz rounded-lg border border-slate-200 bg-white p-4 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 xl:col-span-2">
         <h2 class="text-sm font-semibold">Kendaraan per Golongan</h2>
-        <p class="mb-3 text-xs text-slate-500 dark:text-slate-400">Jumlah kendaraan di Armada</p>
-    {% localize off %}{# SVG coordinates need a decimal point, not the Indonesian comma #}
-        <svg viewBox="0 0 {{ grafik.golongan.lebar }} {{ grafik.golongan.tinggi }}" class="w-full h-auto max-w-3xl" role="img" aria-label="Kendaraan per golongan">
-            {% for b in grafik.golongan.bar %}
+        <p class="mb-3 text-xs text-slate-500 dark:text-slate-400">Jumlah kendaraan per golongan</p>
+    {% localize off %}
+        <svg viewBox="0 0 {{ grafik.kendaraan.golongan.lebar }} {{ grafik.kendaraan.golongan.tinggi }}" class="w-full h-auto max-w-3xl" role="img" aria-label="Kendaraan per golongan">
+            {% for b in grafik.kendaraan.golongan.bar %}
             <g class="viz-mark">
                 <title>{{ b.label }}: {{ b.nilai }} kendaraan</title>
-                <text x="{{ grafik.golongan.x0|add:-12 }}" y="{{ b.y|add:12 }}" class="viz-label" text-anchor="end" dominant-baseline="middle">{{ b.label }}</text>
+                <text x="{{ grafik.kendaraan.golongan.x0|add:-12 }}" y="{{ b.y|add:12 }}" class="viz-label" text-anchor="end" dominant-baseline="middle">{{ b.label }}</text>
                 {% if b.path %}<path d="{{ b.path }}" class="seri-1"></path>{% endif %}
-                <text x="{% if b.path %}{{ b.x_nilai }}{% else %}{{ grafik.golongan.x0|add:8 }}{% endif %}" y="{{ b.y|add:12 }}" class="viz-nilai" dominant-baseline="middle">{{ b.nilai }}</text>
+                <text x="{% if b.path %}{{ b.x_nilai }}{% else %}{{ grafik.kendaraan.golongan.x0|add:8 }}{% endif %}" y="{{ b.y|add:12 }}" class="viz-nilai" dominant-baseline="middle">{{ b.nilai }}</text>
+            </g>
+            {% endfor %}
+        </svg>
+    {% endlocalize %}
+    </section>
+</div>
+
+{# Non Kendaraan charts #}
+<div x-show="subtabGrafik === 'non_kendaraan'" x-cloak class="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
+    <section class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+        <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Pemeriksaan &amp; Perbaikan per Bulan</h2>
+        <p class="mb-3 text-xs text-slate-500 dark:text-slate-400">6 bulan terakhir, Golongan B</p>
+        {% include "accounts/_grafik_kolom.html" with g=grafik.non_kendaraan.aktivitas judul="Pemeriksaan dan perbaikan non kendaraan per bulan" %}
+    </section>
+    <section class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+        <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Pemeriksaan &amp; Perbaikan per Satuan</h2>
+        <p class="mb-3 text-xs text-slate-500 dark:text-slate-400">6 bulan terakhir, menurut satuan pemeriksa dan teknisi</p>
+        {% include "accounts/_grafik_satuan.html" with g=grafik.non_kendaraan.satuan judul="Pemeriksaan dan perbaikan non kendaraan per satuan" %}
+    </section>
+    <section class="viz rounded-lg border border-slate-200 bg-white p-4 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 xl:col-span-2">
+        <h2 class="text-sm font-semibold">Non Kendaraan per Golongan</h2>
+        <p class="mb-3 text-xs text-slate-500 dark:text-slate-400">Jumlah Golongan B di Armada</p>
+    {% localize off %}
+        <svg viewBox="0 0 {{ grafik.non_kendaraan.golongan.lebar }} {{ grafik.non_kendaraan.golongan.tinggi }}" class="w-full h-auto max-w-3xl" role="img" aria-label="Non kendaraan per golongan">
+            {% for b in grafik.non_kendaraan.golongan.bar %}
+            <g class="viz-mark">
+                <title>{{ b.label }}: {{ b.nilai }}</title>
+                <text x="{{ grafik.non_kendaraan.golongan.x0|add:-12 }}" y="{{ b.y|add:12 }}" class="viz-label" text-anchor="end" dominant-baseline="middle">{{ b.label }}</text>
+                {% if b.path %}<path d="{{ b.path }}" class="seri-1"></path>{% endif %}
+                <text x="{% if b.path %}{{ b.x_nilai }}{% else %}{{ grafik.non_kendaraan.golongan.x0|add:8 }}{% endif %}" y="{{ b.y|add:12 }}" class="viz-nilai" dominant-baseline="middle">{{ b.nilai }}</text>
             </g>
             {% endfor %}
         </svg>

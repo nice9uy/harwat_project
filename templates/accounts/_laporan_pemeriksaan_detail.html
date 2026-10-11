@@ -25,18 +25,18 @@ who inspected it. `dipilih` is the inspection whose row was clicked.
             </thead>
             <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
                 {% for hasil in riwayat %}
-                <tr class="{% if hasil.pk == dipilih %}bg-gold/15{% endif %}">
+                <tr class="{% if hasil.uuid == dipilih %}bg-gold/15{% endif %}">
                     <td class="px-3 py-2 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td>
                     <td class="whitespace-nowrap px-3 py-2 tabular-nums">
                         {{ hasil.dibuat_pada|date:"d-m-Y H:i" }}
-                        {% if hasil.pk == dipilih %}<span class="ml-1 rounded bg-gold px-1.5 py-0.5 text-xs font-medium text-navy">Dipilih</span>{% endif %}
+                        {% if hasil.uuid == dipilih %}<span class="ml-1 rounded bg-gold px-1.5 py-0.5 text-xs font-medium text-navy">Dipilih</span>{% endif %}
                     </td>
                     <td class="px-3 py-2">{{ hasil.get_macam_pemeriksaan_display }}</td>
                     <td class="px-3 py-2">{{ hasil.pemeriksa.nama }} <span class="text-slate-500 dark:text-slate-400">({{ hasil.pemeriksa.pangkat }})</span></td>
                     <td class="px-3 py-2 tabular-nums">{{ hasil.jumlah_baik }}</td>
                     <td class="px-3 py-2 tabular-nums{% if hasil.jumlah_perlu %} font-medium text-red-600 dark:text-red-400{% endif %}">{{ hasil.jumlah_perlu }}</td>
                     <td class="px-3 py-2">
-                        {% url 'accounts:laporan_pemeriksaan_pdf' vehicle.group_kendaraan hasil.pk as url_pdf %}
+                        {% url 'accounts:laporan_pemeriksaan_pdf' vehicle.group_kendaraan hasil.uuid as url_pdf %}
                         {% include "accounts/_tombol_pdf.html" with url=url_pdf judul="Laporan lengkap pemeriksaan ini (PDF)" %}
                     </td>
                 </tr>
