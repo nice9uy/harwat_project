@@ -54,13 +54,32 @@ export DJANGO_CSRF_TRUSTED_ORIGINS="${DJANGO_CSRF_TRUSTED_ORIGINS:-}"
 echo "Dev server: http://localhost:8001${LOCAL_IP:+ | http://$LOCAL_IP:8001}"
 echo "Tunnel (HTTPS): set DJANGO_CSRF_TRUSTED_ORIGINS=https://your-tunnel-url before running"
 
-# Tear down any existing containers for this stack first. dev and prod share
-# service names (postgres/valkey/garage/pgbouncer) from the base compose.yml,
-# so a leftover prod run left running/stopped would otherwise get reused
-# as-is by `up` — stale env vars, stale bind-mount paths (e.g. a since-deleted
-# worktree) — instead of being recreated against this run's config.
-# --remove-orphans also clears prod-only containers (app1/app2/app3/nginx/
-# static-sync) that aren't part of this dev overlay at all.
-podman-compose --env-file "$(pwd)/.env.dev" -f podman/compose.yml -f podman/compose.dev.yml down --remove-orphans
+# A stack that is still running is stopped first, then started again: dev and
+# prod share service names (postgres/valkey/garage/pgbouncer) from the base
+# compose.yml, so a leftover run would otherwise get reused as-is by `up` —
+# stale env vars, stale bind-mount paths (e.g. a since-deleted worktree) —
+# instead of being recreated against this run's config. --remove-orphans also
+# clears prod-only containers (app1/app2/app3/nginx/static-sync) that aren't
+# part of this dev overlay at all. Only this stack's containers are touched
+# (podman-compose names the project after the first -f file's directory);
+# their volumes, and so the data, stay.
+PROYEK=podman
+KOMPOS=(podman-compose --env-file "$(pwd)/.env.dev" -f podman/compose.yml -f podman/compose.dev.yml)
+BERJALAN="$(podman ps --filter "label=io.podman.compose.project=${PROYEK}" --format '{{.Names}}' | tr '\n' ' ')"
+if [ -n "${BERJALAN// /}" ]; then
+    echo "Kontainer yang sedang berjalan dimatikan dulu: ${BERJALAN}"
+else
+    echo "Tidak ada kontainer yang sedang berjalan."
+fi
+"${KOMPOS[@]}" down --remove-orphans
+# What `down` left behind (a container from an older compose file it no
+# longer knows, or one stuck stopping) would still hold its name and port.
+SISA="$(podman ps -a --filter "label=io.podman.compose.project=${PROYEK}" --format '{{.Names}}' | tr '\n' ' ')"
+if [ -n "${SISA// /}" ]; then
+    echo "Menghapus kontainer yang tersisa: ${SISA}"
+    # shellcheck disable=SC2086
+    podman rm -f ${SISA} >/dev/null
+fi
 
-podman-compose --env-file "$(pwd)/.env.dev" -f podman/compose.yml -f podman/compose.dev.yml up
+echo "Menjalankan ulang..."
+"${KOMPOS[@]}" up
