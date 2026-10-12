@@ -204,7 +204,7 @@ class DashboardMatraTests(TestCase):
             self.assertNotContains(response, "Semua Matra")
             self.assertNotContains(response, 'aria-label="Matra"')
             self.assertIsNone(response.context["ringkasan_matra"])
-        pimpinan_tim = _user("pimtim", "Pimpinan Tim")
+        pimpinan_tim = _user("pimtim", "Pimpinan Ketua Tim")
         AkunPublik.objects.filter(user=pimpinan_tim).update(matra="laut")
         self.client.login(username="pimtim", password="rahasia-123")
         response = self.client.get(reverse("accounts:dashboard"), {"matra": "darat"})
@@ -312,7 +312,7 @@ class DashboardRusakPdfTests(TestCase):
         from django.utils import timezone
         hari_ini = timezone.localdate().isoformat()
         judul, _, kepala, lebar, rows = self._baris(jenis="sparepart")
-        self.assertEqual((judul, len(rows), rows[0][0]), ("SPAREPART RUSAK / TIDAK BISA DIPERBAIKI", 2, "1. Gardan"))
+        self.assertEqual((judul, len(rows), rows[0][:2]), ("SPAREPART RUSAK / TIDAK BISA DIPERBAIKI", 2, [1, "Gardan"]))
         self.assertEqual((len(lebar), sum(lebar)), (len(kepala) + 1, 267))
         judul, _, kepala, lebar, rows = self._baris(jenis="kendaraan")
         self.assertEqual((judul, {r[0] for r in rows}), ("KENDARAAN RUSAK / TIDAK BISA DIPERBAIKI", {"R 1 PD", "R 2 PD"}))

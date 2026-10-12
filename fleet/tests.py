@@ -785,13 +785,13 @@ class JadwalServisTests(TestCase):
         response = self.client.get(reverse("operasional:servis_export"))
         self.assertIn(".xlsx", response["Content-Disposition"])
         rows = list(load_workbook(BytesIO(response.content)).active.values)
-        self.assertEqual(rows[3][:6], ("No", "Tanggal", "No. Registrasi", "Merk/Type", "Satuan", "Jenis Servis"))
-        self.assertEqual(rows[4][:7], (1, "01-09-2026", self.vehicle.nopol, self.vehicle.merek, None, "Ganti oli", "Bengkel 202"))
+        self.assertEqual(rows[3][:7], ("No", "Tanggal", "No. Registrasi", "Merk/Type", "Satuan", "Form No", "Jenis Servis"))
+        self.assertEqual(rows[4][:8], (1, "01-09-2026", self.vehicle.nopol, self.vehicle.merek, None, None, "Ganti oli", "Bengkel 202"))
         # A typed "=..." stays text, not a formula Excel would run.
         self.client.post(reverse("operasional:servis_create"), {
             "vehicle": self.vehicle.pk, "tanggal": "2026-09-02", "jenis_servis": "=1+1", "bengkel": "B",
         })
-        sel = load_workbook(BytesIO(self.client.get(reverse("operasional:servis_export")).content)).active["F5"]
+        sel = load_workbook(BytesIO(self.client.get(reverse("operasional:servis_export")).content)).active["G5"]
         self.assertEqual((sel.value, sel.data_type), ("=1+1", "s"))
         from accounts import roles
         self.assertEqual(roles.menus_of_view("operasional:servis_export"), {"servis"})
@@ -817,13 +817,35 @@ class JadwalServisTests(TestCase):
             "vehicle": self.vehicle.pk, "tanggal": "2020-01-01", "jenis_servis": "Ganti oli", "bengkel": "Bengkel 202",
         })
         page = self.client.get(reverse("operasional:servis_list"))
-        for text in ("Perbaikan 7. Kopling", "Budi Teknisi", "Kondisi: Baik · ganti plat", "Form Perbaikan",
+        for text in ("Perbaikan Kopling", '<td class="py-2 px-4 tabular-nums">7</td>', "Budi Teknisi", "Kondisi: Baik · ganti plat", "Form Perbaikan",
                      "Ganti oli", "Menampilkan 1–2 dari 2 data"):
             self.assertContains(page, text)
         # Newest first, and only the service recorded here can be edited.
         content = page.content.decode()
-        self.assertLess(content.index("Perbaikan 7. Kopling"), content.index("Ganti oli"))
+        self.assertLess(content.index("Perbaikan Kopling"), content.index("Ganti oli"))
         self.assertNotIn("Gardan", content)
+        # The filter: dates, part of a No. Registrasi, and what the repair left the part as.
+        lain = PemeriksaanGolonganBItem.objects.create(pemeriksaan=periksa, nomor=9, nama_alat="Aki", kondisi="RR")
+        PerbaikanGolonganB.objects.create(teknisi=teknisi, item=lain, kondisi="RR", keterangan="tunggu")
+        url = reverse("operasional:servis_list")
+
+        def jenis(**query):
+            return [b["jenis_servis"] for b in self.client.get(url, query).context["servis_list"]]
+
+        self.assertEqual(jenis(kondisi="B"), ["Perbaikan Kopling"])
+        self.assertEqual(jenis(kondisi="RR"), ["Perbaikan Aki"])
+        self.assertEqual(jenis(sampai="2020-12-31"), ["Ganti oli"])
+        self.assertEqual(len(jenis(dari="2021-01-01")), 2)
+        self.assertEqual(len(jenis(nopol=self.vehicle.nopol[:3].lower())), 3)
+        self.assertEqual(jenis(nopol="tidak-ada"), [])
+        self.assertEqual(len(jenis(kondisi="zz", dari="bukan-tanggal")), 3)
+        from io import BytesIO
+
+        from openpyxl import load_workbook
+        saring = self.client.get(url, {"kondisi": "B"})
+        self.assertContains(saring, "servis/export/?kondisi=B")
+        rows = list(load_workbook(BytesIO(self.client.get(reverse("operasional:servis_export"), {"kondisi": "B"}).content)).active.values)
+        self.assertEqual([r[6] for r in rows[4:]], ["Perbaikan Kopling"])
         self.assertEqual(content.count(">Edit</button>"), 1)
 
     def test_required_fields(self):

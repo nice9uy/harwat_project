@@ -164,6 +164,7 @@ class UserCreateViewTests(TestCase):
         self.assertFalse(user.is_staff or user.is_superuser)
 
     def test_post_htmx_returns_hx_redirect(self):
+        User.objects.filter(username="teknisi1").update(is_superuser=True)  # only a superuser gives Pimpinan
         response = self.client.post(
             reverse("accounts:user_create"),
             {
@@ -220,7 +221,7 @@ class UserCreateViewTests(TestCase):
         self.assertEqual(
             set(Group.objects.values_list("name", flat=True)) & set(GROUP_NAMES.values()),
             {
-                "Admin", "Pimpinan", "Pimpinan Tim", "Ketua Tim", "Tim Pemeriksaan", "Tim Penambahan Data",
+                "Admin", "Pimpinan", "Pimpinan Ketua Tim", "Ketua Tim", "Tim Pemeriksaan", "Tim Penambahan Data",
                 "Tim Perbaikan", "Tim Pemeriksaan Rusak/Tidak Layak",
             },
         )
@@ -1390,12 +1391,14 @@ class UserEditTests(TestCase):
         self.assertEqual(list(self.pemeriksa.groups.values_list("name", flat=True)), ["Tim Perbaikan"])
 
     def test_ketua_with_members_must_keep_role(self):
+        User.objects.filter(username="operator").update(is_superuser=True)  # only a superuser gives Pimpinan
         self._ubah(self.pemeriksa, "tim_pemeriksaan", self.ketua_a)
         response = self._ubah(self.ketua_a.user, "pimpinan")
         self.assertContains(response, "masih punya anggota")
         self.assertTrue(self._node("ketua_a").is_root())
 
     def test_empty_ketua_can_become_member_and_member_can_leave_tree(self):
+        User.objects.filter(username="operator").update(is_superuser=True)  # only a superuser gives Pimpinan
         self._ubah(self.ketua_b.user, "tim_penambahan_data", self.ketua_a)
         node = self._node("ketua_b")
         self.assertFalse(node.is_root())

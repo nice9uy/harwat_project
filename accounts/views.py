@@ -182,11 +182,11 @@ def dashboard_rusak_pdf(request):
 
     if request.GET.get("jenis") == "sparepart":
         judul, nama_file = "SPAREPART RUSAK / TIDAK BISA DIPERBAIKI", "sparepart-rusak.pdf"
-        kepala = ["Sparepart / Komponen", "No. Registrasi", "Merk/Type", "Golongan", "Satuan", "Sumber", "Tanggal", "Oleh", "Keterangan"]
-        lebar = [10, 45, 27, 30, 24, 40, 24, 22, 20, 25]
+        kepala = ["Form No", "Sparepart / Komponen", "No. Registrasi", "Merk/Type", "Golongan", "Satuan", "Sumber", "Tanggal", "Oleh", "Keterangan"]
+        lebar = [10, 16, 40, 26, 28, 22, 38, 24, 22, 18, 23]
         rows = [
             [
-                f"{b['item'].nomor}. {b['item'].nama_alat}", b["vehicle"].nopol, b["vehicle"].merek,
+                b["item"].nomor, b["item"].nama_alat, b["vehicle"].nopol, b["vehicle"].merek,
                 b["vehicle"].get_group_kendaraan_display(), satuan(b["vehicle"]),
                 "Perbaikan" if b["perbaikan"] else "Pemeriksaan", kapan(b["waktu"]),
                 b["perbaikan"].teknisi.nama if b["perbaikan"] else b["periksa"].pemeriksa.nama, b["keterangan"] or "-",

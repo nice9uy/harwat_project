@@ -146,7 +146,7 @@ class LaporanRusakTests(TestCase):
         PemeriksaanRantisItem.objects.create(pemeriksaan=hasil, nomor=3, nama_alat="Gardan", kondisi="RB", keterangan="pecah")
         PemeriksaanRantisItem.objects.create(pemeriksaan=hasil, nomor=4, nama_alat="Lampu", kondisi="RR")
         sparepart = self.client.get(self.url, {"tab": "sparepart"})
-        self.assertEqual([baris[:2] for baris, _ in sparepart.context["halaman"]], [("3. Gardan", "R 7 RS")])
+        self.assertEqual([baris[:3] for baris, _ in sparepart.context["halaman"]], [(3, "Gardan", "R 7 RS")])
         self.assertEqual(self.client.get(self.url, {"tab": "sparepart", "q": "lampu"}).context["total"], 0)
         self.assertIn(".xlsx", self.client.get(self.url, {"tab": "sparepart", "unduh": "excel"})["Content-Disposition"])
         self.assertEqual(self.client.get(self.url, {"tab": "non_kendaraan"}).context["total"], 0)

@@ -71,6 +71,7 @@ the vehicles whose last inspection concluded Tidak Layak Pakai.
             <thead class="sticky top-0 border-b border-slate-200 bg-slate-50 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
                 <tr>
                     <th class="w-10 px-3 py-2 font-medium">No</th>
+                    <th class="whitespace-nowrap px-3 py-2 font-medium">Form No</th>
                     <th class="px-3 py-2 font-medium">Sparepart / Komponen</th>
                     <th class="px-3 py-2 font-medium">No. Registrasi</th>
                     <th class="px-3 py-2 font-medium">Merk/Type</th>
@@ -86,7 +87,8 @@ the vehicles whose last inspection concluded Tidak Layak Pakai.
                 {% for b in daftar %}
                 <tr data-baris="sparepart" data-tgl="{{ b.waktu|date:'Y-m-d' }}" data-reg="{{ b.vehicle.nopol }}" x-show="lolos($el.dataset.tgl, $el.dataset.reg)">
                     <td class="px-3 py-2 tabular-nums text-slate-500 dark:text-slate-400"></td>
-                    <td class="px-3 py-2 font-medium text-navy dark:text-slate-100">{{ b.item.nomor }}. {{ b.item.nama_alat }}</td>
+                    <td class="px-3 py-2 tabular-nums">{{ b.item.nomor }}</td>
+                    <td class="px-3 py-2 font-medium text-navy dark:text-slate-100">{{ b.item.nama_alat }}</td>
                     <td class="whitespace-nowrap px-3 py-2">{{ b.vehicle.nopol }}</td>
                     <td class="px-3 py-2">{{ b.vehicle.merek }}</td>
                     <td class="whitespace-nowrap px-3 py-2">{{ b.vehicle.get_group_kendaraan_display }}</td>
@@ -97,9 +99,9 @@ the vehicles whose last inspection concluded Tidak Layak Pakai.
                     <td class="px-3 py-2">{{ b.keterangan|default:"—" }}</td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="10" class="px-3 py-8 text-center text-slate-400 dark:text-slate-500">Tidak ada sparepart rusak berat.</td></tr>
+                <tr><td colspan="11" class="px-3 py-8 text-center text-slate-400 dark:text-slate-500">Tidak ada sparepart rusak berat.</td></tr>
                 {% endfor %}
-                {% if daftar %}<tr x-show="jumlah('sparepart') === 0" x-cloak><td colspan="10" class="px-3 py-8 text-center text-slate-400 dark:text-slate-500">Tidak ada sparepart untuk filter ini.</td></tr>{% endif %}
+                {% if daftar %}<tr x-show="jumlah('sparepart') === 0" x-cloak><td colspan="11" class="px-3 py-8 text-center text-slate-400 dark:text-slate-500">Tidak ada sparepart untuk filter ini.</td></tr>{% endif %}
             </tbody>
         </table>
     </div>

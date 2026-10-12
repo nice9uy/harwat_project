@@ -199,8 +199,8 @@ def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, 
     search field and no date filter; each row opens the ``detail`` modal.
     ``jenis``: the report's key in laporan_hapus.JENIS, for the Hapus action
     its rows get when the user may delete. ``satuan``: vehicle -> the unit
-    for a Satuan column (none without it). ``ekspor_qr``: offer the QR
-    codes as a Word document (Laporan Penambahan only)."""
+    for a Satuan column (none without it). ``ekspor_qr``: show the QR Code
+    column and offer the QR codes as a Word document (Laporan Penambahan only)."""
     from .laporan_hapus import boleh_hapus
 
     f = _filter(request)
@@ -227,7 +227,7 @@ def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, 
         request, "accounts/laporan_tabel.html", judul, header, rows, f, nama_file,
         tautan=tautan, kolom_tanggal=0, kolom_utama=1, pakai_tanggal=False, pakai_cari=True,
         # Laporan Pemeriksaan, Perbaikan and Penambahan have no Excel download.
-        pakai_excel=False, pakai_satuan=True, pakai_hapus=pakai_hapus, pakai_qr=True, pakai_ekspor_qr=ekspor_qr,
+        pakai_excel=False, pakai_satuan=True, pakai_hapus=pakai_hapus, pakai_qr=ekspor_qr, pakai_ekspor_qr=ekspor_qr,
         tab=tab,
     )
 
@@ -313,14 +313,14 @@ def _laporan_sparepart_rusak(request, f):
             continue
         oleh = b["perbaikan"].teknisi.nama if b["perbaikan"] else b["periksa"].pemeriksa.nama
         rows.append((
-            f"{b['item'].nomor}. {b['item'].nama_alat}", v.nopol, v.merek, v.get_group_kendaraan_display(),
+            b["item"].nomor, b["item"].nama_alat, v.nopol, v.merek, v.get_group_kendaraan_display(),
             satuan.nama if satuan else "-", "Perbaikan" if b["perbaikan"] else "Pemeriksaan",
             timezone.localtime(b["waktu"]).strftime("%d-%m-%Y %H:%M"), oleh, b["keterangan"] or "-",
         ))
     return _render(
         request, "accounts/laporan_tabel.html", JUDUL_RUSAK,
-        ["Sparepart / Komponen", "No. Registrasi", "Merk/Type", "Golongan", "Satuan", "Sumber", "Tanggal", "Oleh", "Keterangan"],
-        rows, f, "laporan-sparepart-rusak.xlsx", kolom_tanggal=7, kolom_utama=1, pakai_tanggal=False, pakai_cari=True,
+        ["Form No", "Sparepart / Komponen", "No. Registrasi", "Merk/Type", "Golongan", "Satuan", "Sumber", "Tanggal", "Oleh", "Keterangan"],
+        rows, f, "laporan-sparepart-rusak.xlsx", kolom_tanggal=8, kolom_utama=2, pakai_tanggal=False, pakai_cari=True,
         pakai_satuan=True, tab=TAB_RUSAK,
     )
 

@@ -19,7 +19,7 @@ KEANGGOTAAN = [
     ("pimpinan", "Pimpinan"),
     # A Pimpinan over chosen teams only: they pick the Ketua Tim under them
     # (models.BawahanPimpinan) and see those teams' work.
-    (PIMPINAN_TIM, "Pimpinan Tim"),
+    (PIMPINAN_TIM, "Pimpinan Ketua Tim"),
     (KETUA_TIM, "Ketua Tim"),
     ("tim_pemeriksaan", "Tim Pemeriksaan"),
     ("tim_penambahan_data", "Tim Penambahan Data"),
@@ -43,9 +43,10 @@ ADMIN = {ADMIN_ROLE}
 BERMATRA = {ADMIN_ROLE, KETUA_TIM, PIMPINAN_TIM, *TIM}
 
 # Admin roles form a ladder: a role on it is given, changed or deleted only
-# by someone higher up (Superuser > Admin). Roles off the ladder are open to
-# anyone who can reach Pengaturan.
-TINGKAT = {SUPERUSER: 3, ADMIN_ROLE: 2}
+# by someone higher up (Superuser > Admin). A Pimpinan stands beside the
+# Admin: only a superuser makes, changes or deletes one. Roles off the ladder
+# are open to anyone who can reach Pengaturan.
+TINGKAT = {SUPERUSER: 3, ADMIN_ROLE: 2, "pimpinan": 2}
 
 # Group name for every role except Superuser.
 GROUP_NAMES = {kode: label for kode, label in KEANGGOTAAN if kode != SUPERUSER}
@@ -186,6 +187,12 @@ MENU_PER_KEANGGOTAAN = {
     **dict.fromkeys(ADMIN, ["dashboard"] + [
         m for m in MENU_VIEWS if m not in {"dashboard", "pemeriksaan", "form_tambah", "perbaikan", "rusak"}
     ]),
+    # A Pimpinan sees every menu but the Tim forms, Status and Pengaturan
+    # (and the superuser's menus, taken out for every role).
+    "pimpinan": ["dashboard"] + [
+        m for m in MENU_VIEWS
+        if m not in {"dashboard", "pemeriksaan", "form_tambah", "perbaikan", "rusak", "pengaturan"} | MENU_TIM
+    ],
     # A Pimpinan Tim looks at their teams; they don't manage users or forms.
     PIMPINAN_TIM: [
         "dashboard", "info_profile", "history", "anggota_tim", "laporan_pemeriksaan", "laporan_perbaikan",

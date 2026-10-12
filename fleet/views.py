@@ -290,7 +290,7 @@ def _servis_dan_perbaikan():
     baris = [
         {
             "tanggal": s.tanggal, "waktu": s.dibuat_pada, "vehicle": s.vehicle, "jenis_servis": s.jenis_servis,
-            "bengkel": s.bengkel, "keterangan": s.keterangan, "servis": s,
+            "bengkel": s.bengkel, "keterangan": s.keterangan, "servis": s, "form_no": "", "kondisi": "",
         }
         for s in Servis.objects.select_related("vehicle__penambah__satuan")
     ]
@@ -302,7 +302,7 @@ def _servis_dan_perbaikan():
             waktu = timezone.localtime(p.dibuat_pada)
             baris.append({
                 "tanggal": waktu.date(), "waktu": p.dibuat_pada, "vehicle": p.item.pemeriksaan.vehicle,
-                "jenis_servis": f"Perbaikan {p.item.nomor}. {p.item.nama_alat}",
+                "form_no": p.item.nomor, "jenis_servis": f"Perbaikan {p.item.nama_alat}", "kondisi": p.kondisi,
                 "teknisi": p.teknisi.nama,
                 "keterangan": " · ".join(filter(None, [f"Kondisi: {p.get_kondisi_display()}", p.keterangan])),
                 "servis": None,
@@ -315,28 +315,62 @@ def _servis_dan_perbaikan():
     return baris
 
 
+# The Kondisi filter of the Servis table: what a repair left the part as
+# (accounts.pemeriksaan.KONDISI_PERBAIKAN; a repair left Rusak isn't listed).
+KONDISI_SERVIS = [("B", "Baik"), ("RR", "Perlu Servis")]
+
+
+def _filter_servis(request):
+    """The Servis table's filter: ?dari= and ?sampai= (dates), ?nopol= (part
+    of a No. Registrasi) and ?kondisi= (a KONDISI_SERVIS code)."""
+    from accounts.laporan import _tanggal  # accounts depends on fleet, not the other way round
+
+    kondisi = request.GET.get("kondisi", "")
+    return {
+        "dari": _tanggal(request.GET.get("dari")), "sampai": _tanggal(request.GET.get("sampai")),
+        "nopol": request.GET.get("nopol", "").strip(),
+        "kondisi": kondisi if kondisi in dict(KONDISI_SERVIS) else "",
+    }
+
+
+def _saring_servis(baris, f):
+    nopol = f["nopol"].lower()
+    return [
+        b for b in baris
+        if not (f["dari"] and b["tanggal"] < f["dari"])
+        and not (f["sampai"] and b["tanggal"] > f["sampai"])
+        and (not nopol or nopol in b["vehicle"].nopol.lower())
+        # A service recorded here has no condition: a Kondisi filter leaves the repairs only.
+        and (not f["kondisi"] or b["kondisi"] == f["kondisi"])
+    ]
+
+
 @login_required
 def servis_list(request):
+    f = _filter_servis(request)
+    query = request.GET.copy()
+    query.pop("page", None)
     return render(request, "fleet/servis_list.html", {
-        "servis_list": halaman(request, _servis_dan_perbaikan()),
+        "servis_list": halaman(request, _saring_servis(_servis_dan_perbaikan(), f)),
+        "f": f, "kondisi_pilihan": KONDISI_SERVIS, "query": query.urlencode(),
     })
 
 
 @login_required
 def servis_export(request):
-    """The whole Servis table (not just the page shown) as an .xlsx sheet."""
+    """The Servis table as filtered (every row, not just the page shown) as an .xlsx sheet."""
     from accounts.laporan import _excel  # accounts depends on fleet, not the other way round
 
     rows = [
         [
-            b["tanggal"].strftime("%d-%m-%Y"), b["vehicle"].nopol, b["vehicle"].merek, b["satuan"], b["jenis_servis"],
+            b["tanggal"].strftime("%d-%m-%Y"), b["vehicle"].nopol, b["vehicle"].merek, b["satuan"], b["form_no"], b["jenis_servis"],
             b["bengkel"] if b["servis"] else f"Teknisi: {b['teknisi']}", b["keterangan"],
             "Servis" if b["servis"] else "Form Perbaikan",
         ]
-        for b in _servis_dan_perbaikan()
+        for b in _saring_servis(_servis_dan_perbaikan(), _filter_servis(request))
     ]
     return _excel(
-        "Servis", ["Tanggal", "No. Registrasi", "Merk/Type", "Satuan", "Jenis Servis", "Bengkel / Tempat", "Keterangan", "Sumber"],
+        "Servis", ["Tanggal", "No. Registrasi", "Merk/Type", "Satuan", "Form No", "Jenis Servis", "Bengkel / Tempat", "Keterangan", "Sumber"],
         rows, {"dari": None, "sampai": None, "golongan": "", "satuan": None},
         f"servis-{timezone.localtime():%Y%m%d}.xlsx",
     )

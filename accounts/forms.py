@@ -126,7 +126,7 @@ def _cek_matra(form, cleaned):
 def _cek_bawahan(form, cleaned):
     """A Pimpinan Tim is made with at least one Ketua Tim under them."""
     if cleaned.get("keanggotaan") == roles.PIMPINAN_TIM and not cleaned.get("bawahan"):
-        form.add_error("bawahan", "Pilih minimal satu Ketua Tim untuk Pimpinan Tim ini.")
+        form.add_error("bawahan", "Pilih minimal satu Ketua Tim untuk Pimpinan Ketua Tim ini.")
 
 
 def simpan_bawahan(user, kode, ketua):

@@ -1,6 +1,6 @@
 <h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-1">Pilih Ketua Tim Bawahan</h2>
 <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
-    Pimpinan Tim <span class="font-semibold text-navy dark:text-slate-100">{{ pimpinan.username }}</span> ·
+    Pimpinan Ketua Tim <span class="font-semibold text-navy dark:text-slate-100">{{ pimpinan.username }}</span> ·
     centang Ketua Tim yang berada di bawah{% if sendiri %} Anda{% else %}nya{% endif %}. Dashboard, Anggota Tim dan Laporan Tim hanya menampilkan tim yang dicentang.
 </p>
 <form method="post" action="{% url 'accounts:pimpinan_tim_bawahan' pimpinan.publik.uuid %}">

@@ -901,12 +901,12 @@ class BawahanPimpinan(models.Model):
     sees that team's work (dashboard, Anggota Tim, Laporan Tim). A Ketua Tim
     can be under several Pimpinan Tim."""
 
-    pimpinan = models.ForeignKey(User, on_delete=models.CASCADE, related_name="bawahan_ketua", verbose_name="Pimpinan Tim")
+    pimpinan = models.ForeignKey(User, on_delete=models.CASCADE, related_name="bawahan_ketua", verbose_name="Pimpinan Ketua Tim")
     ketua = models.ForeignKey(Anggota, on_delete=models.CASCADE, related_name="pimpinan_tim", verbose_name="Ketua Tim")
 
     class Meta:
-        verbose_name = "Bawahan Pimpinan Tim"
-        verbose_name_plural = "Bawahan Pimpinan Tim"
+        verbose_name = "Bawahan Pimpinan Ketua Tim"
+        verbose_name_plural = "Bawahan Pimpinan Ketua Tim"
         constraints = [models.UniqueConstraint(fields=["pimpinan", "ketua"], name="unique_bawahan_pimpinan")]
 
     def __str__(self):

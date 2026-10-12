@@ -18,7 +18,7 @@ def _user(username, group):
 
 class PimpinanTimTests(TestCase):
     def setUp(self):
-        self.pt = _user("pt1", "Pimpinan Tim")
+        self.pt = _user("pt1", "Pimpinan Ketua Tim")
         self.ketua, self.tim = {}, {}
         for n in ("a", "b", "c"):
             self.ketua[n] = Anggota.add_root(user=_user(f"ketua_{n}", "Ketua Tim"))
@@ -32,7 +32,7 @@ class PimpinanTimTests(TestCase):
         return self.client.post(self.url, {"ketua": [str(self.ketua[n].uuid) for n in nama]})
 
     def test_role_and_menus(self):
-        self.assertEqual(dict(roles.KEANGGOTAAN)["pimpinan_tim"], "Pimpinan Tim")
+        self.assertEqual(dict(roles.KEANGGOTAAN)["pimpinan_tim"], "Pimpinan Ketua Tim")
         self.assertEqual(dict(roles.KEANGGOTAAN)["pimpinan"], "Pimpinan")
         self.assertEqual(roles.keanggotaan_kode(self.pt), "pimpinan_tim")
         menus = roles.allowed_menus(self.pt)
@@ -81,7 +81,7 @@ class PimpinanTimTests(TestCase):
         )
 
     def test_who_may_pick(self):
-        lain = _user("pt2", "Pimpinan Tim")
+        lain = _user("pt2", "Pimpinan Ketua Tim")
         url_lain = reverse("accounts:pimpinan_tim_bawahan", args=[lain.publik.uuid])
         self.assertEqual(self.client.get(url_lain).status_code, 403)  # not for another Pimpinan Tim
         _user("admin1", "Admin")
@@ -109,7 +109,7 @@ class PimpinanTimTests(TestCase):
         buat = reverse("accounts:user_create")
         gagal = self.client.post(buat, {"username": "pt9", "keanggotaan": "pimpinan_tim"})
         self.assertContains(gagal, "Pilih matra untuk user ini.")
-        self.assertContains(gagal, "Pilih minimal satu Ketua Tim untuk Pimpinan Tim ini.")
+        self.assertContains(gagal, "Pilih minimal satu Ketua Tim untuk Pimpinan Ketua Tim ini.")
         self.assertFalse(User.objects.filter(username="pt9").exists())
         self.client.post(buat, {
             "username": "pt9", "keanggotaan": "pimpinan_tim", "matra": "laut",
@@ -133,3 +133,45 @@ class PimpinanTimTests(TestCase):
         form = self.client.get(reverse("accounts:user_create"), HTTP_HX_REQUEST="true")
         self.assertContains(form, 'value="pimpinan"')
         self.assertContains(form, 'value="pimpinan_tim"')
+
+
+class PimpinanTanpaFormTests(TestCase):
+    """A Pimpinan has no Kegiatan forms: not in the sidebar, not by URL."""
+
+    def test_pimpinan_has_no_tim_forms(self):
+        from django.urls import reverse
+        from accounts import roles
+        user = User.objects.create_user(username="pimpinan_x", password="rahasia-123")
+        user.groups.add(Group.objects.get(name="Pimpinan"))
+        menus = roles.allowed_menus(user)
+        self.assertFalse(menus & {"pemeriksaan", "form_tambah", "perbaikan", "rusak", "status", "armada", "backup", "pengaturan"})
+        self.assertTrue({"dashboard", "history", "laporan_rusak", "laporan_tim", "servis"} <= menus)
+        self.client.login(username="pimpinan_x", password="rahasia-123")
+        halaman = self.client.get(reverse("accounts:dashboard"))
+        for nama in ("accounts:pemeriksaan", "accounts:form_tambah", "accounts:perbaikan", "accounts:rusak", "accounts:pengaturan"):
+            self.assertNotContains(halaman, f'href="{reverse(nama)}"')
+            self.assertEqual(self.client.get(reverse(nama)).status_code, 302, nama)
+        self.assertEqual(self.client.get(reverse("fleet:vehicle_create") + "?group=B").status_code, 302)
+
+
+class PimpinanHanyaOlehSuperuserTests(TestCase):
+    """Only a superuser makes, changes or deletes a Pimpinan."""
+
+    def test_admin_cannot_make_or_touch_a_pimpinan(self):
+        from accounts.forms import UserCreateForm
+        self.assertFalse(roles.boleh_kelola(roles.ADMIN_ROLE, "pimpinan"))
+        self.assertTrue(roles.boleh_kelola(roles.SUPERUSER, "pimpinan"))
+        self.assertTrue(roles.boleh_kelola(roles.ADMIN_ROLE, roles.KETUA_TIM))
+        admin = _user("admin_p", "Admin")
+        pimpinan = _user("pimpinan_p", "Pimpinan")
+        self.client.login(username="admin_p", password="rahasia-123")
+        halaman = self.client.get(reverse("accounts:user_create"))
+        self.assertNotContains(halaman, 'value="pimpinan"')
+        self.client.post(reverse("accounts:user_create"), {
+            "username": "pimpinan_baru", "keanggotaan": "pimpinan", "password1": "Rahasia-12345", "password2": "Rahasia-12345",
+        })
+        self.assertFalse(User.objects.filter(username="pimpinan_baru").exists())
+        self.client.post(reverse("accounts:user_delete", args=[pimpinan.publik.uuid]))
+        self.assertTrue(User.objects.filter(pk=pimpinan.pk).exists())
+        self.client.post(reverse("accounts:user_reset_password", args=[pimpinan.publik.uuid]))
+        self.assertTrue(User.objects.get(pk=pimpinan.pk).check_password("rahasia-123"))
