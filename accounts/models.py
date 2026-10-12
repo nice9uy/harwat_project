@@ -719,6 +719,116 @@ class PerbaikanRantis(FotoMixin, models.Model):
         return f"{self.item.pemeriksaan.vehicle.nopol} — {self.item} ({self.kondisi})"
 
 
+class PemeriksaanRansus(models.Model):
+    """One inspection of a RANSUS (the header of Kendaraan Diesel, 40 pieces of equipment)."""
+
+    # Public id used in URLs instead of the guessable pk.
+    uuid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    pemeriksa = models.ForeignKey(
+        Laporan, on_delete=models.CASCADE, related_name="pemeriksaan_ransus",
+        verbose_name="Biodata Pemeriksa",
+    )
+    vehicle = models.ForeignKey(
+        "fleet.Vehicle", on_delete=models.PROTECT, related_name="pemeriksaan_ransus",
+        verbose_name="Kendaraan",
+    )
+    km_mil = models.PositiveIntegerField(null=True, blank=True, verbose_name="Km / Mil")
+    # A photo of the odometer, as proof of the reading.
+    foto_km = models.ImageField(upload_to="pemeriksaan/", blank=True, max_length=255, verbose_name="Foto Km / Mil")
+    km_berfungsi = models.CharField(max_length=5, choices=checklist.YA_TIDAK, verbose_name="Km / Mil Berfungsi")
+    jam_mesin = models.PositiveIntegerField(null=True, blank=True, verbose_name="Jam Mesin")
+    jam_mesin_berfungsi = models.CharField(max_length=5, choices=checklist.YA_TIDAK, verbose_name="Jam Mesin Berfungsi")
+    buku_pemeliharaan = models.CharField(max_length=10, choices=checklist.BUKU_JALAN, verbose_name="Buku Pemeliharaan")
+    kondisi_ranmor = models.CharField(max_length=10, choices=checklist.KONDISI_RANMOR, verbose_name="Kondisi Ranmor")
+    macam_pemeriksaan = models.CharField(
+        max_length=20, choices=checklist.MACAM_PEMERIKSAAN, verbose_name="Macam Pemeriksaan",
+    )
+    kesimpulan = models.CharField(
+        max_length=20, choices=checklist.KESIMPULAN, default="siap_pakai", verbose_name="Kesimpulan",
+    )
+    keterangan = models.TextField(blank=True, verbose_name="Keterangan")
+    dibuat_pada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Pemeriksaan RANSUS"
+        verbose_name_plural = "Pemeriksaan RANSUS"
+        ordering = ["-dibuat_pada", "-id"]
+
+    def __str__(self):
+        return f"{self.vehicle.nopol} — {self.dibuat_pada:%d-%m-%Y}"
+
+    def ringkasan(self):
+        km = f"{self.km_mil} km" if self.km_mil is not None else "Km -"
+        jam = f"{self.jam_mesin} jam" if self.jam_mesin is not None else "Jam mesin -"
+        return " · ".join([
+            self.get_macam_pemeriksaan_display(),
+            f"{km} ({'berfungsi' if self.km_berfungsi == 'ya' else 'tidak berfungsi'})",
+            f"{jam} ({'berfungsi' if self.jam_mesin_berfungsi == 'ya' else 'tidak berfungsi'})",
+            f"Buku pemeliharaan {self.get_buku_pemeliharaan_display().lower()}",
+            f"Ranmor {self.get_kondisi_ranmor_display().lower()}",
+        ])
+
+
+class PemeriksaanRansusItem(FotoMixin, models.Model):
+    """One checked part of a PemeriksaanRansus: satuan, jumlah riil/nyata, kondisi."""
+
+    pemeriksaan = models.ForeignKey(PemeriksaanRansus, on_delete=models.CASCADE, related_name="items")
+    nomor = models.PositiveSmallIntegerField()
+    nama_alat = models.CharField(max_length=100, verbose_name="Nama Komponen")
+    satuan = models.CharField(max_length=30, blank=True)
+    jumlah_riil = models.PositiveIntegerField(null=True, blank=True, verbose_name="Jumlah Riil")
+    jumlah_nyata = models.PositiveIntegerField(null=True, blank=True, verbose_name="Jumlah Nyata")
+    kondisi = models.CharField(max_length=3, choices=checklist.KONDISI_RANSUS)
+    foto = models.ImageField(upload_to="pemeriksaan/", blank=True)
+    foto_2 = models.ImageField(upload_to="pemeriksaan/", blank=True)
+    foto_3 = models.ImageField(upload_to="pemeriksaan/", blank=True)
+    foto_4 = models.ImageField(upload_to="pemeriksaan/", blank=True)
+    keterangan = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Item Pemeriksaan RANSUS"
+        verbose_name_plural = "Item Pemeriksaan RANSUS"
+        ordering = ["nomor"]
+        constraints = [
+            models.UniqueConstraint(fields=["pemeriksaan", "nomor"], name="unique_item_per_pemeriksaan_ransus"),
+        ]
+
+    def __str__(self):
+        return f"{self.nomor}. {self.nama_alat}"
+
+
+class PerbaikanRansus(FotoMixin, models.Model):
+    """A repair of one part of a RANSUS inspection that needed it."""
+
+    # Public id used in URLs instead of the guessable pk.
+    uuid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    teknisi = models.ForeignKey(
+        Laporan, on_delete=models.CASCADE, related_name="perbaikan_ransus",
+        verbose_name="Biodata Teknisi",
+    )
+    item = models.ForeignKey(
+        PemeriksaanRansusItem, on_delete=models.CASCADE, related_name="perbaikan",
+        verbose_name="Item Pemeriksaan",
+    )
+    kondisi = models.CharField(
+        max_length=3, choices=checklist.KONDISI_PERBAIKAN + checklist.KONDISI_PERBAIKAN_LAMA,
+    )
+    keterangan = models.TextField(blank=True)
+    foto = models.ImageField(upload_to="perbaikan/", blank=True)
+    foto_2 = models.ImageField(upload_to="perbaikan/", blank=True)
+    foto_3 = models.ImageField(upload_to="perbaikan/", blank=True)
+    foto_4 = models.ImageField(upload_to="perbaikan/", blank=True)
+    dibuat_pada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Perbaikan RANSUS"
+        verbose_name_plural = "Perbaikan RANSUS"
+        ordering = ["-dibuat_pada", "-id"]
+
+    def __str__(self):
+        return f"{self.item.pemeriksaan.vehicle.nopol} — {self.item} ({self.kondisi})"
+
+
 
 class KendaraanRusak(FotoMixin, models.Model):
     """A vehicle declared Rusak / Tidak Layak Pakai with the form of that

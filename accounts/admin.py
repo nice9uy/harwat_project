@@ -19,14 +19,17 @@ from .models import (
     PemeriksaanDiesel,
     PemeriksaanDieselItem,
     PemeriksaanJeepDiesel,
+    PemeriksaanRansus,
     PemeriksaanRantis,
     PemeriksaanJeepDieselItem,
+    PemeriksaanRansusItem,
     PemeriksaanRantisItem,
     PemeriksaanGolonganB,
     PemeriksaanGolonganBItem,
     PerbaikanBermotor,
     PerbaikanDiesel,
     PerbaikanJeepDiesel,
+    PerbaikanRansus,
     PerbaikanRantis,
     PerbaikanGolonganB,
     RevokedToken,
@@ -233,6 +236,42 @@ class PemeriksaanRantisItemAdmin(admin.ModelAdmin):
 
 @admin.register(PerbaikanRantis)
 class PerbaikanRantisAdmin(admin.ModelAdmin):
+    list_display = ["item", "kendaraan", "kondisi", "teknisi", "dibuat_pada"]
+    list_filter = ["kondisi"]
+    list_select_related = ["item__pemeriksaan__vehicle", "teknisi"]
+    search_fields = ["item__pemeriksaan__vehicle__nopol", "item__nama_alat", "teknisi__nama", "keterangan"]
+    date_hierarchy = "dibuat_pada"
+
+    @admin.display(description="Kendaraan", ordering="item__pemeriksaan__vehicle__nopol")
+    def kendaraan(self, obj):
+        return obj.item.pemeriksaan.vehicle
+
+
+class PemeriksaanRansusItemInline(admin.TabularInline):
+    model = PemeriksaanRansusItem
+    extra = 0
+
+
+@admin.register(PemeriksaanRansus)
+class PemeriksaanRansusAdmin(admin.ModelAdmin):
+    list_display = ["vehicle", "pemeriksa", "km_mil", "jam_mesin", "buku_pemeliharaan", "kondisi_ranmor", "dibuat_pada"]
+    list_filter = ["macam_pemeriksaan", "kondisi_ranmor", "buku_pemeliharaan"]
+    list_select_related = ["vehicle", "pemeriksa"]
+    search_fields = ["vehicle__nopol", "pemeriksa__nama", "pemeriksa__nip"]
+    date_hierarchy = "dibuat_pada"
+    inlines = [PemeriksaanRansusItemInline]
+
+
+@admin.register(PemeriksaanRansusItem)
+class PemeriksaanRansusItemAdmin(admin.ModelAdmin):
+    list_display = ["pemeriksaan", "nomor", "nama_alat", "satuan", "jumlah_riil", "jumlah_nyata", "kondisi", "keterangan"]
+    list_filter = ["kondisi"]
+    list_select_related = ["pemeriksaan__vehicle"]
+    search_fields = ["pemeriksaan__vehicle__nopol", "nama_alat", "keterangan"]
+
+
+@admin.register(PerbaikanRansus)
+class PerbaikanRansusAdmin(admin.ModelAdmin):
     list_display = ["item", "kendaraan", "kondisi", "teknisi", "dibuat_pada"]
     list_filter = ["kondisi"]
     list_select_related = ["item__pemeriksaan__vehicle", "teknisi"]

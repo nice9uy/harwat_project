@@ -334,3 +334,55 @@ BAGIAN_RANTIS = [
 ]
 
 RANTIS_BAB, KOMPONEN_RANTIS_BERNOMOR = _diesel_bernomor(BAGIAN_RANTIS)
+
+# --- RANSUS (kendaraan khusus: the equipment list of its paper form) ---
+
+KONDISI_RANSUS = KONDISI_JEEP_DIESEL
+
+# One flat list of 40 pieces of equipment, numbered as on the paper form; in
+# the diesel layout it is a single chapter with one unnamed system.
+PERALATAN_RANSUS = [
+    'Selang Penyalur (Fire Hose) Ukuran 2½" x 20 Meter',
+    'Selang Penyalur (Fire Hose) Ukuran 1½" x 20 Meter',
+    'Selang Hisap (Suction Hose) Ukuran 6" x 2,5 meter',
+    "Saringan Metal",
+    "Saringan Rotan",
+    "Kunci Kopling Selang Hisap",
+    "Kunci Hidran",
+    'Pipa Cabang (Branch Pipe) Ukuran: 2,5"-2,5"-2,5"',
+    'Pipa Cabang (Branch Pipe) Ukuran: 2,5"-1,5"-1,5"',
+    "Pemancar (Nozzle) Variabel Ukuran 2,5 inch YVH Coupling",
+    "Pemancar (Nozzle) Variabel Ukuran 1,5 inch YVH Coupling",
+    "Pemancar (Nozzle) Foam Ukuran 2,5 inch YVH Coupling",
+    "Pemancar Gambut (Pearching Nozzle) Ukuran 1,5 inch",
+    'Kopling Peningkat (Adaptor) dari 4"-2,5"',
+    "Adaptor Kopling YVH ke Machino Ukuran 2,5 inch",
+    "Adaptor Kopling YVH ke Machino Ukuran 1,5 inch",
+    'Adaptor Kopling Ulir - YVH Ukuran 2,5"',
+    "APAR (Alat Pemadam Api Ringan) ABC Dry Chemical Powder, Multi Purpose (4,5-6 kg)",
+    "Cairan Busa (Foam Liquid)",
+    "Kapak Besar",
+    "Sekop Lipat",
+    "Linggis",
+    "Garpu 4 Jari",
+    "Belincong",
+    "Ganco",
+    "Gaetan",
+    "Balok Pengaman Selang (Hose Bridge)",
+    "Ganjal Ban",
+    "Klem Penutup Kebocoran Selang (Hose Bandages)",
+    "Alat Pelindung Pernapasan (SCBA)",
+    "Mesin Pemotong (Hydraulic Cutter Portable)",
+    "Blower",
+    "Tangga Manual",
+    "Tali",
+    "Fire Blanket",
+    "Tas/Kotak P3K",
+    "Lampu Penerangan Portable",
+    "Pengaman Lalu Lintas (Traffic Cone)",
+    "Dongrak",
+    "Toolkit Unit",
+]
+BAGIAN_RANSUS = [("I", "Peralatan", [("", "", PERALATAN_RANSUS)])]
+
+RANSUS_BAB, KOMPONEN_RANSUS_BERNOMOR = _diesel_bernomor(BAGIAN_RANSUS)

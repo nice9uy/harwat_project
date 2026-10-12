@@ -1,67 +1,147 @@
-# BMN Harwat
+# Harwat
 
-Vehicle maintenance / fleet management app.
+Aplikasi Pemeliharaan dan Perawatan Kendaraan dan Non Kendaraan: pendataan kendaraan,
+pemeriksaan, perbaikan, kendaraan rusak/tidak layak pakai, laporan, dan dashboard per matra.
 
-## Development setup
+Dibangun dengan Django + django-bolt, HTMX, Alpine.js, dan Tailwind CSS. Seluruh layanan
+(aplikasi, PostgreSQL + PgBouncer, Valkey, Garage, WireGuard, nginx) berjalan di Podman.
 
-```bash
-uv sync
-./scripts/build-css.sh   # required before first run, and again after any template or Tailwind change
-uv run python manage.py migrate
-uv run python manage.py runserver
-```
+## Menjalankan
 
-## Running with Podman
-
-The full stack (app, PostgreSQL+PgBouncer, Valkey, Garage) runs under Podman via
-`podman-compose`. See `docs/superpowers/specs/2026-09-22-podman-infra-design.md` for the full
-design.
-
-**Prerequisite:** the container image's `collectstatic` step needs `static/dist/output.css` to
-exist (see "Development setup" above) — with Django's default staticfiles storage, `collectstatic`
-does *not* fail if this file is missing, it just silently ships a visually broken app. Both
-scripts below now run `./scripts/build-css.sh` automatically if `static/dist/output.css` isn't
-already present, so this is handled for you — mentioned here so anyone reading `dev.sh`/`prod.sh`
-knows why that guard is there.
+Cukup satu perintah. Dijalankan dari folder proyek, di Linux:
 
 ```bash
-./dev.sh    # local dev: bind-mounted code, auto-reload, DEBUG on
-./prod.sh   # production: built image, multi-process, secrets auto-generated into .env.prod on first run
+./dev.sh    # pengembangan: kode langsung dari folder ini, muat ulang otomatis, DEBUG aktif
+./prod.sh   # produksi: image dibangun, 3 replika aplikasi di belakang nginx
 ```
 
-### Production data: PostgreSQL (1 primary + 2 replicas) and Garage
+| | `./dev.sh` | `./prod.sh` |
+|---|---|---|
+| Alamat | http://localhost:8001 | http://localhost:8000 |
+| Database | SQLite (`db.sqlite3`) | PostgreSQL (1 primary + 2 replica) |
+| Foto | folder `media/` | bucket Garage |
+| Pengaturan | `.env.dev` (disalin dari `.env.dev.example`) | `.env.prod` (dibuat otomatis) |
+| Berjalan di | terminal (Ctrl+C untuk berhenti) | latar belakang |
 
-In production (`./prod.sh`) the app no longer runs on SQLite or keeps photos inside the containers:
+Yang dikerjakan kedua skrip secara otomatis, sehingga tidak perlu disiapkan dulu:
 
-- **Database** — PostgreSQL 17. `postgres` is the primary; the app reads and writes it through
-  `pgbouncer`. `postgres-replica1` and `postgres-replica2` are read-only hot standbys that follow
-  the primary by streaming replication, each on its own volume (`podman/postgres/*.sh`). They are
-  copies to fall back on, not something the app reads from. Check them with:
+1. **Memasang komponen yang belum ada** (`scripts/pasang-komponen.sh`): podman,
+   podman-compose, curl, dan untuk produksi juga openssl dan envsubst — beserta paket
+   pendamping podman tanpa root dan rentang sub-id pengguna. Pengelola paket yang dikenali:
+   apt, dnf, yum, zypper, pacman, apk. Pemasangan memakai `sudo`, jadi bisa meminta password.
+   Mesin yang sudah lengkap tidak diubah apa pun.
+2. **Membangun CSS** (`scripts/build-css.sh`) bila `static/dist/output.css` belum ada.
+   Binary Tailwind diunduh sendiri ke `bin/`.
+3. **Mematikan kontainer yang sedang berjalan**, lalu menjalankannya ulang. Hanya kontainer
+   aplikasi ini yang disentuh; kontainer proyek lain dan semua volume (data) dibiarkan.
+4. **Menjalankan migrasi database.**
+
+Untuk melihat apa yang akan dipasang tanpa memasangnya:
+
+```bash
+PASANG_SIMULASI=1 bash -c 'source scripts/pasang-komponen.sh; pasang_komponen podman podman-compose curl openssl envsubst'
+```
+
+### Catatan pengembangan (`./dev.sh`)
+
+- Dev dan produksi memakai nama kontainer yang sama, jadi **tidak bisa berjalan bersamaan**:
+  menjalankan yang satu mematikan yang lain.
+- Agar bisa dibuka dari HP di jaringan yang sama, pakai alamat IP yang dicetak skrip.
+- Untuk tunnel HTTPS (localtonet, ngrok), isi dulu alamatnya:
+  `DJANGO_CSRF_TRUSTED_ORIGINS=https://alamat-tunnel ./dev.sh`
+- Menu **Server** menampilkan daftar kontainer lewat `podman.socket`; skrip mencoba
+  mengaktifkannya (`systemctl --user enable --now podman.socket`).
+- Setelah mengubah template atau kelas Tailwind, bangun ulang CSS: `./scripts/build-css.sh`
+
+### Catatan produksi (`./prod.sh`)
+
+- Pada jalan pertama skrip membuat `.env.prod` berisi semua rahasia (kunci Django, password
+  database, kunci Garage, kunci WireGuard). **Cadangkan berkas ini**; ia tidak masuk git.
+  Jalan berikutnya hanya menambah pengaturan yang belum ada dan tidak pernah menimpa isinya.
+- Isi sendiri di `.env.prod`:
+  - `DJANGO_ALLOWED_HOSTS` — nama domain atau IP server (bawaan hanya `localhost,127.0.0.1`).
+  - `VPN_SERVER_ENDPOINT=<ip-publik>:51820` — tanpa ini config VPN anggota tidak bisa dipakai.
+- Setelah kontainer hidup, skrip menjalankan migrasi, menulis config server WireGuard, mengisi
+  daftar satuan (Kodam, Korem, Kodim, Koramil), dan menghitung ulang status kendaraan.
+- Di akhir, skrip mencetak kontainer yang berjalan dan status replikasi database
+  (seharusnya 2 baris `streaming`).
+
+## Data produksi
+
+- **Database** — PostgreSQL 17. `postgres` adalah primary; aplikasi membaca dan menulis lewat
+  `pgbouncer`. `postgres-replica1` dan `postgres-replica2` adalah salinan baca-saja yang
+  mengikuti primary (streaming replication). Aplikasi tidak membaca dari replica. Cek:
 
   ```bash
   podman exec podman_postgres_1 psql -U bmn_harwat -d bmn_harwat -c "select client_addr, state from pg_stat_replication"
   ```
 
-  Two rows in state `streaming` is healthy. **Failover is manual:** if the primary is lost, promote
-  a replica (`podman exec podman_postgres-replica1_1 gosu postgres pg_ctl promote -D /var/lib/postgresql/data`)
-  and point `DB_HOST` of `pgbouncer` at it. Nothing does this automatically.
-- **Photos** — the Garage bucket `GARAGE_DEFAULT_BUCKET`, through `harwat_main/storage.py`. The
-  bucket and the app's access key are created when Garage starts, from the key pair `prod.sh`
-  generates into `.env.prod` (Garage does not print the secret to its log). Browsers get photos
-  from `/media/...`, which the app serves to signed-in users only.
-- **Settings** — all in `.env.prod`. `prod.sh` appends the ones a `.env.prod` from before this
-  setup lacks (`DATABASE_ENGINE`, `DATABASE_URL`, `REPLIKASI_*`, `GARAGE_*`, `SQLITE_LAMA`,
-  `BACKUP_DIR`) and never rewrites existing lines. **Back the file up**: it holds every secret.
-- **Moving the old data** — the first `./prod.sh` with this setup copies the photos out of the
-  old app containers (`migrasi/media/`) before removing them, then runs `manage.py impor_sqlite`
-  (old SQLite file → PostgreSQL, only into an empty database) and `manage.py impor_media`
-  (rescued photos → Garage). Both are safe to run again; they skip what is already there.
+  **Failover manual**: bila primary hilang, naikkan satu replica
+  (`podman exec podman_postgres-replica1_1 gosu postgres pg_ctl promote -D /var/lib/postgresql/data`)
+  lalu arahkan `DB_HOST` milik `pgbouncer` ke replica itu. Tidak ada yang melakukannya otomatis.
+- **Foto** — disimpan di bucket Garage (`harwat_main/storage.py`) dan disajikan lewat
+  `/media/...` hanya untuk pengguna yang sudah login.
+- **Backup** — dibuat dari menu Backup (khusus superuser), tersimpan di volume backup.
+- **Pindahan dari susunan lama** — jalan pertama `./prod.sh` menyalin foto dari kontainer lama
+  ke `migrasi/media/`, lalu `manage.py impor_sqlite` (SQLite lama → PostgreSQL, hanya ke
+  database kosong) dan `manage.py impor_media` (foto → Garage). Aman diulang.
+- **nginx** membagi beban ke tiga replika aplikasi (`app1`, `app2`, `app3`) dan menyajikan
+  `/static/` langsung dari volume bersama.
 
-Development (`./dev.sh`, `manage.py runserver`, the tests) is unchanged: SQLite and `media/`.
-PostgreSQL is only used when `DATABASE_ENGINE=postgresql`, Garage only when `GARAGE_ENDPOINT` is set.
+## VPN (WireGuard)
 
-Production now runs behind nginx, load-balancing across three app replicas (`app1`/`app2`/`app3`)
-and serving `/static/*` directly from a shared volume instead of proxying it to Django. See
-`docs/superpowers/specs/2026-09-22-nginx-load-balancing-design.md` for the full design. nginx
-publishes the host port the single `app` container used to publish directly — nothing about how
-you reach the stack from outside changes.
+Anggota tim tersambung lewat WireGuard. Config tiap anggota (QR code, teks untuk disalin, dan
+berkas unduhan) ada di kolom VPN pada menu Anggota Tim. Jaringan `VPN_SUBNET` (bawaan
+`10.13.0.0/20`) cukup untuk sekitar 4.000 anggota. Akun yang dinonaktifkan tidak bisa login
+walaupun VPN-nya masih tersambung.
+
+## Peran pengguna
+
+| Peran | Yang bisa dilakukan |
+|---|---|
+| Superuser | Semua menu, termasuk Kendaraan, Non Kendaraan, Form Group, Server, Backup, Admin Panel |
+| Admin | Mengelola pengguna dan satuan, laporan, dashboard matranya sendiri |
+| Pimpinan | Melihat dashboard semua matra, laporan, jadwal, servis (tanpa form dan pengaturan) |
+| Pimpinan Ketua Tim | Melihat tim para Ketua Tim yang dipilihnya, dashboard matranya sendiri |
+| Ketua Tim | Mengelola anggota timnya, melihat laporan dan dashboard timnya |
+| Tim Pemeriksaan | Form Pemeriksaan |
+| Tim Perbaikan | Form Perbaikan |
+| Tim Penambahan Data | Form Tambah |
+| Tim Pemeriksaan Rusak/Tidak Layak | Form Rusak/Tidak Layak Pakai |
+
+Akun Pimpinan hanya bisa dibuat, diubah, dan dihapus oleh superuser. Password awal akun baru
+adalah `12345` — minta setiap pengguna menggantinya lewat menu Ganti Password.
+
+Golongan kendaraan: Golongan B, Motor, Kendaraan Diesel, Jeep Diesel, RANPUR, RANTIS, RANSUS,
+RANUM. Form pemeriksaan tersedia untuk semuanya kecuali RANPUR dan RANUM.
+
+## Mengembangkan tanpa Podman
+
+```bash
+uv sync
+./scripts/build-css.sh
+uv run python manage.py migrate
+uv run python manage.py createsuperuser
+uv run python manage.py runserver
+```
+
+Menjalankan test:
+
+```bash
+uv run python manage.py test accounts fleet
+```
+
+Sebagian test lama masih gagal (alur biodata, captcha, menu Tim) dan belum diperbaiki; saat
+mengubah kode, bandingkan daftar test yang gagal sebelum dan sesudahnya.
+
+## Susunan folder
+
+| Folder / berkas | Isi |
+|---|---|
+| `accounts/` | Pengguna dan peran, form pemeriksaan/perbaikan/rusak, laporan, dashboard, VPN, backup |
+| `fleet/` | Kendaraan, jadwal, servis, QR code, API |
+| `harwat_main/` | Pengaturan Django, URL, penyimpanan foto |
+| `templates/`, `static/` | Tampilan (HTMX, Alpine.js, Tailwind) |
+| `podman/` | Berkas compose, nginx, PostgreSQL, Garage, WireGuard |
+| `scripts/` | `build-css.sh`, `pasang-komponen.sh` |
+| `docs/` | Catatan rancangan infrastruktur |

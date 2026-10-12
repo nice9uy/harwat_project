@@ -54,6 +54,15 @@ export DJANGO_CSRF_TRUSTED_ORIGINS="${DJANGO_CSRF_TRUSTED_ORIGINS:-}"
 echo "Dev server: http://localhost:8001${LOCAL_IP:+ | http://$LOCAL_IP:8001}"
 echo "Tunnel (HTTPS): set DJANGO_CSRF_TRUSTED_ORIGINS=https://your-tunnel-url before running"
 
+# The Server menu lists the containers through the host's Podman API socket
+# (mounted into the app container by compose.dev.yml). Best effort: without
+# systemd, or if it cannot be started, only that menu's list stays empty.
+if command -v systemctl >/dev/null 2>&1 && ! systemctl --user is-active --quiet podman.socket 2>/dev/null; then
+    systemctl --user enable --now podman.socket >/dev/null 2>&1 \
+        && echo "podman.socket diaktifkan (untuk menu Server)." \
+        || echo "podman.socket tidak bisa diaktifkan — daftar kontainer di menu Server akan kosong."
+fi
+
 # A stack that is still running is stopped first, then started again: dev and
 # prod share service names (postgres/valkey/garage/pgbouncer) from the base
 # compose.yml, so a leftover run would otherwise get reused as-is by `up` —

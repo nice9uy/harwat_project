@@ -66,7 +66,7 @@ class FormGroupTests(TestCase):
         response = self.client.post(self._url("hapus", self.penambah), {"kode": "diesel"})
         self.assertEqual(response["HX-Redirect"], self.url)
         self.client.post(self._url("hapus", self.penambah), {"kode": "B"})
-        self.assertEqual(self._form(self.penambah), ["bermotor", "jeep", "ranpur", "rantis", "non_kendaraan"])
+        self.assertEqual(self._form(self.penambah), ["bermotor", "jeep", "ranpur", "rantis", "ransus", "ranum", "non_kendaraan"])
 
         modal = self.client.get(self._url("tambah", self.penambah))
         self.assertContains(modal, "Tambah Form")
@@ -74,7 +74,7 @@ class FormGroupTests(TestCase):
         self.assertContains(modal, 'name="kode" value="bermotor" checked disabled')
         self.assertContains(self.client.post(self._url("tambah", self.penambah), {}), "Pilih minimal satu form.")
         self.client.post(self._url("tambah", self.penambah), {"kode": ["B"]})
-        self.assertEqual(self._form(self.penambah), ["B", "bermotor", "jeep", "ranpur", "rantis", "non_kendaraan"])
+        self.assertEqual(self._form(self.penambah), ["B", "bermotor", "jeep", "ranpur", "rantis", "ransus", "ranum", "non_kendaraan"])
         lihat = self.client.get(self._url("lihat", self.penambah))
         self.assertContains(lihat, "Motor")
         self.assertNotContains(lihat, "Kendaraan Diesel")
@@ -84,7 +84,7 @@ class FormGroupTests(TestCase):
         self.assertNotIn("diesel", self._form(self.penambah))
         # A member added later starts from the Ketua Tim's forms.
         baru = self._anggota("penambah2", "Tim Penambahan Data")
-        self.assertEqual(self._form(baru), ["B", "bermotor", "jeep", "ranpur", "rantis", "non_kendaraan"])
+        self.assertEqual(self._form(baru), ["B", "bermotor", "jeep", "ranpur", "rantis", "ransus", "ranum", "non_kendaraan"])
         # Only Tim Penambahan Data members get a row of their own.
         self.assertFalse(AksesFormTambah.objects.filter(user=self.pemeriksa).exists())
         self.client.post(self._url("tambah", self.ketua_user), {"kode": ["diesel"]})

@@ -177,6 +177,8 @@ FORM_TAMBAH = [
     ("jeep", "Jeep Diesel"),
     ("ranpur", "RANPUR"),
     ("rantis", "RANTIS"),
+    ("ransus", "RANSUS"),
+    ("ranum", "RANUM"),
     ("non_kendaraan", "Non Kendaraan"),
 ]
 

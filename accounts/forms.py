@@ -16,6 +16,7 @@ from .models import (
     PemeriksaanBermotor,
     PemeriksaanDiesel,
     PemeriksaanJeepDiesel,
+    PemeriksaanRansus,
     PemeriksaanRantis,
     PemeriksaanGolonganB,
     Satuan,
@@ -679,6 +680,17 @@ class PemeriksaanRantisForm(PemeriksaanDieselForm):
 
     class Meta(PemeriksaanDieselForm.Meta):
         model = PemeriksaanRantis
+
+
+class PemeriksaanRansusForm(PemeriksaanDieselForm):
+    """Same fields and columns as Kendaraan Diesel, with the RANSUS equipment."""
+
+    golongan = Vehicle.GroupKendaraan.RANSUS
+    alat = checklist.KOMPONEN_RANSUS_BERNOMOR
+    kondisi = checklist.KONDISI_RANSUS
+
+    class Meta(PemeriksaanDieselForm.Meta):
+        model = PemeriksaanRansus
 
 
 class SatuanForm(forms.ModelForm):

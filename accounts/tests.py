@@ -751,7 +751,7 @@ class PemeriksaanCaptchaCheckTests(TestCase):
         self.assertRegex(response.content.decode(), r'<button type="button" @click="kirim\(\)"[^>]*>Konfirmasi &amp; Kirim</button>')
         # Only the scanned group's checklist is loaded, after the scan.
         self.assertContains(response, 'id="checklist"')
-        self.assertContains(response, "golonganDenganForm: ['B', 'bermotor', 'diesel', 'jeep', 'rantis']")
+        self.assertContains(response, "golonganDenganForm: ['B', 'bermotor', 'diesel', 'jeep', 'rantis', 'ransus']")
         self.assertNotContains(response, 'name="alat_1_kondisi"')
         self.assertContains(response, "belum tersedia.")
 

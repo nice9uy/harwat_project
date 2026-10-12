@@ -14,6 +14,7 @@ from .forms import (
     PemeriksaanDieselForm,
     PemeriksaanGolonganBForm,
     PemeriksaanJeepDieselForm,
+    PemeriksaanRansusForm,
     PemeriksaanRantisForm,
 )
 from .models import (
@@ -22,14 +23,17 @@ from .models import (
     PemeriksaanDiesel,
     PemeriksaanDieselItem,
     PemeriksaanJeepDiesel,
+    PemeriksaanRansus,
     PemeriksaanRantis,
     PemeriksaanJeepDieselItem,
+    PemeriksaanRansusItem,
     PemeriksaanRantisItem,
     PemeriksaanGolonganB,
     PemeriksaanGolonganBItem,
     PerbaikanBermotor,
     PerbaikanDiesel,
     PerbaikanJeepDiesel,
+    PerbaikanRansus,
     PerbaikanRantis,
     PerbaikanGolonganB,
 )
@@ -108,6 +112,18 @@ GOLONGAN = {
         template="accounts/_pemeriksaan_diesel.html",
         pakai_satuan=True,
         bab=tuple(checklist.RANTIS_BAB),
+    ),
+    Vehicle.GroupKendaraan.RANSUS: Golongan(
+        form=PemeriksaanRansusForm,
+        pemeriksaan_model=PemeriksaanRansus,
+        item_model=PemeriksaanRansusItem,
+        perbaikan_model=PerbaikanRansus,
+        relasi="pemeriksaan_ransus",
+        kondisi=checklist.KONDISI_RANSUS,
+        pakai_jumlah=False,
+        template="accounts/_pemeriksaan_diesel.html",
+        pakai_satuan=True,
+        bab=tuple(checklist.RANSUS_BAB),
     ),
 }
 

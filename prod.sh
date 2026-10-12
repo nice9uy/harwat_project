@@ -111,14 +111,33 @@ done
 umask 077
 envsubst '${GARAGE_RPC_SECRET}' < podman/garage.toml.template > podman/garage.prod.toml
 
-# Tear down any existing containers for this stack first — same reasoning as
-# dev.sh: dev and prod share service names (postgres/valkey/garage/pgbouncer)
-# from the base compose.yml, so a leftover dev run would otherwise get reused
-# as-is by `up` instead of recreated against this run's config.
-# --remove-orphans also clears the dev-only `app` container.
-podman-compose --env-file "$(pwd)/.env.prod" -f podman/compose.yml -f podman/compose.prod.yml down --remove-orphans
+# A stack that is still running is stopped first, then started again — same
+# reasoning as dev.sh: dev and prod share service names
+# (postgres/valkey/garage/pgbouncer) from the base compose.yml, so a leftover
+# dev run would otherwise get reused as-is by `up` instead of recreated
+# against this run's config. --remove-orphans also clears the dev-only `app`
+# container. Only this stack's containers are touched (podman-compose names
+# the project after the first -f file's directory); the volumes, and so the
+# database, the photos and the backups, stay.
+PROYEK=podman
+BERJALAN="$(podman ps --filter "label=io.podman.compose.project=${PROYEK}" --format '{{.Names}}' | tr '\n' ' ')"
+if [ -n "${BERJALAN// /}" ]; then
+    echo "Kontainer yang sedang berjalan dimatikan dulu: ${BERJALAN}"
+else
+    echo "Tidak ada kontainer yang sedang berjalan."
+fi
+"${KOMPOS[@]}" down --remove-orphans
+# What `down` left behind (a container from an older compose file it no
+# longer knows, or one stuck stopping) would still hold its name and port.
+SISA="$(podman ps -a --filter "label=io.podman.compose.project=${PROYEK}" --format '{{.Names}}' | tr '\n' ' ')"
+if [ -n "${SISA// /}" ]; then
+    echo "Menghapus kontainer yang tersisa: ${SISA}"
+    # shellcheck disable=SC2086
+    podman rm -f ${SISA} >/dev/null
+fi
 
-podman-compose --env-file "$(pwd)/.env.prod" -f podman/compose.yml -f podman/compose.prod.yml up -d --build
+echo "Membangun image dan menjalankan ulang..."
+"${KOMPOS[@]}" up -d --build
 
 # Idempotent — safe to run on every invocation, not just first-run. Nothing
 # else in this stack ever runs migrations, and db.sqlite3 is schemaless on a
@@ -135,7 +154,7 @@ done
     -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${REPLIKASI_USER}') THEN CREATE ROLE \"${REPLIKASI_USER}\" WITH REPLICATION LOGIN; END IF; END \$\$;" \
     -c "ALTER ROLE \"${REPLIKASI_USER}\" WITH REPLICATION LOGIN PASSWORD '${REPLIKASI_PASSWORD}';"
 
-podman-compose --env-file "$(pwd)/.env.prod" -f podman/compose.yml -f podman/compose.prod.yml exec -T app1 python manage.py migrate --noinput
+"${KOMPOS[@]}" exec -T app1 python manage.py migrate --noinput
 # The WireGuard server's config, from the peers now in the database.
 "${KOMPOS[@]}" exec -T app1 python manage.py vpn_server_conf
 # Kodam, Korem, Kodim and Koramil for Pengaturan > Satuan; skips what is there.
@@ -152,3 +171,9 @@ podman-compose --env-file "$(pwd)/.env.prod" -f podman/compose.yml -f podman/com
 echo "Replica yang tersambung ke primary (seharusnya 2 baris 'streaming'):"
 "${KOMPOS[@]}" exec -T postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -Atc \
     "select application_name, client_addr, state from pg_stat_replication" || true
+
+echo
+echo "Kontainer yang berjalan:"
+podman ps --filter "label=io.podman.compose.project=${PROYEK}" --format '  {{.Names}}  {{.Status}}'
+ALAMAT_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+echo "Selesai. Aplikasi: http://localhost:8000${ALAMAT_IP:+ | http://$ALAMAT_IP:8000}"

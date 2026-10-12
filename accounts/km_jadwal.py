@@ -27,6 +27,7 @@ def bertanda():
         (f"{pemeriksaan.KM_DIESEL} (Kendaraan Diesel)", "Kendaraan Diesel", pemeriksaan.KM_DIESEL),
         (f"{pemeriksaan.KM_DIESEL} (Jeep Diesel)", "Jeep Diesel", pemeriksaan.KM_DIESEL),
         (f"{pemeriksaan.KM_DIESEL} (RANTIS)", "RANTIS", pemeriksaan.KM_DIESEL),
+        (f"{pemeriksaan.KM_DIESEL} (RANSUS)", "RANSUS", pemeriksaan.KM_DIESEL),
     ]
     hasil += [
         (nama, "Motor", f"{nomor}. {nama}")
@@ -92,6 +93,7 @@ KM_GOLONGAN = {
     Vehicle.GroupKendaraan.KENDARAAN_DIESEL: (f"{pemeriksaan.KM_DIESEL} (Kendaraan Diesel)", "km_mil"),
     Vehicle.GroupKendaraan.JEEP_DIESEL: (f"{pemeriksaan.KM_DIESEL} (Jeep Diesel)", "km_mil"),
     Vehicle.GroupKendaraan.RANTIS: (f"{pemeriksaan.KM_DIESEL} (RANTIS)", "km_mil"),
+    Vehicle.GroupKendaraan.RANSUS: (f"{pemeriksaan.KM_DIESEL} (RANSUS)", "km_mil"),
 }
 
 

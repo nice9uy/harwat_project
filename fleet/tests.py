@@ -896,7 +896,7 @@ class RanpurRantisTests(TestCase):
         Vehicle.objects.create(nopol="RT 01", merek="Komodo", group_kendaraan="rantis")
         daftar = reverse("fleet:vehicle_list")
         halaman = self.client.get(daftar)
-        for kode, label in (("ranpur", "RANPUR"), ("rantis", "RANTIS")):
+        for kode, label in (("ranpur", "RANPUR"), ("rantis", "RANTIS"), ("ransus", "RANSUS"), ("ranum", "RANUM")):
             self.assertContains(halaman, f'<a href="{daftar}?group={kode}"')
             self.assertContains(halaman, label)
         ranpur = self.client.get(daftar, {"group": "ranpur"})

@@ -15,14 +15,14 @@ class KmJadwalTests(TestCase):
     def test_tab_lists_the_marked_parts(self):
         response = self.client.get(self.url)
         self.assertContains(response, "tab = 'km'")
-        for nama in ("KM Kendaraan", "Golongan B", "Km / Mil", "Kendaraan Diesel", "Jeep Diesel", "RANTIS", "Oli Mesin", "Oli Persneling / Transmisi", "Oli Gardan"):
+        for nama in ("KM Kendaraan", "Golongan B", "Km / Mil", "Kendaraan Diesel", "Jeep Diesel", "RANTIS", "RANSUS", "Oli Mesin", "Oli Persneling / Transmisi", "Oli Gardan"):
             self.assertContains(response, nama)
-        self.assertContains(response, "Belum diatur", count=16)
-        self.assertEqual(KmJadwal.objects.count(), 8)
+        self.assertContains(response, "Belum diatur", count=18)
+        self.assertEqual(KmJadwal.objects.count(), 9)
         # A row that went missing is made again; ?tab=km opens the tab.
         KmJadwal.objects.filter(komponen="Oli Gardan").delete()
         self.assertContains(self.client.get(self.url, {"tab": "km"}), "tab: 'km'")
-        self.assertEqual(KmJadwal.objects.count(), 8)
+        self.assertEqual(KmJadwal.objects.count(), 9)
 
     def test_edit_interval(self):
         self.client.get(self.url)

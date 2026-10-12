@@ -22,6 +22,10 @@ class Vehicle(models.Model):
         # others. RANTIS has an inspection form, RANPUR none yet (accounts.golongan).
         RANPUR = "ranpur", "RANPUR"
         RANTIS = "rantis", "RANTIS"
+        # Kendaraan khusus and kendaraan umum: listed and added like the
+        # others. RANSUS has an inspection form (its equipment list), RANUM none yet.
+        RANSUS = "ransus", "RANSUS"
+        RANUM = "ranum", "RANUM"
 
     class Status(models.TextChoices):
         SIAP_PAKAI = "siap_pakai", "Siap Pakai"
