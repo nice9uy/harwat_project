@@ -82,7 +82,7 @@ services:
       - static-data:/shared
 
   nginx:
-    image: nginx:1.27-alpine
+    image: docker.io/library/nginx:1.27-alpine
     volumes:
       - ../podman/nginx.conf:/etc/nginx/nginx.conf:ro
       - static-data:/usr/share/nginx/static:ro
@@ -108,7 +108,7 @@ services:
   # Two read-only hot standbys following the primary by streaming replication,
   # each on a volume of its own. They copy the primary on their first start.
   postgres-replica1:
-    image: postgres:17-alpine
+    image: docker.io/library/postgres:17-alpine
     environment: &replica-env
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       REPLIKASI_USER: ${REPLIKASI_USER}
@@ -123,7 +123,7 @@ services:
     restart: unless-stopped
 
   postgres-replica2:
-    image: postgres:17-alpine
+    image: docker.io/library/postgres:17-alpine
     environment: *replica-env
     command: ["sh", "/skrip/replica.sh"]
     volumes:

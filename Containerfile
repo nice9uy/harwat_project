@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.14-slim AS builder
+FROM docker.io/library/python:3.14-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.17 /uv /uvx /bin/
 
@@ -14,7 +14,7 @@ ENV PATH="/app/.venv/bin:${PATH}"
 COPY . .
 
 
-FROM python:3.14-slim AS final
+FROM docker.io/library/python:3.14-slim AS final
 
 RUN groupadd --system app && useradd --system --gid app --home /app --create-home app
 

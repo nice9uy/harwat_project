@@ -280,39 +280,88 @@ def jadwal_hapus(request, uid):
     return _catatan_hapus(request, "jadwal", uid)
 
 
-def _servis_dan_perbaikan():
-    """The Servis table's rows, newest first: the services recorded here and
-    the repairs saved in Form Perbaikan (one row per repaired part). A repair
-    that left the part Rusak (RB) is not a service: it shows under Rusak/Tidak
-    Bisa Diperbaiki instead."""
+def _kunci_servis(f):
+    """The Servis table's rows as light keys, newest first: (date, time,
+    source, pk), ``source`` being "" for a service recorded here or the
+    vehicle group of a repair saved in Form Perbaikan (one row per repaired
+    part). A repair that left the part Rusak (RB) is not a service: it shows
+    under Rusak/Tidak Bisa Diperbaiki instead. ``f`` (_filter_servis) is
+    applied in the database, and only the keys are read: the rows themselves
+    are loaded for the page shown (_baris_servis), not for the whole table."""
+    import datetime
+
     from accounts.golongan import GOLONGAN  # accounts depends on fleet, not the other way round
 
-    baris = [
-        {
-            "tanggal": s.tanggal, "waktu": s.dibuat_pada, "vehicle": s.vehicle, "jenis_servis": s.jenis_servis,
-            "bengkel": s.bengkel, "keterangan": s.keterangan, "servis": s, "form_no": "", "kondisi": "",
-        }
-        for s in Servis.objects.select_related("vehicle__penambah__satuan")
-    ]
-    for cfg in GOLONGAN.values():
+    kunci = []
+    # A service recorded here has no condition: a Kondisi filter leaves the repairs only.
+    if not f["kondisi"]:
+        qs = Servis.objects.all()
+        if f["dari"]:
+            qs = qs.filter(tanggal__gte=f["dari"])
+        if f["sampai"]:
+            qs = qs.filter(tanggal__lte=f["sampai"])
+        if f["nopol"]:
+            qs = qs.filter(vehicle__nopol__icontains=f["nopol"])
+        kunci += [(tanggal, waktu, "", pk) for tanggal, waktu, pk in qs.values_list("tanggal", "dibuat_pada", "pk")]
+
+    def awal_hari(tanggal):
+        return timezone.make_aware(datetime.datetime.combine(tanggal, datetime.time.min))
+
+    for kode, cfg in GOLONGAN.items():
+        qs = cfg.perbaikan_model.objects.exclude(kondisi="RB")
+        if f["kondisi"]:
+            qs = qs.filter(kondisi=f["kondisi"])
+        if f["dari"]:
+            qs = qs.filter(dibuat_pada__gte=awal_hari(f["dari"]))
+        if f["sampai"]:
+            qs = qs.filter(dibuat_pada__lt=awal_hari(f["sampai"] + datetime.timedelta(days=1)))
+        if f["nopol"]:
+            qs = qs.filter(item__pemeriksaan__vehicle__nopol__icontains=f["nopol"])
+        kunci += [
+            (timezone.localtime(waktu).date(), waktu, str(kode), pk) for waktu, pk in qs.values_list("dibuat_pada", "pk")
+        ]
+    kunci.sort(key=lambda k: (k[0], k[1]), reverse=True)
+    return kunci
+
+
+def _baris_servis(kunci):
+    """The full rows of ``kunci`` (from _kunci_servis), in that order."""
+    from accounts.golongan import GOLONGAN  # accounts depends on fleet, not the other way round
+
+    per_sumber = {}
+    for _, _, sumber, pk in kunci:
+        per_sumber.setdefault(sumber, []).append(pk)
+    baris = {}
+    for sumber, pks in per_sumber.items():
+        if sumber == "":
+            for s in Servis.objects.filter(pk__in=pks).select_related("vehicle__penambah__satuan"):
+                baris[sumber, s.pk] = {
+                    "tanggal": s.tanggal, "waktu": s.dibuat_pada, "vehicle": s.vehicle, "jenis_servis": s.jenis_servis,
+                    "bengkel": s.bengkel, "keterangan": s.keterangan, "servis": s, "form_no": "", "kondisi": "",
+                }
+            continue
         for p in (
-            cfg.perbaikan_model.objects.exclude(kondisi="RB")
+            GOLONGAN[sumber].perbaikan_model.objects.filter(pk__in=pks)
             .select_related("teknisi", "item__pemeriksaan__vehicle__penambah__satuan")
         ):
-            waktu = timezone.localtime(p.dibuat_pada)
-            baris.append({
-                "tanggal": waktu.date(), "waktu": p.dibuat_pada, "vehicle": p.item.pemeriksaan.vehicle,
+            baris[sumber, p.pk] = {
+                "tanggal": timezone.localtime(p.dibuat_pada).date(), "waktu": p.dibuat_pada,
+                "vehicle": p.item.pemeriksaan.vehicle,
                 "form_no": p.item.nomor, "jenis_servis": f"Perbaikan {p.item.nama_alat}", "kondisi": p.kondisi,
                 "teknisi": p.teknisi.nama,
                 "keterangan": " · ".join(filter(None, [f"Kondisi: {p.get_kondisi_display()}", p.keterangan])),
                 "servis": None,
-            })
-    for b in baris:
+            }
+    hasil = []
+    for _, _, sumber, pk in kunci:
+        b = baris.get((sumber, pk))
+        if b is None:  # deleted between the two reads
+            continue
         # The vehicle's unit: that of the member who added it.
         penambah = b["vehicle"].penambah
         b["satuan"] = penambah.satuan.nama if penambah and penambah.satuan else ""
-    baris.sort(key=lambda b: (b["tanggal"], b["waktu"]), reverse=True)
-    return baris
+        hasil.append(b)
+    return hasil
 
 
 # The Kondisi filter of the Servis table: what a repair left the part as
@@ -333,25 +382,16 @@ def _filter_servis(request):
     }
 
 
-def _saring_servis(baris, f):
-    nopol = f["nopol"].lower()
-    return [
-        b for b in baris
-        if not (f["dari"] and b["tanggal"] < f["dari"])
-        and not (f["sampai"] and b["tanggal"] > f["sampai"])
-        and (not nopol or nopol in b["vehicle"].nopol.lower())
-        # A service recorded here has no condition: a Kondisi filter leaves the repairs only.
-        and (not f["kondisi"] or b["kondisi"] == f["kondisi"])
-    ]
-
-
 @login_required
 def servis_list(request):
     f = _filter_servis(request)
     query = request.GET.copy()
     query.pop("page", None)
+    # Paged over the keys; only the page shown is loaded in full.
+    page = halaman(request, _kunci_servis(f))
+    page.object_list = _baris_servis(page.object_list)
     return render(request, "fleet/servis_list.html", {
-        "servis_list": halaman(request, _saring_servis(_servis_dan_perbaikan(), f)),
+        "servis_list": page,
         "f": f, "kondisi_pilihan": KONDISI_SERVIS, "query": query.urlencode(),
     })
 
@@ -367,7 +407,7 @@ def servis_export(request):
             b["bengkel"] if b["servis"] else f"Teknisi: {b['teknisi']}", b["keterangan"],
             "Servis" if b["servis"] else "Form Perbaikan",
         ]
-        for b in _saring_servis(_servis_dan_perbaikan(), _filter_servis(request))
+        for b in _baris_servis(_kunci_servis(_filter_servis(request)))
     ]
     return _excel(
         "Servis", ["Tanggal", "No. Registrasi", "Merk/Type", "Satuan", "Form No", "Jenis Servis", "Bengkel / Tempat", "Keterangan", "Sumber"],

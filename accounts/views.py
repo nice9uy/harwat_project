@@ -102,6 +102,13 @@ def _dashboard_context(request):
 
 @login_required
 def dashboard_view(request):
+    # The page's sections ask for the same numbers several times: each is
+    # worked out once (dashboard.sekali).
+    with dashboard.sekali():
+        return _dashboard_halaman(request)
+
+
+def _dashboard_halaman(request):
     # The Grafik tab and the per-Satuan section are only in the full page;
     # the 10 s refresh swaps just the summary.
     grafik = dashboard.grafik(_cakupan_dashboard(request))
@@ -561,7 +568,8 @@ def anggota_tim_aktif_view(request, user_uid):
 
 @login_required
 def dashboard_partial(request):
-    return render(request, "accounts/_dashboard_content.html", _dashboard_context(request))
+    with dashboard.sekali():
+        return render(request, "accounts/_dashboard_content.html", _dashboard_context(request))
 
 
 def password_reset_placeholder(request):

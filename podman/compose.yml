@@ -1,6 +1,9 @@
+# Image names are spelled out with their registry (docker.io/...): a machine
+# whose /etc/containers/registries.conf lists no unqualified-search registry
+# refuses short names like "postgres:17-alpine" and starts nothing.
 services:
   postgres:
-    image: postgres:17-alpine
+    image: docker.io/library/postgres:17-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-bmn_harwat}
       POSTGRES_USER: ${POSTGRES_USER:-bmn_harwat}
@@ -10,7 +13,7 @@ services:
     restart: unless-stopped
 
   pgbouncer:
-    image: edoburu/pgbouncer
+    image: docker.io/edoburu/pgbouncer
     environment:
       DB_HOST: postgres
       DB_USER: ${POSTGRES_USER:-bmn_harwat}
@@ -25,14 +28,14 @@ services:
     restart: unless-stopped
 
   valkey:
-    image: valkey/valkey:8-alpine
+    image: docker.io/valkey/valkey:8-alpine
     command: ["valkey-server", "--appendonly", "yes"]
     volumes:
       - valkey-data:/data
     restart: unless-stopped
 
   garage:
-    image: dxflrs/garage:v2.3.0
+    image: docker.io/dxflrs/garage:v2.3.0
     ports:
       - "3900:3900"
       - "3901:3901"

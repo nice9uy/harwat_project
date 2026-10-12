@@ -145,8 +145,21 @@ echo "Membangun image dan menjalankan ulang..."
 # The primary may have been created before replication existed (its init
 # script only runs on an empty data directory): make sure the role the
 # replicas use is there, with the current password. Safe to repeat.
+# A container that could not be made (an image that would not pull, a port
+# already taken) must stop the run here, not leave it waiting for good.
+if ! podman container exists "${PROYEK}_postgres_1" || ! podman container exists "${PROYEK}_app1_1"; then
+    echo "Kontainer tidak terbentuk semua — lihat galat 'podman run' di atas. Yang ada:" >&2
+    podman ps -a --filter "label=io.podman.compose.project=${PROYEK}" --format '  {{.Names}}  {{.Status}}' >&2
+    exit 1
+fi
 echo "Menunggu PostgreSQL primary..."
+TUNGGU=0
 until "${KOMPOS[@]}" exec -T postgres pg_isready -q -U "${POSTGRES_USER}" -d "${POSTGRES_DB}"; do
+    TUNGGU=$((TUNGGU + 2))
+    if [ "$TUNGGU" -ge 180 ]; then
+        echo "PostgreSQL belum siap setelah 3 menit — lihat 'podman logs ${PROYEK}_postgres_1'." >&2
+        exit 1
+    fi
     sleep 2
 done
 # (Passed with -c: the role name and password are generated here, hex only.)
@@ -155,7 +168,11 @@ done
     -c "ALTER ROLE \"${REPLIKASI_USER}\" WITH REPLICATION LOGIN PASSWORD '${REPLIKASI_PASSWORD}';"
 
 "${KOMPOS[@]}" exec -T app1 python manage.py migrate --noinput
-# The WireGuard server's config, from the peers now in the database.
+# The WireGuard server's config, from the peers now in the database. The
+# volume it is written to belongs to whichever container mounted it first:
+# when that was the wireguard one it is root's, and the app (user "app")
+# could not write there.
+podman exec -u 0 "${PROYEK}_app1_1" chown app:app /vpn
 "${KOMPOS[@]}" exec -T app1 python manage.py vpn_server_conf
 # Kodam, Korem, Kodim and Koramil for Pengaturan > Satuan; skips what is there.
 "${KOMPOS[@]}" exec -T app1 python manage.py impor_satuan

@@ -3,6 +3,9 @@
 Every function takes ``users``: the user pks whose work the viewer may see
 (see cakupan()), or None for everything.
 """
+import contextlib
+import contextvars
+import functools
 from datetime import datetime, timedelta
 
 from django.core.exceptions import ValidationError
@@ -20,6 +23,51 @@ KENDARAAN_KODE = list(Vehicle.GroupKendaraan.values)
 NON_KENDARAAN_KODE = []
 
 
+# One page asks the same thing several times over (the vehicles due a
+# service, a group's summary, a matra's users): inside sekali() each answer
+# is worked out once and reused. Outside it nothing is remembered.
+_INGATAN = contextvars.ContextVar("dashboard_ingatan", default=None)
+
+
+@contextlib.contextmanager
+def sekali():
+    """For the length of one request: the functions marked @_ingat answer a
+    repeated question from memory."""
+    token = _INGATAN.set({})
+    try:
+        yield
+    finally:
+        _INGATAN.reset(token)
+
+
+def _kunci(nilai):
+    """A hashable stand-in for an argument: sets and lists by content, a
+    user by pk, anything unhashable (a golongan config) by identity."""
+    if nilai is None or isinstance(nilai, (str, int, bool)):
+        return nilai
+    if isinstance(nilai, (set, frozenset)):
+        return frozenset(nilai)
+    if isinstance(nilai, (list, tuple)):
+        return tuple(_kunci(n) for n in nilai)
+    if hasattr(nilai, "pk"):
+        return (type(nilai).__name__, nilai.pk)
+    return id(nilai)
+
+
+def _ingat(fungsi):
+    @functools.wraps(fungsi)
+    def pembungkus(*args):
+        ingatan = _INGATAN.get()
+        if ingatan is None:
+            return fungsi(*args)
+        kunci = (fungsi.__name__, *(_kunci(a) for a in args))
+        if kunci not in ingatan:
+            ingatan[kunci] = fungsi(*args)
+        return ingatan[kunci]
+    return pembungkus
+
+
+@_ingat
 def cakupan(user):
     """User pks whose work ``user`` sees on the dashboard: themselves and
     everyone under them (Admin > Ketua Tim > Tim; a Pimpinan Tim's are the
@@ -44,6 +92,7 @@ def cakupan(user):
     return users
 
 
+@_ingat
 def pengguna_matra(matra):
     """User pks of one matra: the users with it, plus the Ketua Tim and Tim
     members made before a matra was asked of them, who follow the one above
@@ -63,6 +112,7 @@ def pengguna_matra(matra):
     return users
 
 
+@_ingat
 def cakupan_matra(user, matra):
     """cakupan() narrowed to one matra's users ("" for no narrowing)."""
     users = cakupan(user)
@@ -86,14 +136,20 @@ def _kendaraan(users):
 SEDANG_MAKS = 10
 
 
+@_ingat
 def _perlu_servis(kodes, users):
     """{vehicle pk: reason} of the vehicles in scope that are due a service (km_jadwal.perlu_servis)."""
     from .km_jadwal import perlu_servis
 
+    if not kodes:  # Non Kendaraan has no groups yet: nothing to look up
+        return {}
     return perlu_servis(_kendaraan(users).filter(group_kendaraan__in=kodes))
 
 
+@_ingat
 def _fleet_summary_group(kodes, users):
+    if not kodes:
+        return {"service": 0, "total": 0, "ready": 0, "in_repair": 0, "due_soon": 0, "repaired": 0}
     status_counts = dict(
         _kendaraan(users).filter(group_kendaraan__in=kodes).values_list("status").annotate(count=Count("id"))
     )
@@ -214,19 +270,32 @@ def ringkasan_matra(user, kodes):
     one, when there are any."""
     from . import roles
 
-    def rinci(users):
-        r = _fleet_summary_group(kodes, users)
-        return {
-            "total": r["total"], "siap": r["ready"], "ringan": r["due_soon"], "berat": r["in_repair"],
-            "diperbaiki": r["repaired"], "servis": r["service"],
-        }
+    kolom = {
+        Vehicle.Status.SIAP_PAKAI: "siap", Vehicle.Status.PERLU_SERVIS: "ringan",
+        Vehicle.Status.DALAM_PERBAIKAN: "berat", Vehicle.Status.SUDAH_DIPERBAIKI: "diperbaiki",
+    }
 
+    def kosong():
+        return {"total": 0, "siap": 0, "ringan": 0, "berat": 0, "diperbaiki": 0, "servis": 0}
+
+    # One pass over the vehicles in scope: each is counted for the whole and
+    # for the matra of whoever added it (what is due a service worked out once).
     lingkup = cakupan(user)
-    semua = rinci(lingkup)
+    servis = _perlu_servis(kodes, lingkup)
+    per_matra = [(kode, label, cakupan_matra(user, kode), kosong()) for kode, label in roles.MATRA]
+    semua = kosong()
+    kendaraan = _kendaraan(lingkup).filter(group_kendaraan__in=kodes).values_list("pk", "status", "ditambahkan_oleh_id")
+    for pk, status, penambah in kendaraan.iterator():
+        sasaran = [semua] + [r for _, _, anggota, r in per_matra if penambah in anggota]
+        for r in sasaran:
+            r["total"] += 1
+            if status in kolom:
+                r[kolom[status]] += 1
+            if pk in servis:
+                r["servis"] += 1
     sisa = dict(semua)
     baris = []
-    for i, (kode, label) in enumerate(roles.MATRA, start=1):
-        r = rinci(cakupan_matra(user, kode))
+    for i, (kode, label, _, r) in enumerate(per_matra, start=1):
         for kunci in sisa:
             sisa[kunci] -= r[kunci]
         baris.append({"kode": kode, "label": label, "warna": i, **r})
@@ -627,6 +696,7 @@ def _bilangan(n):
     return str(int(n)) if float(n).is_integer() else f"{n:.1f}".replace(".", ",")
 
 
+@_ingat
 def _status_per_satuan(kodes, users):
     """The summary cards' numbers (Siap, Rusak Ringan, Rusak Berat, Sudah
     Diperbaiki, Perlu Servis) for every Satuan with vehicles in scope, the
@@ -669,6 +739,7 @@ def _status_per_satuan(kodes, users):
 SATUAN_GRAFIK_MAKS = 8
 
 
+@_ingat
 def _per_satuan(cfgs, bulan, users):
     """Inspections and repairs of the chart's six months per Satuan (the unit
     of the inspector's / technician's biodata), busiest first: grouped bars
@@ -712,6 +783,7 @@ def _per_satuan(cfgs, bulan, users):
     }
 
 
+@_ingat
 def _grafik_untuk_grup(cfgs, vehicle_kodes, label_bulan, bulan, users):
     pemeriksaan = [0] * 6
     perbaikan = [0] * 6
