@@ -36,6 +36,12 @@ else:
 _csrf_origins = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '')
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_origins.split(',') if o.strip()]
 
+# Behind nginx (production): whether the browser came over HTTPS is in the
+# header nginx sets itself on every request, so a client cannot forge it.
+# Without this an HTTPS form is refused: its Origin (https://...) would be
+# compared with a request Django takes for plain HTTP.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 
 # Application definition
 

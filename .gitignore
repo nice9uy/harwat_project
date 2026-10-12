@@ -38,3 +38,7 @@ podman/garage.prod.toml
 
 # Photos copied out of the old prod containers by prod.sh, on their way to Garage
 /migrasi/
+
+# The HTTPS certificate, its key and the local certificate authority
+# (scripts/siapkan-tls.sh); generated per machine, never committed
+/podman/tls/

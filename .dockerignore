@@ -21,3 +21,6 @@ podman/*.prod.toml
 backup/
 migrasi/
 media/
+
+# The HTTPS key and the certificate authority's key: mounted into nginx, never in the image.
+podman/tls/

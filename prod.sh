@@ -111,6 +111,10 @@ done
 umask 077
 envsubst '${GARAGE_RPC_SECRET}' < podman/garage.toml.template > podman/garage.prod.toml
 
+# The HTTPS certificate nginx serves on port 8443 (mkcert; made again only
+# when this machine's names or addresses changed).
+./scripts/siapkan-tls.sh
+
 # A stack that is still running is stopped first, then started again — same
 # reasoning as dev.sh: dev and prod share service names
 # (postgres/valkey/garage/pgbouncer) from the base compose.yml, so a leftover
@@ -194,3 +198,5 @@ echo "Kontainer yang berjalan:"
 podman ps --filter "label=io.podman.compose.project=${PROYEK}" --format '  {{.Names}}  {{.Status}}'
 ALAMAT_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 echo "Selesai. Aplikasi: http://localhost:8000${ALAMAT_IP:+ | http://$ALAMAT_IP:8000}"
+echo "         HTTPS:    https://localhost:8443${ALAMAT_IP:+ | https://$ALAMAT_IP:8443}"
+echo "         (impor podman/tls/rootCA.pem di browser agar HTTPS tanpa peringatan; unduh: http://${ALAMAT_IP:-localhost}:8000/rootCA.pem)"
