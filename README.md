@@ -17,7 +17,7 @@ Cukup satu perintah. Dijalankan dari folder proyek, di Linux:
 
 | | `./dev.sh` | `./prod.sh` |
 |---|---|---|
-| Alamat | http://localhost:8001 | http://localhost:8000 |
+| Alamat | http://localhost:8001 | http://localhost:8000 dan https://localhost:8443 |
 | Database | SQLite (`db.sqlite3`) | PostgreSQL (1 primary + 2 replica) |
 | Foto | folder `media/` | bucket Garage |
 | Pengaturan | `.env.dev` (disalin dari `.env.dev.example`) | `.env.prod` (dibuat otomatis) |
@@ -65,6 +65,28 @@ PASANG_SIMULASI=1 bash -c 'source scripts/pasang-komponen.sh; pasang_komponen po
   daftar satuan (Kodam, Korem, Kodim, Koramil), dan menghitung ulang status kendaraan.
 - Di akhir, skrip mencetak kontainer yang berjalan dan status replikasi database
   (seharusnya 2 baris `streaming`).
+
+## HTTPS (mkcert)
+
+Produksi melayani HTTP di port 8000 dan HTTPS di port 8443. Sertifikatnya dibuat otomatis oleh
+`./prod.sh` (`scripts/siapkan-tls.sh`) dengan mkcert, untuk `localhost`, nama mesin, dan semua
+alamat IP mesin itu. mkcert diunduh sendiri ke `bin/` bila belum terpasang. Sertifikat dibuat
+ulang hanya bila alamat mesin berubah atau masa berlakunya hampir habis.
+
+Sertifikat ini ditandatangani otoritas lokal, bukan otoritas publik, jadi browser akan memberi
+peringatan sampai otoritas itu diimpor **di tiap perangkat yang membuka aplikasi**:
+
+1. Unduh `http://<alamat-server>:8000/rootCA.pem`.
+2. Impor sebagai otoritas tepercaya:
+   - Chrome/Edge: Settings → Privacy and security → Security → Manage certificates →
+     Authorities → Import, centang "Trust this certificate for identifying websites".
+   - Firefox: Settings → Privacy & Security → Certificates → View Certificates → Authorities → Import.
+   - Android: Settings → Security → Encryption & credentials → Install a certificate → CA certificate.
+   - Windows: klik dua kali berkasnya → Install Certificate → Trusted Root Certification Authorities.
+3. Buka `https://<alamat-server>:8443`.
+
+Nama atau alamat tambahan (mis. domain atau IP publik): `TLS_NAMA="harwat.lan 203.0.113.7" ./prod.sh`.
+Folder `podman/tls/` berisi kunci sertifikat dan kunci otoritas; ia tidak masuk git dan jangan dibagikan.
 
 ## Data produksi
 

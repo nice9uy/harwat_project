@@ -171,6 +171,18 @@ done
     -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${REPLIKASI_USER}') THEN CREATE ROLE \"${REPLIKASI_USER}\" WITH REPLICATION LOGIN; END IF; END \$\$;" \
     -c "ALTER ROLE \"${REPLIKASI_USER}\" WITH REPLICATION LOGIN PASSWORD '${REPLIKASI_PASSWORD}';"
 
+# Right after `up` the containers' names may not resolve yet (the network's
+# DNS starts a moment later): migrating then fails with "failed to resolve
+# host 'pgbouncer'". Wait until the app reaches the database.
+TUNGGU=0
+until "${KOMPOS[@]}" exec -T app1 python -c "import socket; socket.create_connection(('pgbouncer', 5432), 3).close()" 2>/dev/null; do
+    TUNGGU=$((TUNGGU + 2))
+    if [ "$TUNGGU" -ge 120 ]; then
+        echo "Aplikasi belum bisa menjangkau pgbouncer setelah 2 menit — lihat 'podman logs ${PROYEK}_pgbouncer_1'." >&2
+        exit 1
+    fi
+    sleep 2
+done
 "${KOMPOS[@]}" exec -T app1 python manage.py migrate --noinput
 # The WireGuard server's config, from the peers now in the database. The
 # volume it is written to belongs to whichever container mounted it first:
