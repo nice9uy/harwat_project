@@ -612,8 +612,8 @@ class HistoryPerbaikanMenuTests(TestCase):
 
     def test_pages_render(self):
         self.client.login(username="teknisi1", password="rahasia-123")
-        self.assertContains(self.client.get(reverse("accounts:history")), "<title>History — BMN Harwat</title>", html=True)
-        self.assertContains(self.client.get(reverse("accounts:perbaikan")), "<title>Form Perbaikan — BMN Harwat</title>", html=True)
+        self.assertContains(self.client.get(reverse("accounts:history")), "<title>History — Harwat</title>", html=True)
+        self.assertContains(self.client.get(reverse("accounts:perbaikan")), "<title>Form Perbaikan — Harwat</title>", html=True)
 
     def test_perbaikan_has_biodata_and_perbaikan_tabs(self):
         self.client.login(username="teknisi1", password="rahasia-123")

@@ -5,7 +5,7 @@ from accounts.middleware import superuser_only
 
 api = BoltAPI(
     openapi_config=OpenAPIConfig(
-        title="BMN Harwat API",
+        title="Harwat API",
         version="1.0.0",
         path="/api/docs",
         render_plugins=[ScalarRenderPlugin(path="/")],

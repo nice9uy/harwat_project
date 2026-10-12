@@ -3,6 +3,13 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
+# Whatever this script needs and the machine lacks is installed first:
+# podman and podman-compose, curl (the Tailwind build), openssl (the secrets
+# of .env.prod) and envsubst (Garage's config).
+source scripts/pasang-komponen.sh
+pasang_komponen podman podman-compose curl openssl envsubst
+periksa_podman
+
 # podman-compose 1.0.6 resolves relative paths in layered `-f` files against
 # the directory of the FIRST `-f` file (podman/), not the caller's CWD. That's
 # why --env-file below uses an absolute path instead of a bare filename, and
@@ -16,16 +23,6 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 # loudly if this file is absent, so the guard has to happen here instead).
 if [ ! -f static/dist/output.css ]; then
     ./scripts/build-css.sh
-fi
-
-if ! command -v envsubst >/dev/null 2>&1; then
-    echo "envsubst not found (part of gettext) — install it before running prod.sh." >&2
-    exit 1
-fi
-
-if ! command -v openssl >/dev/null 2>&1; then
-    echo "openssl not found — install it before running prod.sh." >&2
-    exit 1
 fi
 
 if [ ! -f .env.prod ]; then

@@ -3,6 +3,13 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
+# Whatever this script needs and the machine lacks is installed first:
+# podman and podman-compose, curl (the Tailwind build), and awk and hostname
+# (the LAN address printed below).
+source scripts/pasang-komponen.sh
+pasang_komponen podman podman-compose curl awk hostname
+periksa_podman
+
 # podman-compose 1.0.6 resolves relative paths in layered `-f` files against
 # the directory of the FIRST `-f` file (podman/), not the caller's CWD. That's
 # why --env-file below uses an absolute path instead of a bare filename, and
