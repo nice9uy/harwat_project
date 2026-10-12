@@ -24,6 +24,13 @@
         var scanner = null;
         return {
             start: async function (elementId, onText) {
+                // Browsers hand out the camera to secure pages only (HTTPS or
+                // localhost): over plain HTTP the library can only say
+                // "Camera streaming not supported by the browser".
+                if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw 'halaman ini dibuka lewat HTTP. Kamera hanya bisa dipakai lewat HTTPS — buka '
+                        + 'https://' + location.hostname + ':8443' + location.pathname + ' (port HTTPS aplikasi).';
+                }
                 await loadLib(libSrc);
                 scanner = new window.Html5Qrcode(elementId);
                 await scanner.start(
