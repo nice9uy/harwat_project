@@ -16,4 +16,4 @@ if [ ! -s "$PGDATA/PG_VERSION" ]; then
     done
     echo "replica: salinan awal dari primary selesai"
 fi
-exec docker-entrypoint.sh postgres -c hot_standby=on
+exec docker-entrypoint.sh postgres -c hot_standby=on -c shared_buffers="${PG_REPLICA_BUFFERS_MB:-128}MB"

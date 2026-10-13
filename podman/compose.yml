@@ -23,6 +23,10 @@ services:
       # PostgreSQL 17 stores SCRAM passwords; the image's default (md5) can't
       # log in to it ("server login failed: wrong password type").
       AUTH_TYPE: scram-sha-256
+      # How many app connections it accepts and how many it keeps open to
+      # PostgreSQL (well under PostgreSQL's 100); sized by prod.sh in production.
+      MAX_CLIENT_CONN: ${PGBOUNCER_KLIEN:-200}
+      DEFAULT_POOL_SIZE: ${PGBOUNCER_POOL:-20}
     depends_on:
       - postgres
     restart: unless-stopped

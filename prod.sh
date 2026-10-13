@@ -32,7 +32,9 @@ if [ ! -f .env.prod ]; then
     {
         echo "DJANGO_DEBUG=False"
         echo "DJANGO_SECRET_KEY=$(openssl rand -hex 32)"
-        echo "DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1"
+        # localhost plus this machine's name and addresses, so the app can be
+        # opened by them straight away; add a domain or public address by hand.
+        echo "DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1$(printf ',%s' $(hostname 2>/dev/null) $(hostname -I 2>/dev/null))"
         echo "POSTGRES_DB=bmn_harwat"
         echo "POSTGRES_USER=bmn_harwat"
         echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
@@ -77,6 +79,26 @@ tambah_env GARAGE_SECRET_KEY "${GARAGE_DEFAULT_SECRET_KEY}"
 # The SQLite file of the old setup (kept on its volume), and where backups go.
 tambah_env SQLITE_LAMA /app/data/db.sqlite3
 tambah_env BACKUP_DIR /app/backup
+# Sizing, from this machine's cores and memory. Written once: to size again
+# (after moving to another machine, or adding cores or memory) delete these
+# lines from .env.prod and run this script again; edit them to tune by hand.
+INTI=$(nproc)
+RAM_MB=$(awk '/MemTotal/ {print int($2 / 1024)}' /proc/meminfo)
+antara() { local n=$1; [ "$n" -lt "$2" ] && n=$2; [ "$n" -gt "$3" ] && n=$3; echo "$n"; }
+# App: about 1.5 worker processes per core over the three app containers.
+tambah_env APP_PROSES "$(antara $(( (INTI * 3 / 2 + 2) / 3 )) 1 16)"
+# PostgreSQL primary: a quarter of the memory as its own cache (at most 8 GB),
+# half as what the system caches for it; parallel workers on half the cores.
+tambah_env PG_SHARED_BUFFERS_MB "$(antara $(( RAM_MB / 4 )) 128 8192)"
+tambah_env PG_EFFECTIVE_CACHE_MB "$(antara $(( RAM_MB / 2 )) 256 65536)"
+tambah_env PG_WORK_MEM_MB "$(antara $(( RAM_MB / 2048 )) 4 32)"
+tambah_env PG_MAINTENANCE_MB "$(antara $(( RAM_MB / 16 )) 64 1024)"
+tambah_env PG_PARALEL "$(antara $(( INTI / 2 )) 1 8)"
+tambah_env PG_REPLICA_BUFFERS_MB "$(antara $(( RAM_MB / 32 )) 128 1024)"
+# PgBouncer: connections kept open to PostgreSQL, and app connections accepted.
+tambah_env PGBOUNCER_POOL "$(antara $(( INTI * 10 )) 20 80)"
+tambah_env PGBOUNCER_KLIEN 1000
+
 # WireGuard: the server's key (the app derives the public one and writes
 # wg0.conf into the volume shared with the wireguard container) and the
 # network the peers get their addresses from, a /20 for up to 4093 peers.
@@ -119,6 +141,19 @@ envsubst '${GARAGE_RPC_SECRET}' < podman/garage.toml.template > podman/garage.pr
 ALAMAT_VPN="${VPN_SUBNET%%/*}"
 ALAMAT_VPN="${ALAMAT_VPN%.*}.$(( ${ALAMAT_VPN##*.} + 1 ))"
 TLS_NAMA="${TLS_NAMA:-} ${ALAMAT_VPN}" ./scripts/siapkan-tls.sh
+
+# Rootless containers stop when their user logs out and do not come back
+# after a reboot unless the user "lingers" and podman's restart service is
+# on. Best effort (lingering may need the administrator): without it the
+# stack has to be started again by hand after a reboot.
+if command -v loginctl >/dev/null 2>&1; then
+    if [ "$(loginctl show-user "$(id -un)" -p Linger 2>/dev/null)" != "Linger=yes" ]; then
+        loginctl enable-linger "$(id -un)" >/dev/null 2>&1 \
+            && echo "Linger diaktifkan: kontainer tetap hidup setelah logout." \
+            || echo "PERHATIAN: linger belum aktif — jalankan 'sudo loginctl enable-linger $(id -un)' agar kontainer tetap hidup setelah logout/reboot."
+    fi
+    systemctl --user enable podman-restart.service >/dev/null 2>&1 || true
+fi
 
 # A stack that is still running is stopped first, then started again — same
 # reasoning as dev.sh: dev and prod share service names
