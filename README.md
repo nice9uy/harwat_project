@@ -135,7 +135,7 @@ Folder `podman/tls/` berisi kunci sertifikat dan kunci otoritas; ia tidak masuk 
 
 Anggota tim tersambung lewat WireGuard. Config tiap anggota (QR code, teks untuk disalin, dan
 berkas unduhan) ada di kolom VPN pada menu Anggota Tim. Jaringan `VPN_SUBNET` (bawaan
-`10.13.0.0/20`) cukup untuk sekitar 4.000 anggota. Akun yang dinonaktifkan tidak bisa login
+`10.13.0.0/19`) cukup untuk 8.189 anggota, jadi 4.096 pengguna tertampung. Akun yang dinonaktifkan tidak bisa login
 walaupun VPN-nya masih tersambung.
 
 ## Peran pengguna

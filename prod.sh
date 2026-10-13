@@ -101,10 +101,11 @@ tambah_env PGBOUNCER_KLIEN 1000
 
 # WireGuard: the server's key (the app derives the public one and writes
 # wg0.conf into the volume shared with the wireguard container) and the
-# network the peers get their addresses from, a /20 for up to 4093 peers.
+# network the peers get their addresses from, a /19: up to 8189 peers, so the
+# 4096 members asked for fit (a /20 holds 4093).
 tambah_env VPN_SERVER_PRIVKEY "$(openssl rand -base64 32)"
 tambah_env VPN_CONF_DIR /vpn
-tambah_env VPN_SUBNET 10.13.0.0/20
+tambah_env VPN_SUBNET 10.13.0.0/19
 tambah_env VPN_PORT 51820
 if ! grep -q "^VPN_SERVER_ENDPOINT=." .env.prod; then
     echo "PERHATIAN: isi VPN_SERVER_ENDPOINT=<ip-publik>:51820 di .env.prod, tanpa itu config peer tidak bisa dipakai."

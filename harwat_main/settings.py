@@ -249,11 +249,12 @@ VPN_DNS = os.environ.get("VPN_DNS", "")
 # What a member's device sends through the tunnel. Unset: the VPN network
 # only (VPN_SUBNET, below), so the app is reached through it and the rest of
 # the device's traffic stays off this server. "0.0.0.0/0, ::/0" sends everything.
-VPN_ALLOWED_IPS = os.environ.get("VPN_ALLOWED_IPS", "") or os.environ.get("VPN_SUBNET", "10.13.0.0/20")
+VPN_ALLOWED_IPS = os.environ.get("VPN_ALLOWED_IPS", "") or os.environ.get("VPN_SUBNET", "10.13.0.0/19")
 # The network the peers get their addresses from: the first host is the
-# server, the rest go to the peers one by one. A /20 holds 4094 addresses,
-# so 4093 peers; widen the prefix for more (a /19 holds 8190).
-VPN_SUBNET = os.environ.get("VPN_SUBNET", "10.13.0.0/20")
+# server, the rest go to the peers one by one. A /19 holds 8190 addresses,
+# so 8189 peers: room for the 4096 members asked for and for the addresses
+# of deleted accounts' successors (a /20 stops at 4093, three short).
+VPN_SUBNET = os.environ.get("VPN_SUBNET", "10.13.0.0/19")
 VPN_PORT = int(os.environ.get("VPN_PORT", "51820"))
 # Members on the VPN open the app at the server's VPN address (the wireguard
 # container forwards it to nginx): that host name has to be allowed too.
