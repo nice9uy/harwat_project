@@ -6,7 +6,10 @@
 # imported there; until then it warns, but the connection is encrypted.
 #
 #     ./scripts/siapkan-tls.sh                    # localhost + this machine's addresses
-#     TLS_NAMA="harwat.lan 203.0.113.7" ./scripts/siapkan-tls.sh   # plus these
+#     TLS_NAMA="harwat.lan,203.0.113.7" ./scripts/siapkan-tls.sh   # plus these
+#
+# (separated by commas or spaces; in .env.prod use commas, a line with a space
+# in it is not a valid setting there)
 #
 # Run by prod.sh on every start: the certificate is made again only when the
 # list of names changed or it is close to expiring. mkcert is downloaded to
@@ -22,7 +25,7 @@ umask 077
 mkdir -p "$DIR/ca"
 
 # Every name the site is opened by: localhost, the host name, each address.
-NAMA="localhost 127.0.0.1 ::1 $(hostname 2>/dev/null || true) $(hostname -I 2>/dev/null || true) ${TLS_NAMA:-}"
+NAMA="localhost 127.0.0.1 ::1 $(hostname 2>/dev/null || true) $(hostname -I 2>/dev/null || true) $(echo "${TLS_NAMA:-}" | tr ',' ' ')"
 NAMA="$(echo $NAMA | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')"
 
 masih_berlaku() {

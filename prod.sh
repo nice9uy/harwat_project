@@ -146,7 +146,7 @@ envsubst '${GARAGE_RPC_SECRET}' < podman/garage.toml.template > podman/garage.pr
 # in the certificate too.
 ALAMAT_VPN="${VPN_SUBNET%%/*}"
 ALAMAT_VPN="${ALAMAT_VPN%.*}.$(( ${ALAMAT_VPN##*.} + 1 ))"
-# TLS_NAMA in .env.prod adds more: a public address, a domain.
+# TLS_NAMA in .env.prod adds more, separated by commas: a public address, a domain.
 TLS_NAMA="${TLS_NAMA:-} ${ALAMAT_VPN}" ./scripts/siapkan-tls.sh
 
 # Rootless containers stop when their user logs out and do not come back

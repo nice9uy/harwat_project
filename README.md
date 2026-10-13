@@ -106,7 +106,7 @@ peringatan sampai otoritas itu diimpor **di tiap perangkat yang membuka aplikasi
    - Windows: klik dua kali berkasnya → Install Certificate → Trusted Root Certification Authorities.
 3. Buka `https://<alamat-server>:8443`.
 
-Nama atau alamat tambahan (mis. domain atau IP publik): `TLS_NAMA="harwat.lan 203.0.113.7" ./prod.sh`.
+Nama atau alamat tambahan (mis. domain atau IP publik): tambahkan `TLS_NAMA=harwat.lan,203.0.113.7` (dipisah koma) di `.env.prod`.
 Folder `podman/tls/` berisi kunci sertifikat dan kunci otoritas; ia tidak masuk git dan jangan dibagikan.
 
 ## Data produksi
