@@ -66,6 +66,27 @@ PASANG_SIMULASI=1 bash -c 'source scripts/pasang-komponen.sh; pasang_komponen po
 - Di akhir, skrip mencetak kontainer yang berjalan dan status replikasi database
   (seharusnya 2 baris `streaming`).
 
+### Memasang ulang versi baru (`./redeploy.sh`)
+
+Satu perintah untuk memperbarui produksi: mencadangkan database, memperbarui kode, menjalankan
+`./prod.sh`, lalu memeriksa bahwa aplikasi menjawab. Data (database, foto, backup, kunci VPN)
+tidak hilang; hanya kontainernya yang diganti.
+
+```bash
+# Di server:
+./redeploy.sh                # git pull dari GitHub, lalu pasang ulang
+./redeploy.sh --tanpa-pull   # pasang ulang kode yang sudah ada
+
+# Dari mesin pengembangan (mengirim commit di mesin ini langsung ke server lewat SSH,
+# jadi bisa dipakai walau belum di-push ke GitHub):
+./redeploy.sh nice9uy@10.10.157.147
+./redeploy.sh nice9uy@10.10.157.147 /home/nice9uy/Documents/harwat_project
+```
+
+Yang dikirim dari mesin pengembangan hanya yang sudah di-commit. Password SSH diminta sekali.
+Skrip berhenti dengan pesan bila server punya commit yang tidak ada di mesin ini, atau bila
+aplikasi tidak menjawab setelah dipasang.
+
 ## HTTPS (mkcert)
 
 Produksi melayani HTTP di port 8000 dan HTTPS di port 8443. Sertifikatnya dibuat otomatis oleh
