@@ -167,3 +167,81 @@ class LaporanRusakTests(TestCase):
         self.rusak.refresh_from_db()
         # The vehicle stays, back on what its inspections say (none: Siap).
         self.assertEqual(self.rusak.status, Vehicle.Status.SIAP_PAKAI)
+
+
+class RekapKerusakanTests(TestCase):
+    """Rekap Kerusakan: the parts damaged now, with their condition and vehicle group."""
+
+    def setUp(self):
+        from accounts.models import (
+            PemeriksaanGolonganB, PemeriksaanGolonganBItem, PemeriksaanRantis, PemeriksaanRantisItem, PerbaikanRantis,
+        )
+        satuan = Satuan.objects.create(nama="YON REKAP")
+        self.bio = Laporan.objects.create(nip="9", nama="SARI", pangkat="P", jabatan="J", satuan=satuan)
+        rantis = Vehicle.objects.create(nopol="R 1 RK", merek="Maung", group_kendaraan="rantis", penambah=self.bio)
+        gol_b = Vehicle.objects.create(nopol="B 2 RK", merek="Isuzu", group_kendaraan="B")
+        hasil = PemeriksaanRantis.objects.create(
+            pemeriksa=self.bio, vehicle=rantis, km_berfungsi="ya", jam_mesin_berfungsi="ya", buku_pemeliharaan="ada",
+            kondisi_ranmor="jalan", macam_pemeriksaan="tehnis",
+        )
+        item = {
+            nama: PemeriksaanRantisItem.objects.create(pemeriksaan=hasil, nomor=n, nama_alat=nama, kondisi=kondisi, keterangan=f"ket {nama}")
+            for n, (nama, kondisi) in enumerate(
+                (("Gardan", "RB"), ("Lampu", "RR"), ("Rem", "RR"), ("Kaca", "B"), ("Dongkrak", "TA")), start=1,
+            )
+        }
+        PerbaikanRantis.objects.create(teknisi=self.bio, item=item["Rem"], kondisi="B")  # repaired: off the list
+        periksa_b = PemeriksaanGolonganB.objects.create(
+            pemeriksa=self.bio, vehicle=gol_b, pembagian_kelas="A", eselon_reparasi="1", macam_pemeriksaan="tehnis", buku_jalan="ada",
+        )
+        PemeriksaanGolonganBItem.objects.create(pemeriksaan=periksa_b, nomor=7, nama_alat="Kopling", kondisi="RR", keterangan="aus")
+        self.satuan = satuan
+        User.objects.create_superuser(username="root", password="rahasia-123")
+        self.client.login(username="root", password="rahasia-123")
+        self.url = reverse("accounts:rekap_kerusakan")
+
+    def _komponen(self, **query):
+        response = self.client.get(self.url, query)
+        return {baris[6] for baris, _ in response.context["halaman"]}
+
+    def test_lists_damaged_parts_with_condition_and_group(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, "Rekap Kerusakan")
+        self.assertContains(response, f'href="{self.url}"')  # the sidebar entry
+        for text in ("Jenis Kendaraan", "Kondisi", "Form No", "Rusak Berat", "Rusak Ringan", "RANTIS", "Golongan B", 'name="kondisi"', 'name="dari"'):
+            self.assertContains(response, text)
+        self.assertEqual(self._komponen(), {"Gardan", "Lampu", "Kopling"})
+        baris = {b[6]: b for b, _ in response.context["halaman"]}
+        self.assertEqual(baris["Gardan"][1:6], ("R 1 RK", "Maung", "RANTIS", "YON REKAP", 1))
+        self.assertIn("Rusak Berat", baris["Gardan"][7])
+
+    def test_filters(self):
+        from django.utils import timezone
+        hari_ini = timezone.localdate().isoformat()
+        self.assertEqual(self._komponen(kondisi="RB"), {"Gardan"})
+        self.assertEqual(self._komponen(kondisi="RR"), {"Lampu", "Kopling"})
+        self.assertEqual(self._komponen(golongan="B"), {"Kopling"})
+        self.assertEqual(self._komponen(golongan="rantis", kondisi="RR"), {"Lampu"})
+        self.assertEqual(self._komponen(satuan=str(self.satuan.uuid)), {"Gardan", "Lampu"})
+        self.assertEqual(self._komponen(q="r 1 rk"), {"Gardan", "Lampu"})
+        self.assertEqual(self._komponen(q="kopling"), {"Kopling"})
+        self.assertEqual(len(self._komponen(dari=hari_ini, sampai=hari_ini)), 3)
+        self.assertEqual(self._komponen(sampai="2000-01-01"), set())
+        self.assertEqual(len(self._komponen(kondisi="zz", golongan="zz")), 3)
+
+    def test_excel_and_access(self):
+        from io import BytesIO
+
+        from openpyxl import load_workbook
+        from accounts import roles
+        response = self.client.get(self.url, {"unduh": "excel", "kondisi": "RB"})
+        rows = list(load_workbook(BytesIO(response.content)).active.values)
+        self.assertEqual(rows[3][:9], ("No", "Tanggal", "No. Registrasi", "Merk/Type", "Jenis Kendaraan", "Satuan", "Form No", "Sparepart / Komponen", "Kondisi"))
+        self.assertEqual((len(rows) - 4, rows[4][7:9]), (1, ("Gardan", "Rusak Berat")))
+        # Admin and Pimpinan have the menu; a Tim member does not.
+        for grup, punya in (("Admin", True), ("Pimpinan", True), ("Tim Perbaikan", False), ("Ketua Tim", False)):
+            user = User.objects.create_user(username=f"u_{grup}".replace(" ", "_"), password="rahasia-123")
+            user.groups.add(Group.objects.get(name=grup))
+            self.assertEqual("rekap_kerusakan" in roles.allowed_menus(user), punya, grup)
+        self.client.login(username="u_Tim_Perbaikan", password="rahasia-123")
+        self.assertEqual(self.client.get(self.url).status_code, 302)

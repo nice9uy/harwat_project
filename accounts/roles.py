@@ -110,6 +110,7 @@ MENU_VIEWS = {
         "operasional:servis_list", "operasional:servis_create", "operasional:servis_update",
         "operasional:servis_delete", "operasional:servis_export",
     },
+    "rekap_kerusakan": {"accounts:rekap_kerusakan"},
     "pemeriksaan": {
         "accounts:pemeriksaan", "accounts:pemeriksaan_captcha", "accounts:pemeriksaan_checklist", "accounts:pemeriksaan_draft",
         "accounts:pemeriksaan_lain",
@@ -220,6 +221,7 @@ MENU_HOME = {
     "anggota_tim": "accounts:anggota_tim",
     "jadwal": "operasional:jadwal_list",
     "servis": "operasional:servis_list",
+    "rekap_kerusakan": "accounts:rekap_kerusakan",
     "pemeriksaan": "accounts:pemeriksaan",
     "form_tambah": "accounts:form_tambah",
     "history": "accounts:history",

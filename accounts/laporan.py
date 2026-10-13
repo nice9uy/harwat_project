@@ -132,7 +132,7 @@ def _pilihan_satuan():
 def _render(
     request, template, judul, header, rows, f, nama_file, tautan=None, kolom_tanggal=1, kolom_utama=2,
     pakai_tanggal=True, pakai_cari=False, pakai_excel=True, pakai_satuan=False, pakai_filter=True, pakai_hapus=False, pakai_qr=False,
-    pakai_ekspor_qr=False, tab=None,
+    pakai_ekspor_qr=False, tab=None, kondisi_pilihan=None,
 ):
     """``tautan``: optional per-row URL (same order as ``rows``) opened in the detail modal.
     ``kolom_tanggal`` / ``kolom_utama``: 1-based columns styled as the date and as
@@ -166,6 +166,8 @@ def _render(
         "satuan_pilihan": _pilihan_satuan() if pakai_satuan else [],
         "q": request.GET.get("q", "").strip(),
         "tab": tab or [],
+        # A Kondisi filter (?kondisi=): [(kode, label)], the one picked in f["kondisi"].
+        "kondisi_pilihan": kondisi_pilihan or [],
         "tab_aktif": _tab(request, tab) if tab else "",
     })
 
@@ -288,6 +290,69 @@ def laporan_penambahan(request):
         # The unit of whoever added the vehicle (their biodata's Satuan).
         satuan=lambda v: v.penambah.satuan.nama if v.penambah and v.penambah.satuan else "",
         ekspor_qr=True,
+    )
+
+
+# Rekap Kerusakan: what a damaged part is listed as.
+KONDISI_KERUSAKAN = [("RB", "Rusak Berat"), ("RR", "Rusak Ringan")]
+_LENCANA_KERUSAKAN = {
+    "RB": "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
+    "RR": "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+}
+
+
+@login_required
+def rekap_kerusakan(request):
+    """Rekap Kerusakan: every part that is damaged now (Rusak Ringan or Rusak
+    Berat: so in its vehicle's last inspection and not repaired to Baik
+    since), one row per part, newest first, in the viewer's scope. Filtered
+    by date, vehicle group (Jenis Kendaraan), Satuan, condition and a search
+    of the vehicle or the part; also as an Excel sheet."""
+    from django.utils.html import format_html
+
+    from . import dashboard
+
+    f = _filter(request)
+    kondisi = request.GET.get("kondisi", "")
+    f["kondisi"] = kondisi if kondisi in dict(KONDISI_KERUSAKAN) else ""
+    q = request.GET.get("q", "").strip().lower()
+    label = dict(KONDISI_KERUSAKAN)
+    semua, _ = dashboard.komponen_rusak(
+        dashboard.cakupan(request.user), (f["kondisi"],) if f["kondisi"] else tuple(label),
+        kodes=[f["golongan"]] if f["golongan"] else None,
+    )
+    rows, kode_kondisi = [], []
+    for b in semua:
+        v = b["vehicle"]
+        satuan = v.penambah.satuan if v.penambah else None
+        tanggal = timezone.localtime(b["waktu"]).date()
+        if f["satuan"] and satuan != f["satuan"]:
+            continue
+        if (f["dari"] and tanggal < f["dari"]) or (f["sampai"] and tanggal > f["sampai"]):
+            continue
+        if q and not any(q in (teks or "").lower() for teks in (v.nopol, v.merek, v.no_chasis, v.no_mesin, b["item"].nama_alat)):
+            continue
+        oleh = b["perbaikan"].teknisi.nama if b["perbaikan"] else b["periksa"].pemeriksa.nama
+        kode_kondisi.append(b["kondisi"])
+        rows.append((
+            timezone.localtime(b["waktu"]).strftime("%d-%m-%Y %H:%M"), v.nopol, v.merek, v.get_group_kendaraan_display(),
+            satuan.nama if satuan else "-", b["item"].nomor, b["item"].nama_alat, label[b["kondisi"]],
+            "Perbaikan" if b["perbaikan"] else "Pemeriksaan", oleh, b["keterangan"] or "-",
+        ))
+    header = [
+        "Tanggal", "No. Registrasi", "Merk/Type", "Jenis Kendaraan", "Satuan", "Form No", "Sparepart / Komponen",
+        "Kondisi", "Sumber", "Oleh", "Keterangan",
+    ]
+    if request.GET.get("unduh") == "excel":
+        return _excel("Rekap Kerusakan", header, rows, f, "rekap-kerusakan.xlsx")
+    # On the page the condition is a coloured badge.
+    rows = [
+        (*baris[:7], format_html('<span class="rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap {}">{}</span>', _LENCANA_KERUSAKAN[kode], baris[7]), *baris[8:])
+        for baris, kode in zip(rows, kode_kondisi)
+    ]
+    return _render(
+        request, "accounts/laporan_tabel.html", "Rekap Kerusakan", header, rows, f, "rekap-kerusakan.xlsx",
+        kolom_tanggal=1, kolom_utama=2, pakai_cari=True, pakai_satuan=True, kondisi_pilihan=KONDISI_KERUSAKAN,
     )
 
 

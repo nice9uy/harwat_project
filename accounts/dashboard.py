@@ -371,12 +371,21 @@ def rusak_berat(users, batas=RUSAK_MAKS):
 
 def sparepart_rusak(users, batas=RUSAK_MAKS):
     """The Sparepart half of the Rusak/Tidak Bisa Diperbaiki tab: the parts
-    that are Rusak Berat now, on the vehicles in scope: marked RB in the
-    vehicle's last inspection and not repaired since, or still RB ("Rusak")
-    after their last repair. Newest first. Returns (rows, total); ``batas``:
-    how many rows at most (None for all, as Laporan Rusak lists them)."""
+    that are Rusak Berat now (komponen_rusak). Returns (rows, total);
+    ``batas``: how many rows at most (None for all, as Laporan Rusak lists them)."""
+    return komponen_rusak(users, ("RB",), batas=batas)
+
+
+def komponen_rusak(users, kondisi=("RR", "RB"), kodes=None, batas=None):
+    """The parts that are damaged now, on the vehicles in scope: marked with
+    one of ``kondisi`` (RR: Rusak Ringan, RB: Rusak Berat) in the vehicle's
+    last inspection and not repaired since, or left so by their last repair.
+    Each row carries that ``kondisi``. ``kodes``: only these vehicle groups.
+    Newest first. Returns (rows, total); ``batas``: how many rows at most."""
     baris = []
     for kode, cfg in golongan.GOLONGAN.items():
+        if kodes is not None and kode not in kodes:
+            continue
         kendaraan = {
             v.pk: v for v in _kendaraan(users).filter(group_kendaraan=kode).select_related("penambah__satuan")
         }
@@ -389,7 +398,7 @@ def sparepart_rusak(users, batas=RUSAK_MAKS):
         ):
             terakhir[hasil.vehicle_id] = hasil
         periksa = {h.pk: h for h in terakhir.values()}
-        # Only a part that was not Baik can be Rusak Berat now.
+        # Only a part that was not Baik can be damaged now.
         items = cfg.item_model.objects.filter(pemeriksaan__in=list(periksa)).exclude(kondisi__in=cfg.baik)
         perbaikan = {}  # item id -> its newest repair
         for p in (
@@ -399,11 +408,13 @@ def sparepart_rusak(users, batas=RUSAK_MAKS):
             perbaikan[p.item_id] = p
         for item in items:
             diperbaiki = perbaikan.get(item.pk)
-            if (diperbaiki.kondisi if diperbaiki else item.kondisi) != "RB":
+            kini = diperbaiki.kondisi if diperbaiki else item.kondisi
+            if kini not in kondisi:
                 continue
             hasil = periksa[item.pemeriksaan_id]
             baris.append({
                 "vehicle": kendaraan[hasil.vehicle_id], "item": item, "periksa": hasil, "perbaikan": diperbaiki,
+                "kondisi": kini,
                 "waktu": diperbaiki.dibuat_pada if diperbaiki else hasil.dibuat_pada,
                 "keterangan": (diperbaiki.keterangan if diperbaiki else item.keterangan),
             })

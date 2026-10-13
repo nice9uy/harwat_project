@@ -64,6 +64,7 @@ urlpatterns = [
         "laporan-perbaikan/<str:kode>/<uuid:uid>/pdf/", laporan_pdf.laporan_perbaikan_pdf,
         name="laporan_perbaikan_pdf",
     ),
+    path("rekap-kerusakan/", laporan.rekap_kerusakan, name="rekap_kerusakan"),
     path("laporan-rusak/", laporan.laporan_rusak, name="laporan_rusak"),
     path("laporan-rusak/kendaraan/<uuid:uid>/", laporan.laporan_rusak_detail, name="laporan_rusak_detail"),
     path("laporan-penambahan/", laporan.laporan_penambahan, name="laporan_penambahan"),

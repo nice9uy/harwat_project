@@ -49,7 +49,7 @@
             </div>
             <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1 text-sm" hx-boost="true" @click="sidebarOpen = false">
                 {% comment %}Section headings show only when the user sees a menu under them.{% endcomment %}
-                {% if 'dashboard' in menu_boleh or 'armada' in menu_boleh or 'non_kendaraan' in menu_boleh or 'jadwal' in menu_boleh or 'servis' in menu_boleh %}
+                {% if 'dashboard' in menu_boleh or 'armada' in menu_boleh or 'non_kendaraan' in menu_boleh or 'jadwal' in menu_boleh or 'servis' in menu_boleh or 'rekap_kerusakan' in menu_boleh %}
                 <p class="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Menu Utama</p>
                 {% endif %}
                 {% if 'dashboard' in menu_boleh %}
@@ -80,6 +80,12 @@
                 <a href="{% url 'operasional:servis_list' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'operasional:servis_list' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
                     {% include "_menu_icon.html" with kunci="servis" %}
                     Servis
+                </a>
+                {% endif %}
+                {% if 'rekap_kerusakan' in menu_boleh %}
+                <a href="{% url 'accounts:rekap_kerusakan' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:rekap_kerusakan' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                    {% include "_menu_icon.html" with kunci="rekap_kerusakan" %}
+                    Rekap Kerusakan
                 </a>
                 {% endif %}
                 {% if 'info_profile' in menu_boleh %}

@@ -26,13 +26,23 @@
         </div>
         {% endif %}
         <div>
-            <label for="golongan" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Golongan</label>
+            <label for="golongan" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">{% if kondisi_pilihan %}Jenis Kendaraan{% else %}Golongan{% endif %}</label>
             <select id="golongan" name="golongan"
                     class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
-                <option value="">Semua golongan</option>
+                <option value="">{% if kondisi_pilihan %}Semua jenis{% else %}Semua golongan{% endif %}</option>
                 {% for kode, label in golongan_pilihan %}<option value="{{ kode }}"{% if kode == f.golongan %} selected{% endif %}>{{ label }}</option>{% endfor %}
             </select>
         </div>
+        {% if kondisi_pilihan %}
+        <div>
+            <label for="kondisi" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Kondisi</label>
+            <select id="kondisi" name="kondisi"
+                    class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+                <option value="">Semua kondisi</option>
+                {% for kode, label in kondisi_pilihan %}<option value="{{ kode }}"{% if kode == f.kondisi %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        {% endif %}
         {% if satuan_pilihan %}
         <div>
             <label for="satuan" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Satuan</label>
