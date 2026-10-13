@@ -36,10 +36,16 @@ while true; do
     [ -n "$terakhir" ] && teruskan_ke_aplikasi
     kini=$(stat -c '%Y-%s' "$CONF")
     [ "$kini" = "$terakhir" ] && continue
-    if [ -z "$terakhir" ]; then
+    # `wg syncconf` only changes peers: when the server's own address or
+    # network changed (VPN_SUBNET), the interface has to come up afresh, or
+    # peers outside the old network would connect and get no answer back.
+    alamat_conf=$(awk -F'[ =]+' '/^Address/ {print $2; exit}' "$CONF")
+    alamat_kini=$(ip -4 -o addr show wg0 2>/dev/null | awk '{print $4}')
+    if [ -z "$terakhir" ] || [ "$alamat_conf" != "$alamat_kini" ]; then
         # First pass: drop a wg0 the image may have started from an old
         # config of its own, so address and key come from ours.
-        wg-quick down wg0 >/dev/null 2>&1
+        wg-quick down wg0 >/dev/null 2>&1 || wg-quick down "$CONF" >/dev/null 2>&1
+        ip link del wg0 >/dev/null 2>&1  # whatever is left of it
         wg-quick up "$CONF" && echo "sinkron: wg0 dinyalakan ($(wg show wg0 peers | wc -l) peer)"
         nginx_terakhir=""
         teruskan_ke_aplikasi
