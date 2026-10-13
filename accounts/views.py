@@ -312,6 +312,7 @@ def _vpn_context(user, selalu=False):
     return {
         "vpn": vpn, "config_text": config_text, "qr_img": qr_img,
         "server_configured": bool(endpoint and pubkey) if selalu else bool(endpoint),
+        "vpn_aktif": getattr(settings, "VPN_AKTIF", True),
         # Where the app is once the VPN is on: the server's VPN address.
         "alamat_vpn": getattr(settings, "VPN_ALAMAT_SERVER", ""),
     }

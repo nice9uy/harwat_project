@@ -107,7 +107,12 @@ tambah_env VPN_SERVER_PRIVKEY "$(openssl rand -base64 32)"
 tambah_env VPN_CONF_DIR /vpn
 tambah_env VPN_SUBNET 10.13.0.0/19
 tambah_env VPN_PORT 51820
-if ! grep -q "^VPN_SERVER_ENDPOINT=." .env.prod; then
+# VPN_AKTIF=0 switches the VPN off: no wireguard container, port 51820 closed.
+# Peers and keys stay, so VPN_AKTIF=1 brings everyone's access back.
+tambah_env VPN_AKTIF 1
+if [ "$(grep "^VPN_AKTIF=" .env.prod | tail -1)" = "VPN_AKTIF=0" ]; then
+    echo "VPN dinonaktifkan (VPN_AKTIF=0 di .env.prod)."
+elif ! grep -q "^VPN_SERVER_ENDPOINT=." .env.prod; then
     echo "PERHATIAN: isi VPN_SERVER_ENDPOINT=<ip-publik>:51820 di .env.prod, tanpa itu config peer tidak bisa dipakai."
     echo "           (dari luar kantor: router harus meneruskan UDP 51820 ke mesin ini)"
 fi
@@ -141,6 +146,7 @@ envsubst '${GARAGE_RPC_SECRET}' < podman/garage.toml.template > podman/garage.pr
 # in the certificate too.
 ALAMAT_VPN="${VPN_SUBNET%%/*}"
 ALAMAT_VPN="${ALAMAT_VPN%.*}.$(( ${ALAMAT_VPN##*.} + 1 ))"
+# TLS_NAMA in .env.prod adds more: a public address, a domain.
 TLS_NAMA="${TLS_NAMA:-} ${ALAMAT_VPN}" ./scripts/siapkan-tls.sh
 
 # Rootless containers stop when their user logs out and do not come back
@@ -183,6 +189,12 @@ fi
 
 echo "Membangun image dan menjalankan ulang..."
 "${KOMPOS[@]}" up -d --build
+# Switched off: the wireguard container is taken away again (it is part of
+# the compose file, so `up` makes it), which also closes its port.
+if [ "${VPN_AKTIF:-1}" = "0" ] && podman container exists "${PROYEK}_wireguard_1"; then
+    podman rm -f "${PROYEK}_wireguard_1" >/dev/null
+    echo "Kontainer WireGuard tidak dijalankan (VPN_AKTIF=0)."
+fi
 
 # Idempotent — safe to run on every invocation, not just first-run. Nothing
 # else in this stack ever runs migrations, and db.sqlite3 is schemaless on a
@@ -252,5 +264,5 @@ podman ps --filter "label=io.podman.compose.project=${PROYEK}" --format '  {{.Na
 ALAMAT_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 echo "Selesai. Aplikasi: http://localhost:8000${ALAMAT_IP:+ | http://$ALAMAT_IP:8000}"
 echo "         HTTPS:    https://localhost:8443${ALAMAT_IP:+ | https://$ALAMAT_IP:8443}"
-echo "         Lewat VPN: https://${ALAMAT_VPN}:8443"
+[ "${VPN_AKTIF:-1}" = "0" ] || echo "         Lewat VPN: https://${ALAMAT_VPN}:8443"
 echo "         (impor podman/tls/rootCA.pem di browser agar HTTPS tanpa peringatan; unduh: http://${ALAMAT_IP:-localhost}:8000/rootCA.pem)"

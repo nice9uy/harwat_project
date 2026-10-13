@@ -244,6 +244,10 @@ BACKUP_DIR = os.environ.get("BACKUP_DIR", BASE_DIR / "backup")
 PODMAN_SOCKET = os.environ.get("PODMAN_SOCKET", "/run/podman/podman.sock")
 
 # WireGuard VPN server config (set via environment variables)
+# VPN_AKTIF=0 switches the VPN off for now: prod.sh leaves the wireguard
+# container out and the config modals say so. Peers and keys are kept, so
+# switching it back on (VPN_AKTIF=1, ./prod.sh) restores everyone's access.
+VPN_AKTIF = os.environ.get("VPN_AKTIF", "1") != "0"
 VPN_SERVER_ENDPOINT = os.environ.get("VPN_SERVER_ENDPOINT", "")
 VPN_DNS = os.environ.get("VPN_DNS", "")
 # What a member's device sends through the tunnel. Unset: the VPN network

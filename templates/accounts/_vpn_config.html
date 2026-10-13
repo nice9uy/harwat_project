@@ -19,7 +19,11 @@
     <h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-1">Config WireGuard</h2>
     <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">{{ target.get_full_name|default:target.username }} — {{ vpn.peer_name }}</p>
 
-    {% if not server_configured %}
+    {% if not vpn_aktif %}
+    <div class="mb-4 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-700 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+        VPN sedang dinonaktifkan untuk sementara. Config ini disimpan dan bisa dipakai lagi setelah VPN diaktifkan kembali.
+    </div>
+    {% elif not server_configured %}
     <div class="mb-4 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-700 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
         Server VPN belum dikonfigurasi, config ini belum bisa dipakai. Set <code>VPN_SERVER_ENDPOINT</code> dan <code>VPN_SERVER_PUBKEY</code> di environment.
     </div>
