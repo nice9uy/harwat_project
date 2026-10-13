@@ -246,12 +246,24 @@ PODMAN_SOCKET = os.environ.get("PODMAN_SOCKET", "/run/podman/podman.sock")
 # WireGuard VPN server config (set via environment variables)
 VPN_SERVER_ENDPOINT = os.environ.get("VPN_SERVER_ENDPOINT", "")
 VPN_DNS = os.environ.get("VPN_DNS", "")
-VPN_ALLOWED_IPS = os.environ.get("VPN_ALLOWED_IPS", "0.0.0.0/0, ::/0")
+# What a member's device sends through the tunnel. Unset: the VPN network
+# only (VPN_SUBNET, below), so the app is reached through it and the rest of
+# the device's traffic stays off this server. "0.0.0.0/0, ::/0" sends everything.
+VPN_ALLOWED_IPS = os.environ.get("VPN_ALLOWED_IPS", "") or os.environ.get("VPN_SUBNET", "10.13.0.0/20")
 # The network the peers get their addresses from: the first host is the
 # server, the rest go to the peers one by one. A /20 holds 4094 addresses,
 # so 4093 peers; widen the prefix for more (a /19 holds 8190).
 VPN_SUBNET = os.environ.get("VPN_SUBNET", "10.13.0.0/20")
 VPN_PORT = int(os.environ.get("VPN_PORT", "51820"))
+# Members on the VPN open the app at the server's VPN address (the wireguard
+# container forwards it to nginx): that host name has to be allowed too.
+try:
+    import ipaddress as _ipaddress
+    VPN_ALAMAT_SERVER = str(next(_ipaddress.ip_network(VPN_SUBNET, strict=False).hosts()))
+except (ValueError, StopIteration):
+    VPN_ALAMAT_SERVER = ""
+if VPN_ALAMAT_SERVER and "*" not in ALLOWED_HOSTS and VPN_ALAMAT_SERVER not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(VPN_ALAMAT_SERVER)
 # The server's own key. With it the app writes the server's wg0.conf (every
 # peer in the database) into VPN_CONF_DIR, which the wireguard container
 # reads; without it nothing is written.

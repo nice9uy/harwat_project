@@ -86,6 +86,7 @@ tambah_env VPN_SUBNET 10.13.0.0/20
 tambah_env VPN_PORT 51820
 if ! grep -q "^VPN_SERVER_ENDPOINT=." .env.prod; then
     echo "PERHATIAN: isi VPN_SERVER_ENDPOINT=<ip-publik>:51820 di .env.prod, tanpa itu config peer tidak bisa dipakai."
+    echo "           (dari luar kantor: router harus meneruskan UDP 51820 ke mesin ini)"
 fi
 set -a
 source .env.prod
@@ -112,8 +113,12 @@ umask 077
 envsubst '${GARAGE_RPC_SECRET}' < podman/garage.toml.template > podman/garage.prod.toml
 
 # The HTTPS certificate nginx serves on port 8443 (mkcert; made again only
-# when this machine's names or addresses changed).
-./scripts/siapkan-tls.sh
+# when this machine's names or addresses changed). Members on the VPN open the
+# app at the server's VPN address (the first of VPN_SUBNET), so that is named
+# in the certificate too.
+ALAMAT_VPN="${VPN_SUBNET%%/*}"
+ALAMAT_VPN="${ALAMAT_VPN%.*}.$(( ${ALAMAT_VPN##*.} + 1 ))"
+TLS_NAMA="${TLS_NAMA:-} ${ALAMAT_VPN}" ./scripts/siapkan-tls.sh
 
 # A stack that is still running is stopped first, then started again — same
 # reasoning as dev.sh: dev and prod share service names
@@ -211,4 +216,5 @@ podman ps --filter "label=io.podman.compose.project=${PROYEK}" --format '  {{.Na
 ALAMAT_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 echo "Selesai. Aplikasi: http://localhost:8000${ALAMAT_IP:+ | http://$ALAMAT_IP:8000}"
 echo "         HTTPS:    https://localhost:8443${ALAMAT_IP:+ | https://$ALAMAT_IP:8443}"
+echo "         Lewat VPN: https://${ALAMAT_VPN}:8443"
 echo "         (impor podman/tls/rootCA.pem di browser agar HTTPS tanpa peringatan; unduh: http://${ALAMAT_IP:-localhost}:8000/rootCA.pem)"

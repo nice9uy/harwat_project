@@ -30,6 +30,12 @@
         <div class="w-72 max-w-full rounded-lg bg-white p-3">{{ qr_img|safe }}</div>
     </div>
     <p class="text-center text-xs text-slate-500 dark:text-slate-400 mb-4">Pindai dengan aplikasi WireGuard di ponsel.</p>
+    {% if alamat_vpn %}
+    <p class="mb-4 rounded-md bg-slate-100 px-3 py-2 text-center text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+        Setelah VPN tersambung, buka aplikasi di
+        <span class="font-semibold text-navy dark:text-gold">https://{{ alamat_vpn }}:8443</span>
+    </p>
+    {% endif %}
 
     <pre x-ref="config" class="mb-4 max-h-56 overflow-auto rounded-md bg-slate-900 px-3 py-2 text-xs text-green-400 whitespace-pre-wrap break-all">{{ config_text }}</pre>
 
