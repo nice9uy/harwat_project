@@ -85,7 +85,7 @@ def boleh_kelola(kode_pengelola, kode):
 # those pages call). A view listed nowhere (login, logout, admin, ...) is
 # not restricted by menu.
 MENU_VIEWS = {
-    "dashboard": {"accounts:dashboard", "accounts:dashboard_partial", "accounts:dashboard_kendaraan", "accounts:dashboard_rusak_pdf"},
+    "dashboard": {"accounts:dashboard", "accounts:dashboard_partial", "accounts:dashboard_kendaraan"},
     "armada": {
         "fleet:vehicle_list", "fleet:vehicle_create", "fleet:vehicle_update",
         "fleet:vehicle_delete", "fleet:vehicle_delete_confirm", "fleet:vehicle_photos",
@@ -101,14 +101,6 @@ MENU_VIEWS = {
         "accounts:anggota_tim_vpn", "accounts:anggota_tim_vpn_hapus", "accounts:anggota_tim_aktif",
         "accounts:pimpinan_tim_bawahan",
         "accounts:vpn_download", "accounts:vpn_config",
-    },
-    "jadwal": {
-        "operasional:jadwal_list", "operasional:jadwal_create", "operasional:jadwal_update",
-        "operasional:jadwal_delete",
-    },
-    "servis": {
-        "operasional:servis_list", "operasional:servis_create", "operasional:servis_update",
-        "operasional:servis_delete", "operasional:servis_export",
     },
     "rekap_kerusakan": {"accounts:rekap_kerusakan"},
     "pemeriksaan": {
@@ -154,7 +146,8 @@ MENU_VIEWS = {
         "accounts:vpn_download", "accounts:vpn_config",
     },
     "server": {"accounts:server", "accounts:server_partial"},
-    "backup": {"accounts:backup", "accounts:backup_buat", "accounts:backup_unduh", "accounts:backup_hapus"},
+    "backup": {"accounts:backup", "accounts:backup_buat", "accounts:backup_unduh", "accounts:backup_hapus",
+               "accounts:backup_unggah", "accounts:backup_pulihkan"},
     "form_group": {
         "accounts:form_group", "accounts:form_group_lihat", "accounts:form_group_tambah",
         "accounts:form_group_hapus",
@@ -219,8 +212,6 @@ MENU_HOME = {
     "non_kendaraan": "accounts:non_kendaraan",
     "info_profile": "accounts:info_profile",
     "anggota_tim": "accounts:anggota_tim",
-    "jadwal": "operasional:jadwal_list",
-    "servis": "operasional:servis_list",
     "rekap_kerusakan": "accounts:rekap_kerusakan",
     "pemeriksaan": "accounts:pemeriksaan",
     "form_tambah": "accounts:form_tambah",

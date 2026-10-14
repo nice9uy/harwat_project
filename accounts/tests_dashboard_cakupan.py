@@ -59,8 +59,7 @@ class DashboardCakupanTests(TestCase):
             self.assertEqual(
                 response.context["berlangsung_kendaraan"], {"penambahan": 0, "pemeriksaan": 1, "perbaikan": 1}, username,
             )
-            # Without a matra picked the page is the Semua Matra overview; the
-            # activity (the Kegiatan tab's part) keeps the same scope.
+            # The activity (the Kegiatan tab's part) keeps the same scope.
             partial = self.client.get(reverse("accounts:dashboard_partial"))
             self.assertContains(partial, "B 1 CK")
             self.assertNotContains(partial, "B 2 CK")
@@ -71,7 +70,6 @@ class DashboardCakupanTests(TestCase):
         for username in ("bos", "root"):
             response = self._lihat(username)
             self.assertEqual(response.context["fleet_summary_kendaraan"]["total"], 2)
-            self.assertEqual(response.context["ringkasan_matra"]["total"]["total"], 2)
             kegiatan = self.client.get(reverse("accounts:dashboard_partial"))
             self.assertContains(kegiatan, "B 1 CK")
             self.assertContains(kegiatan, "B 2 CK")
@@ -89,7 +87,7 @@ class DashboardCakupanTests(TestCase):
         response = self._lihat("cabang1")
         # The summary cards are gone from the page; their tables still answer.
         self.assertNotContains(response, f'hx-get="{url}?kartu=')
-        self.assertContains(response, "Rangkuman per Matra")
+        self.assertNotContains(response, "Semua Matra")
 
         def isi(kartu):
             return self.client.get(url, {"kartu": kartu}).content.decode()
@@ -139,12 +137,12 @@ class DashboardCakupanTests(TestCase):
         satu = self.client.get(partial)
         self.assertEqual(len(satu.context["kegiatan_terbaru"]), 10)
         self.assertContains(satu, "Menampilkan 1–10 dari 24 kegiatan")
-        self.assertContains(satu, f'hx-get="{partial}?hal_kegiatan=2"')
+        self.assertContains(satu, f'hx-get="{partial}?matra=darat&amp;hal_kegiatan=2"')
         # The 10 s refresh asks for the page being shown.
-        self.assertContains(satu, f'hx-get="{partial}?hal_kegiatan=1"')
+        self.assertContains(satu, f'hx-get="{partial}?matra=darat&amp;hal_kegiatan=1"')
         tiga = self.client.get(partial, {"hal_kegiatan": 3})
         self.assertEqual(len(tiga.context["kegiatan_terbaru"]), 4)
-        self.assertContains(tiga, f'hx-get="{partial}?hal_kegiatan=3"')
+        self.assertContains(tiga, f'hx-get="{partial}?matra=darat&amp;hal_kegiatan=3"')
         self.assertContains(tiga, "Menampilkan 21–24 dari 24 kegiatan")
 
 
@@ -176,9 +174,11 @@ class DashboardMatraTests(TestCase):
         return response, response.context["fleet_summary_kendaraan"]["total"]
 
     def test_matra_narrows_the_dashboard(self):
-        response, semua = self._total()
-        self.assertEqual(semua, 3)
-        for label in ("Semua Matra", "Matra Darat", "Matra Laut", "Matra Udara"):
+        # No all-matra view: without a matra picked it is the first one.
+        response, bawaan = self._total()
+        self.assertEqual((bawaan, response.context["matra_dashboard"]), (1, "darat"))
+        self.assertNotContains(response, "Semua Matra")
+        for label in ("Matra Darat", "Matra Laut", "Matra Udara"):
             self.assertContains(response, label)
         self.assertEqual(dashboard.pengguna_matra("darat") & {t.pk for t in self.tim.values()}, {self.tim["d"].pk})
         for matra, nopol in (("darat", "M D 1"), ("laut", "M L 1"), ("udara", "M U 1")):
@@ -192,7 +192,14 @@ class DashboardMatraTests(TestCase):
             self.assertContains(partial, nopol)
             for lain in {"M D 1", "M L 1", "M U 1"} - {nopol}:
                 self.assertNotContains(partial, lain)
-        self.assertEqual(self._total(matra="zzz")[1], 3)
+        self.assertEqual(self._total(matra="zzz")[1], 1)
+        # A vehicle counts for the matra it was added for (Form Tambah), whoever added it,
+        # and one with no matra anywhere counts for the first.
+        Vehicle.objects.create(nopol="M X 1", merek="Uji", group_kendaraan="rantis", ditambahkan_oleh=self.tim["d"], matra="laut")
+        Vehicle.objects.create(nopol="M X 2", merek="Uji", group_kendaraan="rantis")
+        root = User.objects.get(username="root")
+        Vehicle.objects.create(nopol="M X 3", merek="Uji", group_kendaraan="rantis", ditambahkan_oleh=root)
+        self.assertEqual([self._total(matra=m)[1] for m in ("darat", "laut", "udara")], [3, 2, 1])
 
     def test_admin_and_pimpinan_tim_see_their_own_matra_only(self):
         from accounts.models import AkunPublik
@@ -203,51 +210,30 @@ class DashboardMatraTests(TestCase):
             self.assertEqual((total, response.context["matra_dashboard"]), (1, "darat"), query)
             self.assertNotContains(response, "Semua Matra")
             self.assertNotContains(response, 'aria-label="Matra"')
-            self.assertIsNone(response.context["ringkasan_matra"])
         pimpinan_tim = _user("pimtim", "Pimpinan Ketua Tim")
         AkunPublik.objects.filter(user=pimpinan_tim).update(matra="laut")
         self.client.login(username="pimtim", password="rahasia-123")
         response = self.client.get(reverse("accounts:dashboard"), {"matra": "darat"})
         self.assertEqual(response.context["matra_dashboard"], "laut")
         self.assertNotContains(response, "Semua Matra")
+        # A Ketua Tim too: their own matra, or their Admin's when they have none.
+        self.client.login(username="ketua_l", password="rahasia-123")
+        for query in ({}, {"matra": "darat"}):
+            response = self.client.get(reverse("accounts:dashboard"), query)
+            self.assertEqual(response.context["matra_dashboard"], "laut", query)
+            self.assertNotContains(response, 'aria-label="Matra"')
+        self.assertEqual(response.context["fleet_summary_kendaraan"]["total"], 1)  # the laut team's vehicle only
         # A Pimpinan, like the superuser, picks any matra.
         _user("pimpinan1", "Pimpinan")
         self.client.login(username="pimpinan1", password="rahasia-123")
         response, total = self._total(matra="udara")
         self.assertEqual((total, response.context["matra_dashboard"]), (1, "udara"))
-        self.assertContains(response, "Semua Matra")
-
-
-class DashboardRusakTests(TestCase):
-    """The Rusak/Tidak Bisa Diperbaiki tab lists the Rusak Berat vehicles in scope."""
-
-    def test_lists_rusak_berat_vehicles_with_their_last_inspection(self):
-        from accounts.models import AkunPublik, Laporan, PemeriksaanRantis, PemeriksaanRantisItem, Satuan
-        pemilik = _user("pemilik", "Admin")
-        AkunPublik.objects.filter(user=pemilik).update(matra="darat")
-        bio = Laporan.objects.create(akun=pemilik, nip="1", nama="BUDI", pangkat="P", jabatan="J", satuan=Satuan.objects.create(nama="YON UJI"))
-        rusak = Vehicle.objects.create(nopol="R 1 RB", merek="Maung", group_kendaraan="rantis", status="dalam_perbaikan", ditambahkan_oleh=pemilik, penambah=bio)
-        Vehicle.objects.create(nopol="R 2 OK", merek="Maung", group_kendaraan="rantis", ditambahkan_oleh=pemilik)
-        hasil = PemeriksaanRantis.objects.create(
-            pemeriksa=bio, vehicle=rusak, km_berfungsi="ya", jam_mesin_berfungsi="ya", buku_pemeliharaan="ada",
-            kondisi_ranmor="tidak", macam_pemeriksaan="tehnis", kesimpulan="tidak_layak_pakai", keterangan="rangka patah",
-        )
-        for nomor, kondisi in ((1, "RB"), (2, "RB"), (3, "B")):
-            PemeriksaanRantisItem.objects.create(pemeriksaan=hasil, nomor=nomor, nama_alat=f"A{nomor}", kondisi=kondisi)
-        daftar, total = dashboard.rusak_berat(None)
-        self.assertEqual((total, [v.nopol for v in daftar], daftar[0].periksa.jumlah_rb), (1, ["R 1 RB"], 2))
-        User.objects.create_superuser(username="root", password="rahasia-123")
-        self.client.login(username="root", password="rahasia-123")
-        response = self.client.get(reverse("accounts:dashboard"), {"matra": "darat"})
-        for text in ("RUSAK/TIDAK BISA DIPERBAIKI", "R 1 RB", "YON UJI", "rangka patah", "BUDI"):
-            self.assertContains(response, text)
-        self.assertNotContains(response, "PETA")
-        # Another matra's dashboard doesn't have it.
-        self.assertEqual(self.client.get(reverse("accounts:dashboard"), {"matra": "laut"}).context["rusak_berat"][1], 0)
+        self.assertContains(response, 'aria-label="Matra"')
+        self.assertNotContains(response, "Semua Matra")
 
 
 class DashboardSparepartRusakTests(TestCase):
-    """The Sparepart sub-tab: the parts that are Rusak Berat now."""
+    """The parts that are Rusak Berat now (Laporan Rusak's Sparepart tab)."""
 
     def test_lists_parts_still_rusak_berat(self):
         from accounts.models import Laporan, PemeriksaanRantis, PemeriksaanRantisItem, PerbaikanRantis, Satuan
@@ -273,57 +259,9 @@ class DashboardSparepartRusakTests(TestCase):
         daftar, total = dashboard.sparepart_rusak(None)
         self.assertEqual(total, 2)
         self.assertEqual({b["item"].nama_alat: b["keterangan"] for b in daftar}, {"Rusak": "ket Rusak", "MasihRusak": "tidak ada suku cadang"})
+        # The dashboard no longer has a Rusak/Tidak Bisa Diperbaiki tab.
         User.objects.create_superuser(username="root", password="rahasia-123")
         self.client.login(username="root", password="rahasia-123")
-        # The vehicle has no owner, so it shows without a matra picked only; the tabs need one.
-        self.assertEqual(self.client.get(reverse("accounts:dashboard")).context["sparepart_rusak"][1], 2)
-        response = self.client.get(reverse("accounts:dashboard"), {"matra": "darat"})
-        self.assertContains(response, "Sparepart Rusak / Tidak Bisa Diperbaiki")
-        self.assertEqual(response.context["sparepart_rusak"][1], 0)
-
-
-class DashboardRusakPdfTests(TestCase):
-    """The Rusak/Tidak Bisa Diperbaiki tab: its filter and its PDF."""
-
-    def setUp(self):
-        from accounts.models import Laporan, PemeriksaanRantis, PemeriksaanRantisItem, Satuan
-        bio = Laporan.objects.create(nip="1", nama="BUDI", pangkat="P", jabatan="J", satuan=Satuan.objects.create(nama="YON UJI"))
-        for nopol in ("R 1 PD", "R 2 PD"):
-            v = Vehicle.objects.create(nopol=nopol, merek="Maung", group_kendaraan="rantis", status="dalam_perbaikan")
-            hasil = PemeriksaanRantis.objects.create(
-                pemeriksa=bio, vehicle=v, km_berfungsi="ya", jam_mesin_berfungsi="ya", buku_pemeliharaan="ada",
-                kondisi_ranmor="jalan", macam_pemeriksaan="tehnis",
-            )
-            PemeriksaanRantisItem.objects.create(pemeriksaan=hasil, nomor=1, nama_alat="Gardan", kondisi="RB")
-        User.objects.create_superuser(username="root", password="rahasia-123")
-        self.client.login(username="root", password="rahasia-123")
-        self.url = reverse("accounts:dashboard_rusak_pdf")
-
-    def _baris(self, **query):
-        from unittest import mock
-        from accounts import laporan_pdf
-        with mock.patch.object(laporan_pdf, "buat_pdf_tabel", wraps=laporan_pdf.buat_pdf_tabel) as buat:
-            response = self.client.get(self.url, query)
-        self.assertEqual(response["Content-Type"], "application/pdf")
-        self.assertTrue(response.content.startswith(b"%PDF"))
-        return buat.call_args.args
-
-    def test_pdf_of_each_table_follows_the_filter(self):
-        from django.utils import timezone
-        hari_ini = timezone.localdate().isoformat()
-        judul, _, kepala, lebar, rows = self._baris(jenis="sparepart")
-        self.assertEqual((judul, len(rows), rows[0][:2]), ("SPAREPART RUSAK / TIDAK BISA DIPERBAIKI", 2, [1, "Gardan"]))
-        self.assertEqual((len(lebar), sum(lebar)), (len(kepala) + 1, 267))
-        judul, _, kepala, lebar, rows = self._baris(jenis="kendaraan")
-        self.assertEqual((judul, {r[0] for r in rows}), ("KENDARAAN RUSAK / TIDAK BISA DIPERBAIKI", {"R 1 PD", "R 2 PD"}))
-        self.assertEqual((len(lebar), sum(lebar)), (len(kepala) + 1, 267))
-        for jenis in ("sparepart", "kendaraan"):
-            self.assertEqual(len(self._baris(jenis=jenis, nopol="r 2")[4]), 1)
-            self.assertEqual(len(self._baris(jenis=jenis, dari=hari_ini, sampai=hari_ini)[4]), 2)
-            self.assertEqual(len(self._baris(jenis=jenis, dari="2000-01-01", sampai="2000-12-31")[4]), 0)
-        self.assertIn("Periode 01-01-2000 s/d sekarang", self._baris(dari="2000-01-01", nopol="x")[1])
-
-    def test_tab_has_the_filter_and_the_export_button(self):
-        response = self.client.get(reverse("accounts:dashboard"), {"matra": "darat"})
-        for text in ("Export ke PDF", 'id="rusak-dari"', 'id="rusak-sampai"', 'id="rusak-nopol"', "dashboard/rusak/pdf/?matra=darat&"):
-            self.assertContains(response, text)
+        response = self.client.get(reverse("accounts:dashboard"))
+        self.assertNotContains(response, "RUSAK/TIDAK BISA DIPERBAIKI")
+        self.assertNotIn("sparepart_rusak", response.context)

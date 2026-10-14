@@ -23,7 +23,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('accounts.urls')),
     path('armada/', include('fleet.urls')),
-    path('', include('fleet.urls_operasional')),
 ]
 
 # Uploaded photos, in development and production alike (signed-in users only).

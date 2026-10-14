@@ -144,8 +144,8 @@ class PimpinanTanpaFormTests(TestCase):
         user = User.objects.create_user(username="pimpinan_x", password="rahasia-123")
         user.groups.add(Group.objects.get(name="Pimpinan"))
         menus = roles.allowed_menus(user)
-        self.assertFalse(menus & {"pemeriksaan", "form_tambah", "perbaikan", "rusak", "status", "armada", "backup", "pengaturan"})
-        self.assertTrue({"dashboard", "history", "laporan_rusak", "laporan_tim", "servis"} <= menus)
+        self.assertFalse(menus & {"pemeriksaan", "form_tambah", "perbaikan", "rusak", "status", "armada", "backup", "pengaturan", "jadwal", "servis"})
+        self.assertTrue({"dashboard", "history", "laporan_rusak", "laporan_tim", "rekap_kerusakan"} <= menus)
         self.client.login(username="pimpinan_x", password="rahasia-123")
         halaman = self.client.get(reverse("accounts:dashboard"))
         for nama in ("accounts:pemeriksaan", "accounts:form_tambah", "accounts:perbaikan", "accounts:rusak", "accounts:pengaturan"):

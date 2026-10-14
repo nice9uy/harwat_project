@@ -10,7 +10,6 @@ from accounts.models import Laporan, PemeriksaanGolonganB, PemeriksaanGolonganBI
 from fleet.models import Vehicle
 
 SIAP, RINGAN, BERAT = Vehicle.Status.SIAP_PAKAI, Vehicle.Status.PERLU_SERVIS, Vehicle.Status.DALAM_PERBAIKAN
-DIPERBAIKI = Vehicle.Status.SUDAH_DIPERBAIKI
 
 
 class StatusKendaraanTests(TestCase):
@@ -43,25 +42,26 @@ class StatusKendaraanTests(TestCase):
             self._periksa(kesimpulan, *kondisi)
             self.assertEqual(golongan.status_kendaraan(self.vehicle), status, (kesimpulan, kondisi))
 
-    def test_all_parts_repaired_makes_it_sudah_diperbaiki(self):
+    def test_all_parts_repaired_makes_it_siap_again(self):
         _, ringan, berat = self._periksa("tidak_layak_pakai", "B", "RR", "RB")
         PerbaikanGolonganB.objects.create(teknisi=self.orang, item=ringan, kondisi="B")
         self.assertEqual(golongan.status_kendaraan(self.vehicle), BERAT)  # one part still to repair
         PerbaikanGolonganB.objects.create(teknisi=self.orang, item=berat, kondisi="RR")
         self.assertEqual(golongan.status_kendaraan(self.vehicle), BERAT)  # repaired, but not to Baik
         PerbaikanGolonganB.objects.create(teknisi=self.orang, item=berat, kondisi="B")
-        self.assertEqual(golongan.perbarui_status(self.vehicle), DIPERBAIKI)
+        # Nothing left to repair: Siap (there is no "Sudah Diperbaiki" any more).
+        self.assertEqual(golongan.perbarui_status(self.vehicle), SIAP)
         self.vehicle.refresh_from_db()
-        self.assertEqual(self.vehicle.status, DIPERBAIKI)
-        # Its own dashboard card, opening its own table.
+        self.assertEqual(self.vehicle.status, SIAP)
         User.objects.create_superuser(username="root", password="rahasia-123")
         self.client.login(username="root", password="rahasia-123")
         response = self.client.get(reverse("accounts:dashboard"))
         ringkasan = response.context["fleet_summary_kendaraan"]
-        self.assertEqual((ringkasan["ready"], ringkasan["repaired"]), (0, 1))
-        self.assertContains(response, "Sudah Diperbaiki</th>")  # the Semua Matra table
-        tabel = self.client.get(reverse("accounts:dashboard_kendaraan"), {"kartu": "sudah_diperbaiki"})
-        self.assertContains(tabel, "B 9 ST")
+        self.assertEqual((ringkasan["ready"], ringkasan["service"]), (1, 0))
+        self.assertNotIn("repaired", ringkasan)
+        self.assertNotContains(response, "Sudah Diperbaiki")
+        self.assertContains(self.client.get(reverse("accounts:dashboard_kendaraan"), {"kartu": "siap"}), "B 9 ST")
+        self.assertEqual(self.client.get(reverse("accounts:dashboard_kendaraan"), {"kartu": "sudah_diperbaiki"}).status_code, 404)
         # A new inspection starts over.
         self._periksa("siap_pakai", "B")
         self.assertEqual(golongan.status_kendaraan(self.vehicle), SIAP)

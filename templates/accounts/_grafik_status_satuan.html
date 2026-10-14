@@ -13,7 +13,7 @@ units shown, and each opens a table of its vehicles per unit and group.
         // A card opens a table of its vehicles: units down, vehicle groups across.
         golongan: [],
         kartu: null,
-        JUDUL: { total: 'Total Kendaraan', siap: 'Siap', ringan: 'Rusak Ringan', berat: 'Rusak Berat', diperbaiki: 'Sudah Diperbaiki', servis: 'Perlu Servis' },
+        JUDUL: { total: 'Total Kendaraan', siap: 'Siap', ringan: 'Rusak Ringan', berat: 'Rusak Berat', servis: 'Perlu Servis' },
         get rinci() { return this.kartu ? this.cocok.filter((b) => b[this.kartu] > 0) : []; },
         // The popup pages its rows, PER_HAL a page (its totals stay those of every row).
         hal: 1,
@@ -46,12 +46,11 @@ units shown, and each opens a table of its vehicles per unit and group.
         <p class="pb-2 text-xs text-slate-500 dark:text-slate-400"><span class="font-semibold tabular-nums" x-text="cocok.length"></span> dari {{ baris|length }} satuan</p>
     </div>
 
-    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <button type="button" @click="kartu = 'total'" title="Lihat rincian per satuan dan jenis kendaraan" class="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40 dark:border-slate-700 dark:hover:border-gold"><p class="text-xs text-slate-500 dark:text-slate-400">Total Kendaraan</p><p class="text-xl font-semibold tabular-nums text-navy dark:text-slate-100" x-text="jumlah('total')">0</p></button>
         <button type="button" @click="kartu = 'siap'" title="Lihat rincian per satuan dan jenis kendaraan" class="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40 dark:border-slate-700 dark:hover:border-gold"><p class="text-xs text-slate-500 dark:text-slate-400">Siap</p><p class="text-xl font-semibold tabular-nums text-green-600 dark:text-green-400" x-text="jumlah('siap')">0</p></button>
         <button type="button" @click="kartu = 'ringan'" title="Lihat rincian per satuan dan jenis kendaraan" class="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40 dark:border-slate-700 dark:hover:border-gold"><p class="text-xs text-slate-500 dark:text-slate-400">Rusak Ringan</p><p class="text-xl font-semibold tabular-nums text-amber-500 dark:text-amber-400" x-text="jumlah('ringan')">0</p></button>
         <button type="button" @click="kartu = 'berat'" title="Lihat rincian per satuan dan jenis kendaraan" class="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40 dark:border-slate-700 dark:hover:border-gold"><p class="text-xs text-slate-500 dark:text-slate-400">Rusak Berat</p><p class="text-xl font-semibold tabular-nums text-red-500 dark:text-red-400" x-text="jumlah('berat')">0</p></button>
-        <button type="button" @click="kartu = 'diperbaiki'" title="Lihat rincian per satuan dan jenis kendaraan" class="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40 dark:border-slate-700 dark:hover:border-gold"><p class="text-xs text-slate-500 dark:text-slate-400">Sudah Diperbaiki</p><p class="text-xl font-semibold tabular-nums text-sky-500 dark:text-sky-400" x-text="jumlah('diperbaiki')">0</p></button>
         <button type="button" @click="kartu = 'servis'" title="Lihat rincian per satuan dan jenis kendaraan" class="rounded-md border border-slate-200 px-3 py-2 text-left hover:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40 dark:border-slate-700 dark:hover:border-gold"><p class="text-xs text-slate-500 dark:text-slate-400">Perlu Servis</p><p class="text-xl font-semibold tabular-nums text-violet-500 dark:text-violet-400" x-text="jumlah('servis')">0</p></button>
     </div>
 
@@ -59,7 +58,6 @@ units shown, and each opens a table of its vehicles per unit and group.
         <li class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-green-500"></span>Siap</li>
         <li class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-amber-500"></span>Rusak Ringan</li>
         <li class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-red-500"></span>Rusak Berat</li>
-        <li class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-sky-500"></span>Sudah Diperbaiki</li>
     </ul>
 
     <div class="max-h-[32rem] overflow-auto rounded-md border border-slate-200 dark:border-slate-700">
@@ -73,7 +71,6 @@ units shown, and each opens a table of its vehicles per unit and group.
                     <th class="px-3 py-2 text-right font-medium">Siap</th>
                     <th class="px-3 py-2 text-right font-medium">Rusak Ringan</th>
                     <th class="px-3 py-2 text-right font-medium">Rusak Berat</th>
-                    <th class="px-3 py-2 text-right font-medium">Sudah Diperbaiki</th>
                     <th class="px-3 py-2 text-right font-medium">Perlu Servis</th>
                 </tr>
             </thead>
@@ -83,22 +80,20 @@ units shown, and each opens a table of its vehicles per unit and group.
                         <td class="px-3 py-2 text-slate-500 dark:text-slate-400" x-text="i + 1"></td>
                         <td class="px-3 py-2 font-medium text-navy dark:text-slate-100" x-text="b.nama"></td>
                         <td class="px-3 py-2">
-                            <div class="flex h-3.5 gap-0.5" :title="b.nama + ': ' + b.siap + ' siap, ' + b.ringan + ' rusak ringan, ' + b.berat + ' rusak berat, ' + b.diperbaiki + ' sudah diperbaiki'">
+                            <div class="flex h-3.5 gap-0.5" :title="b.nama + ': ' + b.siap + ' siap, ' + b.ringan + ' rusak ringan, ' + b.berat + ' rusak berat'">
                                 <span x-show="b.siap" class="rounded-sm bg-green-500" :style="{ width: lebar(b.siap) }"></span>
                                 <span x-show="b.ringan" class="rounded-sm bg-amber-500" :style="{ width: lebar(b.ringan) }"></span>
                                 <span x-show="b.berat" class="rounded-sm bg-red-500" :style="{ width: lebar(b.berat) }"></span>
-                                <span x-show="b.diperbaiki" class="rounded-sm bg-sky-500" :style="{ width: lebar(b.diperbaiki) }"></span>
                             </div>
                         </td>
                         <td class="px-3 py-2 text-right font-semibold" x-text="b.total"></td>
                         <td class="px-3 py-2 text-right text-green-600 dark:text-green-400" x-text="b.siap"></td>
                         <td class="px-3 py-2 text-right text-amber-600 dark:text-amber-400" x-text="b.ringan"></td>
                         <td class="px-3 py-2 text-right text-red-600 dark:text-red-400" x-text="b.berat"></td>
-                        <td class="px-3 py-2 text-right text-sky-600 dark:text-sky-400" x-text="b.diperbaiki"></td>
                         <td class="px-3 py-2 text-right text-violet-600 dark:text-violet-400" x-text="b.servis"></td>
                     </tr>
                 </template>
-                <tr x-show="!cocok.length" x-cloak><td colspan="9" class="px-3 py-6 text-center text-slate-400 dark:text-slate-500">{% if baris %}Tidak ada satuan yang cocok.{% else %}Belum ada kendaraan.{% endif %}</td></tr>
+                <tr x-show="!cocok.length" x-cloak><td colspan="8" class="px-3 py-6 text-center text-slate-400 dark:text-slate-500">{% if baris %}Tidak ada satuan yang cocok.{% else %}Belum ada kendaraan.{% endif %}</td></tr>
             </tbody>
             <tfoot class="sticky bottom-0 border-t border-slate-300 bg-slate-50 font-semibold dark:border-slate-600 dark:bg-slate-900">
                 <tr>
@@ -107,7 +102,6 @@ units shown, and each opens a table of its vehicles per unit and group.
                     <td class="px-3 py-2 text-right" x-text="jumlah('siap')"></td>
                     <td class="px-3 py-2 text-right" x-text="jumlah('ringan')"></td>
                     <td class="px-3 py-2 text-right" x-text="jumlah('berat')"></td>
-                    <td class="px-3 py-2 text-right" x-text="jumlah('diperbaiki')"></td>
                     <td class="px-3 py-2 text-right" x-text="jumlah('servis')"></td>
                 </tr>
             </tfoot>

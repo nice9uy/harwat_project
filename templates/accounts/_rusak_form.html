@@ -8,7 +8,7 @@
             <dt class="text-slate-500 dark:text-slate-400">No. Chasis</dt><dd>{{ vehicle.no_chasis|default:"-" }}</dd>
             <dt class="text-slate-500 dark:text-slate-400">No. Mesin</dt><dd>{{ vehicle.no_mesin|default:"-" }}</dd>
             <dt class="text-slate-500 dark:text-slate-400">Golongan</dt><dd>{{ vehicle.get_group_kendaraan_display }}</dd>
-            <dt class="text-slate-500 dark:text-slate-400">Status sekarang</dt><dd>{# Named as on the dashboard. #}{% if vehicle.status == "siap_pakai" %}Siap{% elif vehicle.status == "perlu_servis" %}Rusak Ringan{% elif vehicle.status == "sudah_diperbaiki" %}Sudah Diperbaiki{% else %}Rusak Berat{% endif %}</dd>
+            <dt class="text-slate-500 dark:text-slate-400">Status sekarang</dt><dd>{# Named as on the dashboard. #}{% if vehicle.status == "siap_pakai" %}Siap{% elif vehicle.status == "perlu_servis" %}Rusak Ringan{% else %}Rusak Berat{% endif %}</dd>
         </dl>
     </div>
 

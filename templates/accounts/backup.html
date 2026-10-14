@@ -5,26 +5,33 @@
 <div class="space-y-4" x-data="{ modalOpen: false, sibuk: false }">
     <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4">
         <p class="text-sm text-slate-600 dark:text-slate-300">
-            Buat salinan cadangan data aplikasi. Backup disimpan di server pada folder
+            Buat salinan cadangan seluruh data aplikasi: database (user, kendaraan, pemeriksaan, perbaikan, pengaturan) dan semua foto, dalam satu file zip.
+            Backup disimpan di server pada folder
             <span class="font-mono text-xs text-navy dark:text-slate-100">{{ folder }}</span>; unduh dan simpan juga di tempat lain.
         </p>
-        {% comment %}
-        The buttons are disabled a moment after the submit, not during it: a
-        disabled button's name=value (which backup to make) is left out of the form.
-        {% endcomment %}
-        <form method="post" action="{% url 'accounts:backup_buat' %}" @submit="setTimeout(() => sibuk = true)" class="mt-3 flex flex-wrap items-center gap-2">
-            {% csrf_token %}
-            <button type="submit" name="jenis" value="database" :disabled="sibuk"
-                    class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-gold/50">
-                Backup Database
-            </button>
-            <button type="submit" name="jenis" value="lengkap" :disabled="sibuk"
-                    class="rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-gold/50">
-                Backup Database + Foto
-            </button>
-            <span x-show="sibuk" x-cloak class="text-sm text-slate-500 dark:text-slate-400">Membuat backup…</span>
-        </form>
-        <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Database: semua data (user, kendaraan, pemeriksaan, perbaikan, pengaturan). Database + Foto: ditambah semua foto yang diunggah, dalam satu file zip (lebih besar dan lebih lama).</p>
+        <div class="mt-3 flex flex-wrap items-center gap-3">
+            <form method="post" action="{% url 'accounts:backup_buat' %}" @submit="setTimeout(() => sibuk = true)" class="flex items-center gap-2">
+                {% csrf_token %}
+                <button type="submit" :disabled="sibuk"
+                        class="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-gold/50">
+                    Buat Backup
+                </button>
+                <span x-show="sibuk" x-cloak class="text-sm text-slate-500 dark:text-slate-400">Sedang bekerja…</span>
+            </form>
+            {# A backup downloaded before, or from another server: added to the list, restored from there. #}
+            <form method="post" action="{% url 'accounts:backup_unggah' %}" enctype="multipart/form-data" @submit="setTimeout(() => sibuk = true)"
+                  class="flex flex-wrap items-center gap-2 border-l border-slate-200 pl-3 dark:border-slate-700">
+                {% csrf_token %}
+                <label for="berkas-backup" class="text-xs text-slate-500 dark:text-slate-400">Punya file backup?</label>
+                <input type="file" id="berkas-backup" name="berkas" accept=".zip,application/zip" required
+                       class="max-w-60 text-xs text-slate-600 file:mr-2 file:rounded-md file:border-0 file:bg-slate-200 file:px-2 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 dark:text-slate-300 dark:file:bg-slate-700 dark:file:text-slate-200">
+                <button type="submit" :disabled="sibuk"
+                        class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
+                    Unggah
+                </button>
+            </form>
+        </div>
+        <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Pulihkan pada sebuah backup mengembalikan data dan foto ke keadaan saat backup itu dibuat. Keadaan sekarang dicadangkan dulu secara otomatis.</p>
     </div>
 
     <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
@@ -51,6 +58,9 @@
                         <div class="flex items-center gap-2">
                             <a href="{% url 'accounts:backup_unduh' b.nama %}" download hx-boost="false"
                                class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700">Unduh</a>
+                            <button type="button" @click="modalOpen = true"
+                                    hx-get="{% url 'accounts:backup_pulihkan' b.nama %}" hx-target="#backup-modal-body" hx-swap="innerHTML"
+                                    class="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600">Pulihkan</button>
                             <button type="button" @click="modalOpen = true"
                                     hx-get="{% url 'accounts:backup_hapus' b.nama %}" hx-target="#backup-modal-body" hx-swap="innerHTML"
                                     class="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">Hapus</button>

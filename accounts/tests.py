@@ -435,12 +435,13 @@ class DashboardViewTests(TestCase):
 
     def test_dashboard_renders_all_four_blocks_when_authenticated(self):
         self.client.login(username="teknisi1", password="rahasia-123")
-        # No matra picked: the Semua Matra overview, without the tabs.
+        # No matra picked: the first matra's dashboard (there is no all-matra view).
         response = self.client.get(reverse("accounts:dashboard"))
         self.assertEqual(response.status_code, 200)
-        for text in ("Semua Matra", "Kendaraan per Matra", "Rangkuman per Matra"):
-            self.assertContains(response, text)
-        self.assertNotContains(response, "RINGKASAN")
+        self.assertEqual(response.context["matra_dashboard"], "darat")
+        for text in ("Semua Matra", "Rangkuman per Matra"):
+            self.assertNotContains(response, text)
+        self.assertContains(response, "RINGKASAN")
         # A matra picked: the tabs, with the activity under Kegiatan.
         response = self.client.get(reverse("accounts:dashboard"), {"matra": "darat"})
         for text in ("RINGKASAN", "KEGIATAN", "Kegiatan Terbaru", "Jadwal Terlambat", "Jadwal Mendatang"):

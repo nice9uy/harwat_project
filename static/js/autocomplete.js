@@ -57,6 +57,8 @@ document.addEventListener('alpine:init', function () {
                     '" belum terdaftar. Pilih dari daftar, atau tambahkan dulu di Pengaturan › Satuan.';
             },
             cekValid: function () {
+                // A page that filters as you pick (the dashboard's tables) listens for this.
+                this.$dispatch('autocomplete-pilih', { nilai: this.nilai, teks: this.q });
                 var pesan = '';
                 if (!this.nilai && this.q.trim()) pesan = this.pesanBelumTerdaftar;
                 else if (!this.nilai && wajib) pesan = 'Pilih ' + namaData + '.';

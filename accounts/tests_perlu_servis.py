@@ -83,3 +83,47 @@ class PerluServisTests(TestCase):
         self.assertContains(tabel, ">Jatuh Tempo</th>")
         self.assertContains(tabel, "5000 km sejak awal")
         self.assertNotContains(self.client.get(url, {"kartu": "siap"}), ">Jatuh Tempo</th>")
+
+
+class PerluServisKomponenTests(TestCase):
+    """A vehicle with parts still to repair is due a service, intervals or not."""
+
+    def test_unrepaired_parts_make_it_due_until_repaired_to_baik(self):
+        from accounts.models import PemeriksaanGolonganBItem, PerbaikanGolonganB
+        orang = Laporan.objects.create(nip="2", nama="N", pangkat="P", jabatan="J", satuan=Satuan.objects.create(nama="S2"))
+        vehicle = Vehicle.objects.create(nopol="B 2 SV", merek="Uji", group_kendaraan="B")
+        baik = Vehicle.objects.create(nopol="B 3 SV", merek="Uji", group_kendaraan="B")
+
+        def periksa(kendaraan, *kondisi):
+            hasil = PemeriksaanGolonganB.objects.create(
+                pemeriksa=orang, vehicle=kendaraan, pembagian_kelas="1", eselon_reparasi="1",
+                macam_pemeriksaan="tehnis", buku_jalan="ada",
+            )
+            return [
+                PemeriksaanGolonganBItem.objects.create(pemeriksaan=hasil, nomor=n, nama_alat=f"Alat {n}", kondisi=k)
+                for n, k in enumerate(kondisi, start=1)
+            ]
+
+        def tempo():
+            return km_jadwal.perlu_servis(Vehicle.objects.filter(pk__in=[vehicle.pk, baik.pk]))
+
+        periksa(baik, "B", "B")
+        rem, lampu, _ = periksa(vehicle, "RB", "RR", "B")
+        self.assertEqual(tempo(), {vehicle.pk: "2 komponen belum diperbaiki"})
+        # A repair that leaves the part not Baik doesn't settle it; one to Baik does.
+        PerbaikanGolonganB.objects.create(teknisi=orang, item=rem, kondisi="RR")
+        self.assertEqual(tempo(), {vehicle.pk: "2 komponen belum diperbaiki"})
+        PerbaikanGolonganB.objects.create(teknisi=orang, item=rem, kondisi="B")
+        self.assertEqual(tempo(), {vehicle.pk: "1 komponen belum diperbaiki"})
+        PerbaikanGolonganB.objects.create(teknisi=orang, item=lampu, kondisi="B")
+        self.assertEqual(tempo(), {})
+        # Only the last inspection counts: a clean one after it clears the vehicle.
+        periksa(vehicle, "RB")
+        self.assertEqual(tempo(), {vehicle.pk: "1 komponen belum diperbaiki"})
+        periksa(vehicle, "B")
+        self.assertEqual(tempo(), {})
+        # The dashboard card counts it.
+        periksa(vehicle, "RR")
+        User.objects.create_superuser(username="root_ps", password="rahasia-123")
+        self.client.login(username="root_ps", password="rahasia-123")
+        self.assertEqual(self.client.get(reverse("accounts:dashboard")).context["fleet_summary_kendaraan"]["service"], 1)

@@ -4,7 +4,7 @@ from django.core.paginator import Paginator
 PER_HALAMAN = 15
 
 
-def halaman(request, data, param="page", **ganti):
+def halaman(request, data, param="page", per_halaman=PER_HALAMAN, **ganti):
     """The requested page of ``data`` (a queryset or list).
 
     ``param`` names the page's query parameter, so two tables on one page can
@@ -12,7 +12,7 @@ def halaman(request, data, param="page", **ganti):
     without ``param`` (with ``ganti`` values set), ready for ``?{{ query_dasar }}page=N``,
     and ``param`` for the pagination template.
     """
-    page = Paginator(data, PER_HALAMAN).get_page(request.GET.get(param))
+    page = Paginator(data, per_halaman).get_page(request.GET.get(param))
     query = request.GET.copy()
     query.pop(param, None)
     for kunci, nilai in ganti.items():

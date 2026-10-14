@@ -46,11 +46,10 @@
         {% if satuan_pilihan %}
         <div>
             <label for="satuan" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Satuan</label>
-            <select id="satuan" name="satuan"
-                    class="max-w-56 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
-                <option value="">Semua satuan</option>
-                {% for satuan in satuan_pilihan %}<option value="{{ satuan.uuid }}"{% if satuan == f.satuan %} selected{% endif %}>{{ satuan.nama }}</option>{% endfor %}
-            </select>
+            {# Typed, with suggestions; empty means every unit. #}
+            <div class="w-64 max-w-full">
+                {% include "_autocomplete.html" with nama="satuan" id_teks="satuan" id_opsi="opsi-satuan-filter" opsi=satuan_opsi nilai=f.satuan.uuid wajib=False label_data="satuan" placeholder="Ketik nama satuan (semua)" %}
+            </div>
         </div>
         {% endif %}
         <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">Terapkan</button>
@@ -76,6 +75,14 @@
             Export QR Code (Word)
         </a>
         {% endif %}
+{% if pakai_pdf or pakai_excel %}<div class="flex flex-wrap items-center gap-2">{% endif %}
+        {% if pakai_pdf %}
+        <a href="?{% if query %}{{ query }}&amp;{% endif %}unduh=pdf" target="_blank" rel="noopener" hx-boost="false"
+           class="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+            Export ke PDF
+        </a>
+        {% endif %}
 {% if pakai_excel %}
                 <a href="?{% if query %}{{ query }}&amp;{% endif %}unduh=excel" download
            class="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700">
@@ -83,6 +90,7 @@
             Unduh Excel
         </a>
         {% endif %}
+        {% if pakai_pdf or pakai_excel %}</div>{% endif %}
     </div>
 
     <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">

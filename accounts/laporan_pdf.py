@@ -467,16 +467,119 @@ def _tabel_data(kepala, lebar_mm, baris_data):
     return tabel
 
 
-def buat_pdf_tabel(judul, keterangan, kepala, lebar_mm, baris_data):
-    """A plain list as a landscape PDF (267 mm wide): letterhead, one table
-    (with a No column), how many rows."""
+# Rekap Kerusakan's chart: the status colours of a damaged part, each always
+# beside its label and its count (never colour alone).
+WARNA_KERUSAKAN = {"RB": colors.HexColor("#D03B3B"), "RR": colors.HexColor("#FAB219")}
+# The per-unit pie: this many units as slices (the app's pie colours), the
+# rest summed up in one grey slice, so the slices stay tellable apart.
+SATUAN_PIE_PDF = 7
+WARNA_SATUAN_PIE = [colors.HexColor(h) for h in ("#2A78D6", "#EB6834", "#12996B", "#C98A00", "#8250DF", "#D6336C", "#0B8FA8")]
+WARNA_LAINNYA_PIE = colors.HexColor("#7B8794")
+
+
+def _pie(d, cx, cy, r, bagian):
+    """Draws [(n, colour)] as a pie on ``d``, clockwise from 12 o'clock, a
+    hair of the page between slices; a ring when there is nothing to show."""
+    from reportlab.graphics.shapes import Circle, Wedge
+
+    bagian = [(n, warna) for n, warna in bagian if n]
+    total = sum(n for n, _ in bagian)
+    if not total:
+        d.add(Circle(cx, cy, r, fillColor=None, strokeColor=GARIS, strokeWidth=4))
+        return
+    if len(bagian) == 1:
+        d.add(Circle(cx, cy, r, fillColor=bagian[0][1], strokeColor=None))
+        return
+    sudut = 90.0
+    for n, warna in bagian:
+        lebar = 360.0 * n / total
+        d.add(Wedge(cx, cy, r, sudut - lebar, sudut, fillColor=warna, strokeColor=colors.white, strokeWidth=1.2))
+        sudut -= lebar
+
+
+def _grafik_kerusakan_per_satuan(per_satuan, lebar=267 * mm):
+    """Two pies side by side: the damaged parts by condition (Rusak Berat,
+    Rusak Ringan), and by unit (the SATUAN_PIE_PDF biggest, then "Lainnya"),
+    each with a legend giving the count and share, and per unit its split.
+    ``per_satuan``: [(unit, n Rusak Berat, n Rusak Ringan)]."""
+    from reportlab.graphics.shapes import Drawing, Rect, String
+
+    data = sorted(per_satuan, key=lambda s: (-(s[1] + s[2]), s[0]))
+    if len(data) > SATUAN_PIE_PDF:
+        sisa = data[SATUAN_PIE_PDF:]
+        data = data[:SATUAN_PIE_PDF] + [
+            (f"Lainnya ({len(sisa)} satuan)", sum(s[1] for s in sisa), sum(s[2] for s in sisa))
+        ]
+    berat, ringan = sum(s[1] for s in data), sum(s[2] for s in data)
+    total = berat + ringan
+    tinggi, r = 68 * mm, 24 * mm
+    d = Drawing(lebar, tinggi)
+    tinta, redup = colors.HexColor("#1E293B"), colors.HexColor("#64748B")
+    cy = tinggi - 8 * mm - r
+
+    def persen(n):
+        return f"{100 * n / total:.1f}%".replace(".", ",") if total else "0%"
+
+    def judul(x, teks):
+        d.add(String(x, tinggi - 4 * mm, teks, fontName="Helvetica-Bold", fontSize=8.5, fillColor=tinta))
+
+    def baris_legenda(x, y, warna, label, n, tambahan="", lebar_label=44 * mm):
+        d.add(Rect(x, y - 0.3 * mm, 3 * mm, 3 * mm, rx=1, ry=1, fillColor=warna, strokeColor=None))
+        d.add(String(x + 4.5 * mm, y, label, fontName="Helvetica", fontSize=8, fillColor=tinta))
+        d.add(String(x + lebar_label + 13 * mm, y, str(n), fontName="Helvetica-Bold", fontSize=8, fillColor=tinta, textAnchor="end"))
+        d.add(String(x + lebar_label + 26 * mm, y, persen(n), fontName="Helvetica", fontSize=8, fillColor=redup, textAnchor="end"))
+        if tambahan:
+            d.add(String(x + lebar_label + 28 * mm, y, tambahan, fontName="Helvetica", fontSize=7, fillColor=redup))
+
+    # Left: by condition.
+    judul(0, "Menurut Kondisi")
+    _pie(d, r, cy, r, [(berat, WARNA_KERUSAKAN["RB"]), (ringan, WARNA_KERUSAKAN["RR"])])
+    x = 2 * r + 6 * mm
+    baris_legenda(x, cy + 3 * mm, WARNA_KERUSAKAN["RB"], "Rusak Berat", berat, lebar_label=19 * mm)
+    baris_legenda(x, cy - 4 * mm, WARNA_KERUSAKAN["RR"], "Rusak Ringan", ringan, lebar_label=19 * mm)
+
+    # Right: by unit.
+    x_pie = 132 * mm
+    judul(x_pie - r, "Menurut Satuan")
+    warna = [
+        WARNA_LAINNYA_PIE if nama.startswith("Lainnya (") else WARNA_SATUAN_PIE[i % len(WARNA_SATUAN_PIE)]
+        for i, (nama, _, _) in enumerate(data)
+    ]
+    _pie(d, x_pie, cy, r, [(b + rg, w) for (_, b, rg), w in zip(data, warna)])
+    x = x_pie + r + 6 * mm
+    if not data:
+        d.add(String(x, cy, "Tidak ada data.", fontName="Helvetica", fontSize=8, fillColor=redup))
+    y = cy + (len(data) - 1) * 3.4 * mm
+    for (nama, b, rg), w in zip(data, warna):
+        label = nama if len(nama) <= 24 else nama[:23] + "…"
+        rinci = " · ".join(filter(None, [f"{b} berat" if b else "", f"{rg} ringan" if rg else ""]))
+        baris_legenda(x, y, w, label, b + rg, f"({rinci})")
+        y -= 6.8 * mm
+    return d
+
+
+def buat_pdf_rekap_kerusakan(keterangan, per_satuan, kepala, lebar_mm, baris_data, sudah_baik=0):
+    """Rekap Kerusakan as a landscape PDF: the totals, the pies of the parts
+    still damaged (by condition, by unit), and under them the detail table
+    (with a No column). ``sudah_baik``: the parts repaired to Baik since,
+    listed in the table but not in the pies."""
+    berat = sum(s[1] for s in per_satuan)
+    ringan = sum(s[2] for s in per_satuan)
     return _dokumen([
-        _kop(judul, keterangan, lebar=267 * mm),
-        Spacer(1, 4 * mm),
+        _kop("REKAP KERUSAKAN", keterangan, lebar=267 * mm),
+        Spacer(1, 3 * mm),
+        _tabel_data(
+            ["Masih Rusak", "Rusak Berat", "Rusak Ringan", "Sudah Diperbaiki (Baik)", "Satuan Terdampak"], [53.4] * 5,
+            [[berat + ringan, berat, ringan, sudah_baik, len(per_satuan)]],
+        ),
+        Paragraph("Kerusakan yang Masih Ada", BAGIAN),
+        _grafik_kerusakan_per_satuan(per_satuan),
+        # Kept with the table's first rows, not left alone at the foot of a page.
+        Paragraph("Rincian Kerusakan", ParagraphStyle("bagian_ikut", parent=BAGIAN, keepWithNext=1)),
         _tabel_data(["No", *kepala], lebar_mm, [[n, *b] for n, b in enumerate(baris_data, start=1)]),
         Spacer(1, 2 * mm),
         Paragraph(f"Jumlah: {len(baris_data)} data", SUB),
-    ], judul, mendatar=True)
+    ], "Rekap Kerusakan", mendatar=True)
 
 
 def _tabel_kelompok(kepala, lebar_mm, kelompok):

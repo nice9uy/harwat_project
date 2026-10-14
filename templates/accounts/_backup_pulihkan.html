@@ -1,0 +1,33 @@
+<h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-2">Pulihkan dari Backup</h2>
+<div class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+    <p>
+        Data aplikasi akan dikembalikan ke keadaan saat backup
+        <span class="font-mono text-xs font-semibold text-navy dark:text-slate-100">{{ nama }}</span> dibuat.
+    </p>
+    <div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
+        <p class="font-medium">Semua perubahan setelah backup itu akan hilang:</p>
+        <ul class="mt-1 list-disc pl-5 text-xs">
+            <li>user, kendaraan, pemeriksaan, perbaikan dan pengaturan yang dibuat atau diubah sesudahnya;</li>
+            <li>foto bernama sama diganti dengan yang ada di backup (foto yang lebih baru tidak dihapus).</li>
+        </ul>
+    </div>
+    <p class="text-xs text-slate-500 dark:text-slate-400">
+        Sebelum memulihkan, keadaan sekarang dicadangkan otomatis ke backup baru, sehingga pemulihan ini bisa dibatalkan
+        dengan memulihkan backup itu. Jangan ada yang mengisi form selama proses berjalan; setelah selesai Anda mungkin perlu login ulang.
+    </p>
+</div>
+<form method="post" action="{% url 'accounts:backup_pulihkan' nama %}" x-data="{ ketik: '', jalan: false }" @submit="jalan = true"
+      class="pt-4">
+    {% csrf_token %}
+    <label for="konfirmasi-pulihkan" class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">
+        Ketik <span class="font-mono font-semibold text-navy dark:text-gold">{{ kata }}</span> untuk melanjutkan
+    </label>
+    <input type="text" id="konfirmasi-pulihkan" name="konfirmasi" x-model="ketik" autocomplete="off" autocapitalize="characters"
+           class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+    <div class="flex items-center justify-end gap-3 pt-4">
+        <span x-show="jalan" x-cloak class="mr-auto text-sm text-slate-500 dark:text-slate-400">Memulihkan… jangan tutup halaman ini.</span>
+        <button type="button" @click="modalOpen = false" class="rounded-md border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">Batal</button>
+        <button type="submit" :disabled="ketik.trim().toUpperCase() !== '{{ kata }}' || jalan"
+                class="rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50">Pulihkan</button>
+    </div>
+</form>

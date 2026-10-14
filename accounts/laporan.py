@@ -124,15 +124,22 @@ def _excel(judul, header, rows, f, nama_file):
 
 
 def _pilihan_satuan():
+    """The units a report can be narrowed to: those someone belongs to (a
+    report's unit is always somebody's biodata's), not all the thousands."""
     from .models import Satuan
 
-    return list(Satuan.objects.order_by("nama"))
+    return list(Satuan.objects.filter(biodata__isnull=False).distinct().order_by("nama"))
+
+
+def opsi_satuan(daftar):
+    """``daftar`` (Satuan) as the options of the type-ahead Satuan filter."""
+    return [{"v": str(s.uuid), "l": s.nama} for s in daftar]
 
 
 def _render(
     request, template, judul, header, rows, f, nama_file, tautan=None, kolom_tanggal=1, kolom_utama=2,
     pakai_tanggal=True, pakai_cari=False, pakai_excel=True, pakai_satuan=False, pakai_filter=True, pakai_hapus=False, pakai_qr=False,
-    pakai_ekspor_qr=False, tab=None, kondisi_pilihan=None,
+    pakai_ekspor_qr=False, tab=None, kondisi_pilihan=None, pakai_pdf=False, per_halaman=None,
 ):
     """``tautan``: optional per-row URL (same order as ``rows``) opened in the detail modal.
     ``kolom_tanggal`` / ``kolom_utama``: 1-based columns styled as the date and as
@@ -143,7 +150,9 @@ def _render(
     above the table, [(kode, label)], the one shown being ``?tab=``."""
     if pakai_excel and request.GET.get("unduh") == "excel":
         return _excel(judul, header, rows, f, nama_file)
-    halaman = halaman_dari(request, list(zip(rows, tautan or [None] * len(rows))))
+    halaman = halaman_dari(
+        request, list(zip(rows, tautan or [None] * len(rows))), **({"per_halaman": per_halaman} if per_halaman else {}),
+    )
     query = request.GET.copy()
     query.pop("page", None)
     return render(request, template, {
@@ -163,11 +172,14 @@ def _render(
         "pakai_hapus": pakai_hapus,
         "pakai_qr": pakai_qr,
         "pakai_ekspor_qr": pakai_ekspor_qr,
-        "satuan_pilihan": _pilihan_satuan() if pakai_satuan else [],
+        "satuan_pilihan": pakai_satuan,
+        "satuan_opsi": opsi_satuan(_pilihan_satuan()) if pakai_satuan else [],
         "q": request.GET.get("q", "").strip(),
         "tab": tab or [],
         # A Kondisi filter (?kondisi=): [(kode, label)], the one picked in f["kondisi"].
         "kondisi_pilihan": kondisi_pilihan or [],
+        # An "Export ke PDF" button (?unduh=pdf), handled by the report's own view.
+        "pakai_pdf": pakai_pdf,
         "tab_aktif": _tab(request, tab) if tab else "",
     })
 
@@ -299,28 +311,39 @@ _LENCANA_KERUSAKAN = {
     "RB": "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
     "RR": "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
 }
+# Rekap Kerusakan's Kondisi filter: what the part is now.
+FILTER_KONDISI_REKAP = [*KONDISI_KERUSAKAN, ("B", "Baik")]
+_LENCANA_BAIK = "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300"
 
 
 @login_required
 def rekap_kerusakan(request):
-    """Rekap Kerusakan: every part that is damaged now (Rusak Ringan or Rusak
-    Berat: so in its vehicle's last inspection and not repaired to Baik
-    since), one row per part, newest first, in the viewer's scope. Filtered
-    by date, vehicle group (Jenis Kendaraan), Satuan, condition and a search
-    of the vehicle or the part; also as an Excel sheet."""
-    from django.utils.html import format_html
+    """Rekap Kerusakan: every part its vehicle's last inspection found Rusak
+    Ringan or Rusak Berat (or that a repair left so), one row per part,
+    newest first, in the viewer's scope. Kondisi is what was found; once the
+    part has been repaired it reads "found -> now" (Rusak Ringan -> Baik).
+    Filtered by date, vehicle group (Jenis Kendaraan), Satuan, condition
+    (what the part is now) and a search of the vehicle or the part; also as
+    an Excel sheet and a PDF."""
+    from django.utils.html import format_html, format_html_join
+    from django.utils.safestring import mark_safe
 
     from . import dashboard
 
     f = _filter(request)
     kondisi = request.GET.get("kondisi", "")
-    f["kondisi"] = kondisi if kondisi in dict(KONDISI_KERUSAKAN) else ""
+    f["kondisi"] = kondisi if kondisi in dict(FILTER_KONDISI_REKAP) else ""
     q = request.GET.get("q", "").strip().lower()
-    label = dict(KONDISI_KERUSAKAN)
+    label = {**dict(KONDISI_KERUSAKAN), "B": "Baik", "ADA": "Ada", "TA": "Tidak Ada"}
     semua, _ = dashboard.komponen_rusak(
-        dashboard.cakupan(request.user), (f["kondisi"],) if f["kondisi"] else tuple(label),
-        kodes=[f["golongan"]] if f["golongan"] else None,
+        dashboard.cakupan(request.user), tuple(dict(KONDISI_KERUSAKAN)),
+        kodes=[f["golongan"]] if f["golongan"] else None, termasuk_selesai=True,
     )
+    # The Kondisi filter looks at what the part is now: the condition after
+    # the arrow for a repaired part (Baik: repaired to Baik).
+    if f["kondisi"]:
+        cocok = ("B", "ADA") if f["kondisi"] == "B" else (f["kondisi"],)
+        semua = [b for b in semua if b["kondisi"] in cocok]
     rows, kode_kondisi = [], []
     for b in semua:
         v = b["vehicle"]
@@ -333,26 +356,56 @@ def rekap_kerusakan(request):
         if q and not any(q in (teks or "").lower() for teks in (v.nopol, v.merek, v.no_chasis, v.no_mesin, b["item"].nama_alat)):
             continue
         oleh = b["perbaikan"].teknisi.nama if b["perbaikan"] else b["periksa"].pemeriksa.nama
-        kode_kondisi.append(b["kondisi"])
+        # Repaired: what was found and what it is now; not yet: the one condition.
+        urutan = [b["awal"], b["kondisi"]] if b["perbaikan"] else [b["kondisi"]]
+        kode_kondisi.append(urutan)
         rows.append((
             timezone.localtime(b["waktu"]).strftime("%d-%m-%Y %H:%M"), v.nopol, v.merek, v.get_group_kendaraan_display(),
-            satuan.nama if satuan else "-", b["item"].nomor, b["item"].nama_alat, label[b["kondisi"]],
+            satuan.nama if satuan else "-", b["item"].nama_alat, " → ".join(label.get(k, k) for k in urutan),
             "Perbaikan" if b["perbaikan"] else "Pemeriksaan", oleh, b["keterangan"] or "-",
         ))
     header = [
-        "Tanggal", "No. Registrasi", "Merk/Type", "Jenis Kendaraan", "Satuan", "Form No", "Sparepart / Komponen",
+        "Tanggal", "No. Registrasi", "Merk/Type", "Jenis Kendaraan", "Satuan", "Sparepart / Komponen",
         "Kondisi", "Sumber", "Oleh", "Keterangan",
     ]
     if request.GET.get("unduh") == "excel":
         return _excel("Rekap Kerusakan", header, rows, f, "rekap-kerusakan.xlsx")
-    # On the page the condition is a coloured badge.
+    if request.GET.get("unduh") == "pdf":
+        from . import laporan_pdf
+
+        # The charts count what is still damaged; what was repaired to Baik is a number of its own.
+        per_satuan, sudah_baik = {}, 0  # unit -> [Rusak Berat, Rusak Ringan]
+        for baris, urutan in zip(rows, kode_kondisi):
+            if urutan[-1] in ("RB", "RR"):
+                per_satuan.setdefault(baris[4], [0, 0])[0 if urutan[-1] == "RB" else 1] += 1
+            else:
+                sudah_baik += 1
+        keterangan = [_keterangan_filter(f).replace("Semua golongan", "Semua jenis kendaraan")]
+        if f["kondisi"]:
+            keterangan.append(f"Kondisi sekarang {label[f['kondisi']]}")
+        if q:
+            keterangan.append(f'cari "{request.GET.get("q", "").strip()}"')
+        return laporan_pdf._pdf_response(request, laporan_pdf.buat_pdf_rekap_kerusakan(
+            " · ".join(keterangan), [(nama, b, r) for nama, (b, r) in per_satuan.items()],
+            header, [10, 22, 24, 24, 22, 34, 34, 34, 22, 18, 23], rows, sudah_baik=sudah_baik,
+        ), "rekap-kerusakan.pdf")
+
+    # On the page each condition is a coloured badge, an arrow between the two of a repaired part.
+    def lencana(urutan):
+        return format_html_join(
+            mark_safe(' <span class="text-slate-400">→</span> '),  # a constant: nothing typed in it
+            '<span class="rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap {}">{}</span>',
+            ((_LENCANA_KERUSAKAN.get(k, _LENCANA_BAIK), label.get(k, k)) for k in urutan),
+        )
+
     rows = [
-        (*baris[:7], format_html('<span class="rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap {}">{}</span>', _LENCANA_KERUSAKAN[kode], baris[7]), *baris[8:])
-        for baris, kode in zip(rows, kode_kondisi)
+        (*baris[:6], format_html('<span class="whitespace-nowrap">{}</span>', lencana(urutan)), *baris[7:])
+        for baris, urutan in zip(rows, kode_kondisi)
     ]
     return _render(
         request, "accounts/laporan_tabel.html", "Rekap Kerusakan", header, rows, f, "rekap-kerusakan.xlsx",
-        kolom_tanggal=1, kolom_utama=2, pakai_cari=True, pakai_satuan=True, kondisi_pilihan=KONDISI_KERUSAKAN,
+        kolom_tanggal=1, kolom_utama=2, pakai_cari=True, pakai_satuan=True, kondisi_pilihan=FILTER_KONDISI_REKAP,
+        pakai_pdf=True, per_halaman=10,
     )
 
 
@@ -378,14 +431,14 @@ def _laporan_sparepart_rusak(request, f):
             continue
         oleh = b["perbaikan"].teknisi.nama if b["perbaikan"] else b["periksa"].pemeriksa.nama
         rows.append((
-            b["item"].nomor, b["item"].nama_alat, v.nopol, v.merek, v.get_group_kendaraan_display(),
+            b["item"].nama_alat, v.nopol, v.merek, v.get_group_kendaraan_display(),
             satuan.nama if satuan else "-", "Perbaikan" if b["perbaikan"] else "Pemeriksaan",
             timezone.localtime(b["waktu"]).strftime("%d-%m-%Y %H:%M"), oleh, b["keterangan"] or "-",
         ))
     return _render(
         request, "accounts/laporan_tabel.html", JUDUL_RUSAK,
-        ["Form No", "Sparepart / Komponen", "No. Registrasi", "Merk/Type", "Golongan", "Satuan", "Sumber", "Tanggal", "Oleh", "Keterangan"],
-        rows, f, "laporan-sparepart-rusak.xlsx", kolom_tanggal=8, kolom_utama=2, pakai_tanggal=False, pakai_cari=True,
+        ["Sparepart / Komponen", "No. Registrasi", "Merk/Type", "Golongan", "Satuan", "Sumber", "Tanggal", "Oleh", "Keterangan"],
+        rows, f, "laporan-sparepart-rusak.xlsx", kolom_tanggal=7, kolom_utama=1, pakai_tanggal=False, pakai_cari=True,
         pakai_satuan=True, tab=TAB_RUSAK,
     )
 

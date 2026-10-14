@@ -45,6 +45,8 @@ def _kunci(nilai):
     user by pk, anything unhashable (a golongan config) by identity."""
     if nilai is None or isinstance(nilai, (str, int, bool)):
         return nilai
+    if isinstance(nilai, Cakupan):
+        return (frozenset(nilai), nilai.matra, None if nilai.asal is None else frozenset(nilai.asal))
     if isinstance(nilai, (set, frozenset)):
         return frozenset(nilai)
     if isinstance(nilai, (list, tuple)):
@@ -92,44 +94,86 @@ def cakupan(user):
     return users
 
 
+class Cakupan(frozenset):
+    """The users of one matra's dashboard, remembering which matra it is and
+    the viewer's whole scope (``asal``: user pks, or None for everything):
+    a vehicle counts for the matra it was added for, whoever added it."""
+    matra = ""
+    asal = None
+
+
 @_ingat
-def pengguna_matra(matra):
-    """User pks of one matra: the users with it, plus the Ketua Tim and Tim
-    members made before a matra was asked of them, who follow the one above
-    them (their Admin's, their Ketua Tim's)."""
+def _matra_pengguna():
+    """{user pk: matra} for every user: their own, else (Ketua Tim and Tim
+    members made before a matra was asked of them) the one above them (their
+    Admin's, their Ketua Tim's), else ""."""
     from django.contrib.auth.models import User
     from .models import Anggota
 
-    users = set(User.objects.filter(publik__matra=matra).values_list("pk", flat=True))
+    matra = dict(User.objects.values_list("pk", "publik__matra"))
+    matra = {pk: m or "" for pk, m in matra.items()}
     ikut = {}  # root path -> the team's matra, for members without their own
-    nodes = list(Anggota.objects.select_related("user__publik", "admin__publik").order_by("depth"))
-    for node in nodes:
-        sendiri = getattr(getattr(node.user, "publik", None), "matra", "")
-        if node.depth == 1:
-            ikut[node.path] = sendiri or getattr(getattr(node.admin, "publik", None), "matra", "")
-        if not sendiri and ikut.get(node.path[:Anggota.steplen]) == matra:
-            users.add(node.user_id)
-    return users
+    for node in Anggota.objects.order_by("depth").values_list("user_id", "admin_id", "path", "depth"):
+        user_id, admin_id, path, depth = node
+        if depth == 1:
+            ikut[path] = matra.get(user_id) or matra.get(admin_id) or ""
+        if not matra.get(user_id):
+            matra[user_id] = ikut.get(path[:Anggota.steplen], "")
+    return matra
+
+
+def _matra_bawaan():
+    """Where whatever has no matra is counted: the first one (Matra Darat),
+    the only one with vehicle groups so far."""
+    from . import roles
+
+    return roles.MATRA[0][0]
+
+
+@_ingat
+def pengguna_matra(matra):
+    """User pks of one matra: the users with it or following it (see
+    _matra_pengguna). Users with no matra at all count for the default one,
+    so that their vehicles and their work show somewhere."""
+    bawaan = _matra_bawaan()
+    return {pk for pk, m in _matra_pengguna().items() if m == matra or (not m and matra == bawaan)}
 
 
 @_ingat
 def cakupan_matra(user, matra):
-    """cakupan() narrowed to one matra's users ("" for no narrowing)."""
-    users = cakupan(user)
+    """cakupan() narrowed to one matra ("" for no narrowing): a Cakupan."""
+    asal = cakupan(user)
     if not matra:
-        return users
+        return asal
     semua = pengguna_matra(matra)
-    return semua if users is None else users & semua
+    hasil = Cakupan(semua if asal is None else asal & semua)
+    hasil.matra, hasil.asal = matra, asal
+    return hasil
 
 
 def _milik(qs, field, users):
-    """``qs`` narrowed to rows whose ``field`` (a user) is in ``users``."""
-    return qs if users is None else qs.filter(**{f"{field}__in": users})
+    """``qs`` narrowed to rows whose ``field`` (a user) is in ``users``. On
+    the default matra's dashboard of someone who sees everything, rows with
+    no user at all (work recorded before accounts were linked) count too."""
+    if users is None:
+        return qs
+    if isinstance(users, Cakupan) and users.asal is None and users.matra == _matra_bawaan():
+        return qs.filter(Q(**{f"{field}__in": users}) | Q(**{f"{field}__isnull": True}))
+    return qs.filter(**{f"{field}__in": users})
 
 
 def _kendaraan(users):
-    """Vehicles in scope: those added by one of ``users``."""
-    return _milik(Vehicle.objects.all(), "ditambahkan_oleh", users)
+    """Vehicles in scope: those added by one of ``users``. For one matra's
+    dashboard (a Cakupan): the viewer's vehicles added for that matra
+    (Vehicle.matra, picked on Form Tambah), and those without one whose adder
+    is of that matra; vehicles with neither count for the default matra."""
+    if not isinstance(users, Cakupan):
+        return _milik(Vehicle.objects.all(), "ditambahkan_oleh", users)
+    qs = _milik(Vehicle.objects.all(), "ditambahkan_oleh", users.asal)
+    cocok = Q(matra=users.matra) | Q(matra="", ditambahkan_oleh__in=users)
+    if users.matra == _matra_bawaan():
+        cocok |= Q(matra="", ditambahkan_oleh__isnull=True)
+    return qs.filter(cocok)
 
 
 # Rows on the dashboard's Sedang Dikerjakan card.
@@ -149,7 +193,7 @@ def _perlu_servis(kodes, users):
 @_ingat
 def _fleet_summary_group(kodes, users):
     if not kodes:
-        return {"service": 0, "total": 0, "ready": 0, "in_repair": 0, "due_soon": 0, "repaired": 0}
+        return {"service": 0, "total": 0, "ready": 0, "in_repair": 0, "due_soon": 0}
     status_counts = dict(
         _kendaraan(users).filter(group_kendaraan__in=kodes).values_list("status").annotate(count=Count("id"))
     )
@@ -160,7 +204,6 @@ def _fleet_summary_group(kodes, users):
         "ready": status_counts.get(Vehicle.Status.SIAP_PAKAI, 0),
         "in_repair": status_counts.get(Vehicle.Status.DALAM_PERBAIKAN, 0),
         "due_soon": status_counts.get(Vehicle.Status.PERLU_SERVIS, 0),
-        "repaired": status_counts.get(Vehicle.Status.SUDAH_DIPERBAIKI, 0),
     }
 
 # The summary cards open a table of their vehicles: card -> (title, statuses or None for all).
@@ -169,7 +212,6 @@ KARTU_KENDARAAN = {
     "siap": ("Siap", [Vehicle.Status.SIAP_PAKAI]),
     "rusak_ringan": ("Rusak Ringan", [Vehicle.Status.PERLU_SERVIS]),
     "rusak_berat": ("Rusak Berat", [Vehicle.Status.DALAM_PERBAIKAN]),
-    "sudah_diperbaiki": ("Sudah Diperbaiki", [Vehicle.Status.SUDAH_DIPERBAIKI]),
     # Any status: picked by km_jadwal.perlu_servis instead.
     "perlu_servis": ("Perlu Servis", None),
 }
@@ -239,80 +281,6 @@ def satuan_pie(qs):
     return {"irisan": irisan, "total": total, "r": PIE_R, "pusat": PIE_PUSAT, "sisi": 2 * PIE_PUSAT}
 
 
-def _irisan_pie(bagian):
-    """Pie slices for [(label, n, css class)], clockwise from 12 o'clock:
-    each with its share and SVG path ("" for a slice that is the whole pie,
-    drawn as a circle). Parts of 0 are left out."""
-    import math
-
-    bagian = [b for b in bagian if b[1]]
-    total = sum(n for _, n, _ in bagian)
-    irisan, sudut = [], -math.pi / 2
-    for label, n, kelas in bagian:
-        lebar = 2 * math.pi * n / total
-        x1, y1 = PIE_PUSAT + PIE_R * math.cos(sudut), PIE_PUSAT + PIE_R * math.sin(sudut)
-        sudut += lebar
-        x2, y2 = PIE_PUSAT + PIE_R * math.cos(sudut), PIE_PUSAT + PIE_R * math.sin(sudut)
-        irisan.append({
-            "label": label, "nilai": n, "persen": round(100 * n / total, 1), "kelas": kelas,
-            "path": "" if n == total else (
-                f"M{PIE_PUSAT},{PIE_PUSAT} L{x1:.2f},{y1:.2f} "
-                f"A{PIE_R},{PIE_R} 0 {1 if lebar > math.pi else 0} 1 {x2:.2f},{y2:.2f} Z"
-            ),
-        })
-    return irisan
-
-
-def ringkasan_matra(user, kodes):
-    """The dashboard's Semua Matra view: a pie per matra of its vehicles'
-    condition (Siap, Rusak Ringan, Rusak Berat), and a row of detail per matra (its vehicles by condition and those due
-    a service). A last "Tanpa matra" row holds the vehicles of users without
-    one, when there are any."""
-    from . import roles
-
-    kolom = {
-        Vehicle.Status.SIAP_PAKAI: "siap", Vehicle.Status.PERLU_SERVIS: "ringan",
-        Vehicle.Status.DALAM_PERBAIKAN: "berat", Vehicle.Status.SUDAH_DIPERBAIKI: "diperbaiki",
-    }
-
-    def kosong():
-        return {"total": 0, "siap": 0, "ringan": 0, "berat": 0, "diperbaiki": 0, "servis": 0}
-
-    # One pass over the vehicles in scope: each is counted for the whole and
-    # for the matra of whoever added it (what is due a service worked out once).
-    lingkup = cakupan(user)
-    servis = _perlu_servis(kodes, lingkup)
-    per_matra = [(kode, label, cakupan_matra(user, kode), kosong()) for kode, label in roles.MATRA]
-    semua = kosong()
-    kendaraan = _kendaraan(lingkup).filter(group_kendaraan__in=kodes).values_list("pk", "status", "ditambahkan_oleh_id")
-    for pk, status, penambah in kendaraan.iterator():
-        sasaran = [semua] + [r for _, _, anggota, r in per_matra if penambah in anggota]
-        for r in sasaran:
-            r["total"] += 1
-            if status in kolom:
-                r[kolom[status]] += 1
-            if pk in servis:
-                r["servis"] += 1
-    sisa = dict(semua)
-    baris = []
-    for i, (kode, label, _, r) in enumerate(per_matra, start=1):
-        for kunci in sisa:
-            sisa[kunci] -= r[kunci]
-        baris.append({"kode": kode, "label": label, "warna": i, **r})
-    if sisa["total"] > 0:
-        baris.append({"kode": "", "label": "Tanpa matra", "warna": 8, **sisa})
-    for b in baris:
-        # The matra's own pie: its vehicles that are Siap, Rusak Ringan or Rusak Berat.
-        kondisi = [("Siap", b["siap"], "pie-siap"), ("Rusak Ringan", b["ringan"], "pie-ringan"), ("Rusak Berat", b["berat"], "pie-berat")]
-        b["irisan"] = _irisan_pie(kondisi)
-        persen = {i["label"]: i["persen"] for i in b["irisan"]}
-        b["legenda"] = [{"label": l, "nilai": n, "kelas": k, "persen": persen.get(l, 0)} for l, n, k in kondisi]
-    return {
-        "baris": baris, "total": semua,
-        "r": PIE_R, "pusat": PIE_PUSAT, "sisi": 2 * PIE_PUSAT,
-    }
-
-
 def saring_satuan(qs, nilai):
     """``qs`` narrowed to one unit's vehicles: ``nilai`` is a Satuan uuid, or
     "-" for the vehicles without a unit. Returns (queryset, the unit's name
@@ -334,41 +302,6 @@ def saring_satuan(qs, nilai):
 RUSAK_MAKS = 200
 
 
-def rusak_berat(users, batas=RUSAK_MAKS):
-    """The Rusak/Tidak Bisa Diperbaiki tab: the vehicles in scope that are
-    Rusak Berat, newest first: declared so with Form Rusak/Tidak Layak Pakai
-    (``v.dinyatakan``: the latest declaration) or by their last inspection
-    concluding Tidak Layak Pakai (``v.periksa``, with how many of its parts
-    are Rusak Berat). Returns (rows, total); ``batas``: how many rows at most
-    (None for all, as the PDF lists them)."""
-    qs = _kendaraan(users).filter(status=Vehicle.Status.DALAM_PERBAIKAN).select_related("penambah__satuan")
-    total = qs.count()
-    vehicles = {v.pk: v for v in qs}
-    from .models import KendaraanRusak
-
-    for v in vehicles.values():
-        v.periksa = v.dinyatakan = None
-    for d in KendaraanRusak.objects.filter(vehicle__in=list(vehicles)).select_related("pelapor").order_by("dibuat_pada", "id"):
-        vehicles[d.vehicle_id].dinyatakan = d  # ends on the newest
-    for cfg in golongan.GOLONGAN.values():
-        terakhir = (
-            cfg.pemeriksaan_model.objects.filter(vehicle__in=list(vehicles))
-            .select_related("pemeriksa").annotate(jumlah_rb=Count("items", filter=Q(items__kondisi="RB")))
-            .order_by("vehicle", "-dibuat_pada", "-id")
-        )
-        for hasil in terakhir:
-            v = vehicles[hasil.vehicle_id]
-            if v.periksa is None or hasil.dibuat_pada > v.periksa.dibuat_pada:
-                v.periksa = hasil
-    for v in vehicles.values():
-        waktu = [x.dibuat_pada for x in (v.periksa, v.dinyatakan) if x is not None]
-        v.waktu_rusak = max(waktu) if waktu else None
-    baris = sorted(
-        vehicles.values(), key=lambda v: (v.waktu_rusak.timestamp() if v.waktu_rusak else 0, v.pk), reverse=True,
-    )
-    return baris[:batas], total
-
-
 def sparepart_rusak(users, batas=RUSAK_MAKS):
     """The Sparepart half of the Rusak/Tidak Bisa Diperbaiki tab: the parts
     that are Rusak Berat now (komponen_rusak). Returns (rows, total);
@@ -376,12 +309,15 @@ def sparepart_rusak(users, batas=RUSAK_MAKS):
     return komponen_rusak(users, ("RB",), batas=batas)
 
 
-def komponen_rusak(users, kondisi=("RR", "RB"), kodes=None, batas=None):
+def komponen_rusak(users, kondisi=("RR", "RB"), kodes=None, batas=None, termasuk_selesai=False):
     """The parts that are damaged now, on the vehicles in scope: marked with
     one of ``kondisi`` (RR: Rusak Ringan, RB: Rusak Berat) in the vehicle's
     last inspection and not repaired since, or left so by their last repair.
-    Each row carries that ``kondisi``. ``kodes``: only these vehicle groups.
-    Newest first. Returns (rows, total); ``batas``: how many rows at most."""
+    Each row carries that ``kondisi`` and ``awal``, what the inspection found.
+    ``termasuk_selesai``: also the parts the inspection found so that have
+    been repaired since (to Baik too), for a recap of what was damaged.
+    ``kodes``: only these vehicle groups. Newest first. Returns (rows,
+    total); ``batas``: how many rows at most."""
     baris = []
     for kode, cfg in golongan.GOLONGAN.items():
         if kodes is not None and kode not in kodes:
@@ -409,12 +345,12 @@ def komponen_rusak(users, kondisi=("RR", "RB"), kodes=None, batas=None):
         for item in items:
             diperbaiki = perbaikan.get(item.pk)
             kini = diperbaiki.kondisi if diperbaiki else item.kondisi
-            if kini not in kondisi:
+            if kini not in kondisi and not (termasuk_selesai and item.kondisi in kondisi):
                 continue
             hasil = periksa[item.pemeriksaan_id]
             baris.append({
                 "vehicle": kendaraan[hasil.vehicle_id], "item": item, "periksa": hasil, "perbaikan": diperbaiki,
-                "kondisi": kini,
+                "kondisi": kini, "awal": item.kondisi,
                 "waktu": diperbaiki.dibuat_pada if diperbaiki else hasil.dibuat_pada,
                 "keterangan": (diperbaiki.keterangan if diperbaiki else item.keterangan),
             })
@@ -716,9 +652,9 @@ def _status_per_satuan(kodes, users):
     ({card: {group code: n}}), for the table a card opens."""
     kunci = {
         Vehicle.Status.SIAP_PAKAI: "siap", Vehicle.Status.PERLU_SERVIS: "ringan",
-        Vehicle.Status.DALAM_PERBAIKAN: "berat", Vehicle.Status.SUDAH_DIPERBAIKI: "diperbaiki",
+        Vehicle.Status.DALAM_PERBAIKAN: "berat",
     }
-    kartu = ("total", "siap", "ringan", "berat", "diperbaiki", "servis")
+    kartu = ("total", "siap", "ringan", "berat", "servis")
     qs = _kendaraan(users).filter(group_kendaraan__in=kodes)
     baris = {}
 

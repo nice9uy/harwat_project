@@ -31,8 +31,6 @@ class Vehicle(models.Model):
         SIAP_PAKAI = "siap_pakai", "Siap Pakai"
         DALAM_PERBAIKAN = "dalam_perbaikan", "Dalam Perbaikan"
         PERLU_SERVIS = "perlu_servis", "Perlu Servis"
-        # Every part its last inspection found damaged has been repaired to Baik.
-        SUDAH_DIPERBAIKI = "sudah_diperbaiki", "Sudah Diperbaiki"
 
     class Kepemilikan(models.TextChoices):
         ORGANIK = "organik", "Organik"

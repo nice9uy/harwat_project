@@ -146,8 +146,8 @@ def status_kendaraan(vehicle):
     Pakai -> Rusak Berat), with two corrections from the parts:
 
     * parts still not Baik under a Siap Pakai conclusion make it Rusak Ringan;
-    * once every part that wasn't Baik has been repaired to Baik, it is Sudah
-      Diperbaiki (until its next inspection).
+    * once every part that wasn't Baik has been repaired to Baik, it is Siap
+      again: nothing is left to repair.
 
     Siap when never inspected. A vehicle declared Rusak / Tidak Layak Pakai
     (models.KendaraanRusak) is Rusak Berat, until an inspection made after
@@ -171,7 +171,7 @@ def status_kendaraan(vehicle):
     pernah_rusak = any(kode not in cfg.baik for kode in awal.values())
     masih_rusak = any(kode not in cfg.baik for kode in kini.values())
     if pernah_rusak and not masih_rusak:
-        return Vehicle.Status.SUDAH_DIPERBAIKI
+        return Vehicle.Status.SIAP_PAKAI
     status = STATUS_KESIMPULAN.get(terakhir.kesimpulan, Vehicle.Status.SIAP_PAKAI)
     if masih_rusak and status == Vehicle.Status.SIAP_PAKAI:
         return Vehicle.Status.PERLU_SERVIS

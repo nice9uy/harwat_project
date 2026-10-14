@@ -40,15 +40,6 @@ class PagingTests(TestCase):
         self.assertTemplateUsed(kedua, "fleet/_vehicle_search_hasil.html")
         self.assertEqual(self._jumlah(kedua, "vehicles"), 5)
 
-    def test_jadwal_and_servis_pages(self):
-        for v in self.vehicles:
-            Jadwal.objects.create(vehicle=v, tanggal="2026-10-01", kegiatan="servis")
-            Servis.objects.create(vehicle=v, tanggal="2026-09-01", jenis_servis="Oli", biaya=1000)
-        jadwal = self.client.get(reverse("operasional:jadwal_list"))
-        self.assertEqual(self._jumlah(jadwal, "jadwal_list"), PER_HALAMAN)
-        servis = self.client.get(reverse("operasional:servis_list"), {"page": 2})
-        self.assertEqual(self._jumlah(servis, "servis_list"), 5)
-
     def test_pengaturan_tabs_page_independently(self):
         for i in range(PER_HALAMAN + 3):
             Satuan.objects.create(nama=f"Satuan {i:02d}")
@@ -62,3 +53,38 @@ class PagingTests(TestCase):
         response = self.client.get(reverse("accounts:laporan_penambahan"))
         self.assertEqual(self._jumlah(response, "halaman"), PER_HALAMAN)
         self.assertContains(response, "Menampilkan 1–15 dari 20 data")
+
+
+class CariSatuanTests(TestCase):
+    """Pengaturan > Satuan: the search field narrows the matra's units."""
+
+    def test_search_by_name_or_note_keeps_paging_and_matra(self):
+        from django.contrib.auth.models import User
+        from django.urls import reverse
+        from accounts.models import Satuan
+        User.objects.create_superuser(username="root_cari", password="rahasia-123")
+        self.client.login(username="root_cari", password="rahasia-123")
+        Satuan.objects.all().delete()
+        for i in range(20):
+            Satuan.objects.create(nama=f"KODIM {i:04d}/UJI", matra="darat")
+        Satuan.objects.create(nama="KOREM 011/LW", matra="darat", keterangan="Lhokseumawe")
+        Satuan.objects.create(nama="LANTAMAL KODIM-MIRIP", matra="laut")
+        url = reverse("accounts:pengaturan")
+
+        def nama(**query):
+            response = self.client.get(url, {"tab": "satuan", **query})
+            return response, [s.nama for s in response.context["satuan_list"]]
+
+        response, hasil = nama(cari_satuan="korem")
+        self.assertEqual(hasil, ["KOREM 011/LW"])
+        self.assertContains(response, 'name="cari_satuan" value="korem"')
+        self.assertEqual(nama(cari_satuan="lhokseumawe")[1], ["KOREM 011/LW"])  # by note
+        self.assertEqual(nama(cari_satuan="tidak-ada")[1], [])
+        self.assertContains(nama(cari_satuan="tidak-ada")[0], "Tidak ada satuan yang cocok.")
+        # Only the matra shown is searched, and paging carries the search on.
+        response, hasil = nama(cari_satuan="kodim")
+        self.assertEqual(response.context["satuan_list"].paginator.count, 20)
+        self.assertRegex(response.content.decode(), r'href="[^"]*cari_satuan=kodim[^"]*hal_satuan=2"')
+        self.assertEqual(nama(cari_satuan="kodim", hal_satuan="2")[1][0], "KODIM 0015/UJI")
+        self.assertEqual(nama(cari_satuan="kodim", matra="laut")[1], ["LANTAMAL KODIM-MIRIP"])
+        self.assertEqual(self.client.get(url, {"tab": "satuan"}).context["satuan_list"].paginator.count, 21)

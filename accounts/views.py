@@ -69,21 +69,23 @@ def logout_view(request):
 
 
 def _matra_terkunci(user):
-    """The one matra an Admin's or a Pimpinan Tim's dashboard shows, their
-    own ("" when they have none). A superuser and a Pimpinan pick any."""
-    if user.is_superuser or roles.keanggotaan_kode(user) not in (roles.ADMIN_ROLE, roles.PIMPINAN_TIM):
+    """The one matra the dashboard of an Admin, a Ketua Tim or a Pimpinan Tim
+    shows: their own, or (a Ketua Tim made before a matra was asked) their
+    Admin's; "" when they have none. A superuser and a Pimpinan pick any."""
+    if user.is_superuser or roles.keanggotaan_kode(user) not in (roles.ADMIN_ROLE, roles.KETUA_TIM, roles.PIMPINAN_TIM):
         return ""
-    return getattr(getattr(user, "publik", None), "matra", "")
+    return getattr(getattr(user, "publik", None), "matra", "") or dashboard._matra_pengguna().get(user.pk, "")
 
 
 def _matra_dashboard(request):
-    """The matra picked above the dashboard's tabs (?matra=), or "" for all;
-    an Admin and a Pimpinan Tim get their own, with no picker."""
+    """The matra picked above the dashboard's tabs (?matra=), the first one
+    when none is (there is no all-matra view); an Admin and a Pimpinan Tim
+    get their own, with no picker."""
     terkunci = _matra_terkunci(request.user)
     if terkunci:
         return terkunci
     matra = request.GET.get("matra", "")
-    return matra if matra in dict(roles.MATRA) else ""
+    return matra if matra in dict(roles.MATRA) else roles.MATRA[0][0]
 
 
 def _cakupan_dashboard(request):
@@ -96,7 +98,7 @@ def _dashboard_context(request):
     return {
         **dashboard.konteks(_cakupan_dashboard(request), request.GET.get("hal_kegiatan")),
         "matra_dashboard": _matra_dashboard(request),
-        "matra_pilihan": [] if _matra_terkunci(request.user) else [("", "Semua Matra"), *roles.MATRA],
+        "matra_pilihan": [] if _matra_terkunci(request.user) else roles.MATRA,
     }
 
 
@@ -115,14 +117,6 @@ def _dashboard_halaman(request):
     return render(request, "accounts/dashboard.html", {
         **_dashboard_context(request), "grafik": grafik,
         # Per sub-tab: its units' numbers and its vehicle groups (the columns of a card's table).
-        # The Rusak/Tidak Bisa Diperbaiki tab: (vehicles, how many there are).
-        "rusak_berat": dashboard.rusak_berat(_cakupan_dashboard(request)),
-        "sparepart_rusak": dashboard.sparepart_rusak(_cakupan_dashboard(request)),
-        # Semua Matra (no matra picked): one pie of the vehicles per matra and
-        # a summary row per matra, instead of the tabs.
-        "ringkasan_matra": (
-            None if _matra_dashboard(request) else dashboard.ringkasan_matra(request.user, dashboard.KENDARAAN_KODE)
-        ),
         "status_satuan": [
             (sub, grafik[sub]["status_satuan"], [
                 {"kode": str(kode), "label": label} for kode, label in Vehicle.GroupKendaraan.choices if kode in kodes
@@ -156,78 +150,6 @@ def dashboard_kendaraan(request):
         "pakai_alasan": kartu == "perlu_servis",
         "grafik": grafik, "satuan": request.GET.get("satuan", "") if satuan_nama else "", "satuan_nama": satuan_nama,
     })
-
-
-@login_required
-def dashboard_rusak_pdf(request):
-    """The Rusak/Tidak Bisa Diperbaiki tab as a PDF: its Sparepart table
-    (?jenis=sparepart) or its Kendaraan one, in the viewer's scope and matra,
-    narrowed like the tab's filter (?dari=, ?sampai=, ?nopol=). Every row,
-    not just the newest the tab shows."""
-    from . import laporan_pdf
-    from .laporan import _tanggal
-
-    dari, sampai = _tanggal(request.GET.get("dari")), _tanggal(request.GET.get("sampai"))
-    nopol = request.GET.get("nopol", "").strip().lower()
-    users = _cakupan_dashboard(request)
-
-    def lolos(vehicle, waktu):
-        if nopol and nopol not in vehicle.nopol.lower():
-            return False
-        if not (dari or sampai):
-            return True
-        if waktu is None:
-            return False
-        tanggal = timezone.localtime(waktu).date()
-        return not (dari and tanggal < dari) and not (sampai and tanggal > sampai)
-
-    def satuan(vehicle):
-        return vehicle.penambah.satuan.nama if vehicle.penambah and vehicle.penambah.satuan else "-"
-
-    def kapan(waktu):
-        return timezone.localtime(waktu).strftime("%d-%m-%Y %H:%M") if waktu else "-"
-
-    if request.GET.get("jenis") == "sparepart":
-        judul, nama_file = "SPAREPART RUSAK / TIDAK BISA DIPERBAIKI", "sparepart-rusak.pdf"
-        kepala = ["Form No", "Sparepart / Komponen", "No. Registrasi", "Merk/Type", "Golongan", "Satuan", "Sumber", "Tanggal", "Oleh", "Keterangan"]
-        lebar = [10, 16, 40, 26, 28, 22, 38, 24, 22, 18, 23]
-        rows = [
-            [
-                b["item"].nomor, b["item"].nama_alat, b["vehicle"].nopol, b["vehicle"].merek,
-                b["vehicle"].get_group_kendaraan_display(), satuan(b["vehicle"]),
-                "Perbaikan" if b["perbaikan"] else "Pemeriksaan", kapan(b["waktu"]),
-                b["perbaikan"].teknisi.nama if b["perbaikan"] else b["periksa"].pemeriksa.nama, b["keterangan"] or "-",
-            ]
-            for b in dashboard.sparepart_rusak(users, batas=None)[0] if lolos(b["vehicle"], b["waktu"])
-        ]
-    else:
-        judul, nama_file = "KENDARAAN RUSAK / TIDAK BISA DIPERBAIKI", "kendaraan-rusak.pdf"
-        kepala = ["No. Registrasi", "Merk/Type", "Golongan", "Satuan", "Kepemilikan", "Sumber", "Tanggal", "Oleh", "Keterangan"]
-        lebar = [10, 30, 34, 24, 44, 24, 24, 22, 22, 33]
-        rows = []
-        for v in dashboard.rusak_berat(users, batas=None)[0]:
-            if not lolos(v, v.waktu_rusak):
-                continue
-            if v.dinyatakan:
-                sumber, oleh, ket = "Form Rusak", v.dinyatakan.pelapor.nama, v.dinyatakan.alasan
-            else:
-                sumber = "Pemeriksaan"
-                oleh = v.periksa.pemeriksa.nama if v.periksa else "-"
-                ket = getattr(v.periksa, "keterangan", "") or "-"
-            rows.append([
-                v.nopol, v.merek, v.get_group_kendaraan_display(), satuan(v), v.get_kepemilikan_display(),
-                sumber, kapan(v.waktu_rusak), oleh, ket,
-            ])
-    keterangan = [dict(roles.MATRA).get(_matra_dashboard(request), "Semua Matra")]
-    if dari or sampai:
-        keterangan.append(
-            f"Periode {dari.strftime('%d-%m-%Y') if dari else 'awal'} s/d {sampai.strftime('%d-%m-%Y') if sampai else 'sekarang'}"
-        )
-    if nopol:
-        keterangan.append(f"No. Registrasi mengandung \"{request.GET.get('nopol', '').strip()}\"")
-    return laporan_pdf._pdf_response(
-        request, laporan_pdf.buat_pdf_tabel(judul, " · ".join(keterangan), kepala, lebar, rows), nama_file,
-    )
 
 
 def _kelola_tim(request, kode, ketua):
@@ -939,7 +861,7 @@ def perbaikan_view(request):
                     cfg.perbaikan_model.objects.create(
                         teknisi=laporan_user, **cfg.perbaikan_model.kolom_foto(fotos), **entry,
                     )
-            golongan.perbarui_status(vehicle)  # all parts repaired: Sudah Diperbaiki
+            golongan.perbarui_status(vehicle)  # all parts repaired: Siap again
             status.selesai(request.user, PekerjaanAktif.Jenis.PERBAIKAN, vehicle)
             DraftPerbaikan.objects.filter(vehicle=vehicle, teknisi=request.user).delete()
             messages.success(request, f"Perbaikan {vehicle.nopol} berhasil disimpan ({len(entries)} item).")
@@ -1058,14 +980,20 @@ def pengaturan_view(request):
             if request.user.is_superuser and akun.keanggotaan == roles.GROUP_NAMES[roles.PIMPINAN_TIM] else ""
         )
     matra_satuan = request.GET.get("matra") if request.GET.get("matra") in dict(roles.MATRA) else "darat"
+    # The Satuan tab's search (?cari_satuan=): part of a unit's name or note.
+    cari_satuan = request.GET.get("cari_satuan", "").strip()
+    satuan_qs = Satuan.objects.filter(matra=matra_satuan)
+    if cari_satuan:
+        satuan_qs = satuan_qs.filter(Q(nama__icontains=cari_satuan) | Q(keterangan__icontains=cari_satuan))
     jumlah_per_matra = dict(Satuan.objects.order_by().values_list("matra").annotate(n=Count("id")))
     # Each tab pages on its own parameter; a page link also reopens its tab.
     return render(request, "accounts/pengaturan.html", {
         "users": halaman(request, users, param="hal_user", tab="user"),
         # The Satuan tab lists one matra at a time (?matra=).
         "satuan_list": halaman(
-            request, Satuan.objects.filter(matra=matra_satuan), param="hal_satuan", tab="satuan", matra=matra_satuan,
+            request, satuan_qs, param="hal_satuan", tab="satuan", matra=matra_satuan,
         ),
+        "cari_satuan": cari_satuan,
         "matra_satuan": matra_satuan,
         "matra_pilihan": [
             (kode, label, jumlah_per_matra.get(kode, 0)) for kode, label in roles.MATRA

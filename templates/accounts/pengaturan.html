@@ -187,9 +187,19 @@
             </a>
             {% endfor %}
         </nav>
-        <div class="flex items-center justify-between">
-            <p class="text-sm text-slate-500 dark:text-slate-400">Daftar satuan {% for kode, label, jumlah in matra_pilihan %}{% if kode == matra_satuan %}{{ label }}{% endif %}{% endfor %}.</p>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <p class="text-sm text-slate-500 dark:text-slate-400">Daftar satuan {% for kode, label, jumlah in matra_pilihan %}{% if kode == matra_satuan %}{{ label }}{% endif %}{% endfor %}{% if cari_satuan %} yang cocok dengan &ldquo;{{ cari_satuan }}&rdquo;: {{ satuan_list.paginator.count }} satuan{% endif %}.</p>
             <div class="flex flex-wrap items-center justify-end gap-2">
+                {# Searches this matra's units by name or note; paging keeps it. #}
+                <form method="get" action="{% url 'accounts:pengaturan' %}" class="flex items-center gap-2">
+                    <input type="hidden" name="tab" value="satuan">
+                    <input type="hidden" name="matra" value="{{ matra_satuan }}">
+                    <label for="cari-satuan" class="sr-only">Cari satuan</label>
+                    <input type="search" id="cari-satuan" name="cari_satuan" value="{{ cari_satuan }}" placeholder="Cari nama satuan…"
+                           class="w-56 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+                    <button type="submit" class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Cari</button>
+                    {% if cari_satuan %}<a href="{% url 'accounts:pengaturan' %}?tab=satuan&amp;matra={{ matra_satuan }}" class="text-sm text-slate-500 underline hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">Reset</a>{% endif %}
+                </form>
                 <a href="{% url 'accounts:satuan_ekspor' %}" download hx-boost="false"
                    class="rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700">
                     Export
@@ -254,7 +264,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="py-6 px-4 text-center text-slate-400 dark:text-slate-500">Belum ada data satuan.</td>
+                        <td colspan="5" class="py-6 px-4 text-center text-slate-400 dark:text-slate-500">{% if cari_satuan %}Tidak ada satuan yang cocok.{% else %}Belum ada data satuan.{% endif %}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

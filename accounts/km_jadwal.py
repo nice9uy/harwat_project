@@ -104,8 +104,10 @@ def _bulan_antara(awal, akhir):
 
 
 def perlu_servis(vehicles):
-    """{vehicle pk: reason} for the vehicles due a service, by the intervals
-    of Pengaturan > KM for their group (a group with neither set is never due):
+    """{vehicle pk: reason} for the vehicles due a service: those with parts
+    still to repair (not Baik in their last inspection and not repaired to
+    Baik since), and those past the intervals of Pengaturan > KM for their
+    group (a group with neither set is never due by them):
 
     * Waktu Servis: that many months since the last service (a Servis record
       or a repair), or since the vehicle was added when it never had one;
@@ -118,8 +120,29 @@ def perlu_servis(vehicles):
     ids = [v.pk for v in vehicles]
     servis = dict(Servis.objects.filter(vehicle__in=ids).values_list("vehicle").annotate(t=Max("tanggal")))
     bacaan = {}  # vehicle pk -> [(date, km)], oldest first
+    belum = {}  # vehicle pk -> parts still to repair
     for kode, cfg in golongan.GOLONGAN.items():
         kolom = KM_GOLONGAN[kode][1]
+        terakhir_periksa = {}  # vehicle pk -> its newest inspection's pk
+        for vid, pk in (
+            cfg.pemeriksaan_model.objects.filter(vehicle__in=ids).order_by("dibuat_pada", "id").values_list("vehicle_id", "pk")
+        ):
+            terakhir_periksa[vid] = pk
+        if terakhir_periksa:
+            kendaraan_dari = {pk: vid for vid, pk in terakhir_periksa.items()}
+            rusak = {  # part pk -> its inspection's pk, for the parts found not Baik
+                pk: periksa for pk, periksa in cfg.item_model.objects.filter(pemeriksaan__in=list(kendaraan_dari))
+                .exclude(kondisi__in=cfg.baik).values_list("pk", "pemeriksaan_id")
+            }
+            kini = {}  # part pk -> the condition its newest repair left it in
+            for item_id, kondisi in (
+                cfg.perbaikan_model.objects.filter(item__in=list(rusak)).order_by("dibuat_pada", "id").values_list("item_id", "kondisi")
+            ):
+                kini[item_id] = kondisi
+            for pk, periksa in rusak.items():
+                if kini.get(pk) not in cfg.baik:
+                    vid = kendaraan_dari[periksa]
+                    belum[vid] = belum.get(vid, 0) + 1
         for vid, waktu in (
             cfg.perbaikan_model.objects.filter(item__pemeriksaan__vehicle__in=ids)
             .values_list("item__pemeriksaan__vehicle").annotate(t=Max("dibuat_pada"))
@@ -134,11 +157,15 @@ def perlu_servis(vehicles):
     hari_ini = timezone.localdate()
     hasil = {}
     for v in vehicles:
+        alasan = []
+        if belum.get(v.pk):
+            alasan.append(f"{belum[v.pk]} komponen belum diperbaiki")
         a = aturan.get(KM_GOLONGAN.get(v.group_kendaraan, ("",))[0])
         if a is None or not (a.interval_km or a.interval_bulan):
+            if alasan:
+                hasil[v.pk] = " · ".join(alasan)
             continue
         terakhir = servis.get(v.pk)
-        alasan = []
         if a.interval_bulan:
             acuan = terakhir or (timezone.localtime(v.dibuat_pada).date() if v.dibuat_pada else None)
             if acuan and _bulan_antara(acuan, hari_ini) >= a.interval_bulan:

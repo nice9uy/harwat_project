@@ -68,17 +68,6 @@ class QueryCountTests(TestCase):
         banyak = self._hitung(url, params)
         self.assertEqual(sedikit, banyak, f"{url}: {sedikit} queries with little data, {banyak} with more")
 
-    def test_jadwal_and_servis(self):
-        from fleet.models import Jadwal, Servis
-
-        def tambah():
-            for v in self._kendaraan(3, start=200 + Vehicle.objects.count()):
-                Jadwal.objects.create(vehicle=v, tanggal="2026-10-01", kegiatan="servis")
-                Servis.objects.create(vehicle=v, tanggal="2026-09-01", jenis_servis="Oli", biaya=100000)
-        tambah()
-        self._tanpa_n_plus_1(reverse("operasional:jadwal_list"), tambah)
-        self._tanpa_n_plus_1(reverse("operasional:servis_list"), tambah)
-
     def test_laporan_pages(self):
         (vehicle,) = self._kendaraan(1)
         self._pemeriksaan(vehicle, rusak=2)
