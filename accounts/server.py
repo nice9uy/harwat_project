@@ -32,6 +32,19 @@ class _UnixHTTPConnection(http.client.HTTPConnection):
         self.sock.connect(self._path)
 
 
+def _sambungan():
+    """A connection to the Podman API: the read-only relay at
+    settings.PODMAN_API (production: http://podman-api:2375, which passes on
+    the two lookups below and refuses anything else), else the socket at
+    settings.PODMAN_SOCKET itself (development)."""
+    from urllib.parse import urlsplit
+
+    if settings.PODMAN_API:
+        alamat = urlsplit(settings.PODMAN_API)
+        return http.client.HTTPConnection(alamat.hostname, alamat.port or 80, timeout=3)
+    return _UnixHTTPConnection(settings.PODMAN_SOCKET, timeout=3)
+
+
 def _nama_image(image):
     """Image name without its registry path, a sha256 digest cut to 12 characters."""
     nama = image.rsplit("/", 1)[-1]
@@ -46,12 +59,12 @@ def _nama_image(image):
 _aktivitas_terakhir = {}
 
 
-def _aktivitas(path):
+def _aktivitas():
     """{container name: {"cpu": percent of one core, "ram": bytes, "pid": n}}
     for the running containers; empty when Podman gives no figures."""
     global _aktivitas_terakhir
     try:
-        conn = _UnixHTTPConnection(path, timeout=3)
+        conn = _sambungan()
         conn.request("GET", "/v4.0.0/libpod/containers/stats?stream=false")
         response = conn.getresponse()
         data = json.loads(response.read())
@@ -77,12 +90,12 @@ def _aktivitas(path):
 
 def kontainer():
     """(containers, error): every Podman container, running ones first then
-    by name, from the Podman API socket at settings.PODMAN_SOCKET."""
+    by name, from the Podman API (see _sambungan)."""
     path = settings.PODMAN_SOCKET
-    if not os.path.exists(path):
+    if not settings.PODMAN_API and not os.path.exists(path):
         return [], f"Socket Podman tidak ditemukan di {path}."
     try:
-        conn = _UnixHTTPConnection(path, timeout=3)
+        conn = _sambungan()
         conn.request("GET", "/v4.0.0/libpod/containers/json?all=true")
         response = conn.getresponse()
         data = json.loads(response.read())
@@ -91,7 +104,7 @@ def kontainer():
             raise ValueError(f"HTTP {response.status}")
     except (OSError, ValueError, http.client.HTTPException) as err:
         return [], f"Podman tidak bisa dihubungi: {err}"
-    aktivitas = _aktivitas(path)
+    aktivitas = _aktivitas()
     hasil = []
     for c in data:
         mulai = c.get("StartedAt") or 0

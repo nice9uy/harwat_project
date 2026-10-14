@@ -80,3 +80,14 @@ class ServerTests(TestCase):
                          [("app", True, "app:latest", "8001→8001"), ("db", False, "postgres:17", "")])
         self.assertContains(response, "1 hidup dari 2")
         self.assertContains(response, "Mati (exited)")
+
+    def test_lists_containers_through_the_read_only_relay(self):
+        # Production: the app asks the podman-api relay over TCP, never the socket.
+        with socketserver.TCPServer(("127.0.0.1", 0), _PodmanPalsu) as palsu:
+            threading.Thread(target=palsu.serve_forever, daemon=True).start()
+            try:
+                with override_settings(PODMAN_API=f"http://127.0.0.1:{palsu.server_address[1]}", PODMAN_SOCKET="/tidak/ada.sock"):
+                    daftar, galat = server.kontainer()
+            finally:
+                palsu.shutdown()
+        self.assertEqual((galat, [k["nama"] for k in daftar]), ("", ["app", "db"]))

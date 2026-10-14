@@ -107,6 +107,16 @@ services:
       - static-sync
     restart: unless-stopped
 
+  # The Server menu's read-only window on Podman (podman/podman-api.conf):
+  # it holds the host's Podman socket so that the app never does. Not
+  # published: only the app containers reach it, at http://podman-api:2375.
+  podman-api:
+    image: docker.io/library/nginx:1.27-alpine
+    volumes:
+      - ../podman/podman-api.conf:/etc/nginx/nginx.conf:ro
+      - ${XDG_RUNTIME_DIR}/podman/podman.sock:/run/podman/podman.sock
+    restart: unless-stopped
+
   # The primary: the only database the app writes to (through pgbouncer).
   postgres:
     environment:

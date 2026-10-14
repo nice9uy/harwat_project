@@ -79,6 +79,9 @@ tambah_env GARAGE_SECRET_KEY "${GARAGE_DEFAULT_SECRET_KEY}"
 # The SQLite file of the old setup (kept on its volume), and where backups go.
 tambah_env SQLITE_LAMA /app/data/db.sqlite3
 tambah_env BACKUP_DIR /app/backup
+# The Server menu's container list: through the read-only relay (podman-api),
+# never the Podman socket itself.
+tambah_env PODMAN_API http://podman-api:2375
 # Sizing, from this machine's cores and memory. Written once: to size again
 # (after moving to another machine, or adding cores or memory) delete these
 # lines from .env.prod and run this script again; edit them to tune by hand.
@@ -160,6 +163,15 @@ if command -v loginctl >/dev/null 2>&1; then
             || echo "PERHATIAN: linger belum aktif — jalankan 'sudo loginctl enable-linger $(id -un)' agar kontainer tetap hidup setelah logout/reboot."
     fi
     systemctl --user enable podman-restart.service >/dev/null 2>&1 || true
+fi
+
+# The Podman API socket the podman-api relay reads the container list from
+# (best effort: without it only the Server menu's list stays empty).
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+if command -v systemctl >/dev/null 2>&1 && ! systemctl --user is-active --quiet podman.socket 2>/dev/null; then
+    systemctl --user enable --now podman.socket >/dev/null 2>&1 \
+        && echo "podman.socket diaktifkan (untuk menu Server)." \
+        || echo "podman.socket tidak bisa diaktifkan — daftar kontainer di menu Server akan kosong."
 fi
 
 # A stack that is still running is stopped first, then started again — same

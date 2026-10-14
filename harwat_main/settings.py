@@ -242,6 +242,10 @@ BACKUP_DIR = os.environ.get("BACKUP_DIR", BASE_DIR / "backup")
 # container itself, so the host's socket has to be mounted there (see
 # podman/compose.dev.yml).
 PODMAN_SOCKET = os.environ.get("PODMAN_SOCKET", "/run/podman/podman.sock")
+# In production the app never holds that socket (it would control every
+# container): it asks the read-only relay "podman-api" instead
+# (podman/podman-api.conf), at this address. Empty: use the socket.
+PODMAN_API = os.environ.get("PODMAN_API", "")
 
 # WireGuard VPN server config (set via environment variables)
 # VPN_AKTIF=0 switches the VPN off for now: prod.sh leaves the wireguard
