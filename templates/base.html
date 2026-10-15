@@ -82,6 +82,12 @@
                     Info Profil
                 </a>
                 {% endif %}
+                {% if 'aktivasi_ketua_tim' in menu_boleh %}
+                <a href="{% url 'accounts:aktivasi_ketua_tim' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:aktivasi_ketua_tim' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                    {% include "_menu_icon.html" with kunci="aktivasi_ketua_tim" %}
+                    Aktivasi Ketua Tim
+                </a>
+                {% endif %}
                 {% if 'pemeriksaan' in menu_boleh or 'form_tambah' in menu_boleh or 'perbaikan' in menu_boleh or 'rusak' in menu_boleh or 'history' in menu_boleh or 'status' in menu_boleh %}
                 <p class="px-3 pt-4 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Kegiatan</p>
                 {% endif %}

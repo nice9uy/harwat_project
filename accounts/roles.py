@@ -103,6 +103,7 @@ MENU_VIEWS = {
         "accounts:vpn_download", "accounts:vpn_config",
     },
     "rekap_kerusakan": {"accounts:rekap_kerusakan"},
+    "aktivasi_ketua_tim": {"accounts:aktivasi_ketua_tim", "accounts:aktivasi_ketua_tim_ubah"},
     "pemeriksaan": {
         "accounts:pemeriksaan", "accounts:pemeriksaan_captcha", "accounts:pemeriksaan_checklist", "accounts:pemeriksaan_draft",
         "accounts:pemeriksaan_lain",
@@ -160,6 +161,8 @@ MENU_SUPERUSER = frozenset({"form_group", "server", "backup", "armada", "non_ken
 # Menus only the Tim roles (their own work in progress), the admins (their
 # Tim members' work) and superusers (every Tim member's) see.
 MENU_TIM = frozenset({"status"})
+# Menus only a superuser and an Admin see.
+MENU_ADMIN = frozenset({"aktivasi_ketua_tim"})
 
 # The forms of Form Tambah a Tim Penambahan Data member can be given in Form
 # Group: the vehicle groups (fleet Vehicle.GroupKendaraan values) and the
@@ -187,7 +190,7 @@ MENU_PER_KEANGGOTAAN = {
     # (and the superuser's menus, taken out for every role).
     "pimpinan": ["dashboard"] + [
         m for m in MENU_VIEWS
-        if m not in {"dashboard", "pemeriksaan", "form_tambah", "perbaikan", "rusak", "pengaturan"} | MENU_TIM
+        if m not in {"dashboard", "pemeriksaan", "form_tambah", "perbaikan", "rusak", "pengaturan"} | MENU_TIM | MENU_ADMIN
     ],
     # A Pimpinan Tim looks at their teams; they don't manage users or forms.
     PIMPINAN_TIM: [
@@ -213,6 +216,7 @@ MENU_HOME = {
     "info_profile": "accounts:info_profile",
     "anggota_tim": "accounts:anggota_tim",
     "rekap_kerusakan": "accounts:rekap_kerusakan",
+    "aktivasi_ketua_tim": "accounts:aktivasi_ketua_tim",
     "pemeriksaan": "accounts:pemeriksaan",
     "form_tambah": "accounts:form_tambah",
     "history": "accounts:history",
@@ -243,7 +247,7 @@ def allowed_menus(user):
     if user.is_superuser:
         return ALL_MENUS
     menus = _menu_user(user)
-    return frozenset(menus) if menus else ALL_MENUS - MENU_SUPERUSER - MENU_TIM
+    return frozenset(menus) if menus else ALL_MENUS - MENU_SUPERUSER - MENU_TIM - MENU_ADMIN
 
 
 def home_view_name(user):

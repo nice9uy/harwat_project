@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Aktivasi Ketua Tim — Harwat{% endblock %}
+{% block page_title %}Aktivasi Ketua Tim{% endblock %}
+{% block content %}
+<div x-data="{ modalOpen: false }">
+
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <p class="text-sm text-slate-500 dark:text-slate-400">
+        {% if matra_label %}Ketua Tim {{ matra_label }}.{% endif %}
+        {{ jumlah_aktif }} dari {{ daftar|length }} Ketua Tim aktif. Ketua Tim yang dinonaktifkan tidak bisa login; tim dan datanya tetap ada.
+    </p>
+    {% if pilih_matra %}
+    <form method="get" class="flex items-center gap-2">
+        <select name="matra" onchange="this.form.submit()" class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+            <option value="">Semua matra</option>
+            {% for kode, label in matra_pilihan %}<option value="{{ kode }}"{% if kode == matra %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+    </form>
+    {% endif %}
+</div>
+
+<div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
+    <table class="w-full text-sm text-left">
+        <thead class="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+            <tr>
+                <th class="py-2 px-4 font-medium w-12">No</th>
+                <th class="py-2 px-4 font-medium">Username</th>
+                <th class="py-2 px-4 font-medium">Nama</th>
+                <th class="py-2 px-4 font-medium">Satuan</th>
+                {% if pilih_matra %}<th class="py-2 px-4 font-medium">Matra</th>{% endif %}
+                <th class="py-2 px-4 font-medium">Admin</th>
+                <th class="py-2 px-4 font-medium">Status</th>
+                <th class="py-2 px-4 font-medium">Aksi</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+            {% for akun in daftar %}
+            <tr>
+                <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ forloop.counter }}</td>
+                <td class="py-2 px-4 font-medium text-navy dark:text-slate-100">{{ akun.username }}</td>
+                <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ akun.nama_biodata|default:"—" }}</td>
+                <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ akun.satuan_label|default:"—" }}</td>
+                {% if pilih_matra %}<td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ akun.matra_label|default:"—" }}</td>{% endif %}
+                <td class="py-2 px-4 text-slate-500 dark:text-slate-400">{{ akun.admin_label|default:"—" }}</td>
+                <td class="py-2 px-4">
+                    {% if akun.is_active %}
+                    <span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">Aktif</span>
+                    {% else %}
+                    <span class="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300">Nonaktif</span>
+                    {% endif %}
+                </td>
+                <td class="py-2 px-4">
+                    <button type="button"
+                            @click="modalOpen = true"
+                            hx-get="{% url 'accounts:aktivasi_ketua_tim_ubah' akun.publik.uuid %}{% if matra and pilih_matra %}?matra={{ matra }}{% endif %}"
+                            hx-target="#aktivasi-modal-body"
+                            hx-swap="innerHTML"
+                            class="rounded-md px-2 py-1 text-xs font-medium text-white {% if akun.is_active %}bg-slate-500 hover:bg-slate-600{% else %}bg-green-600 hover:bg-green-700{% endif %}">
+                        {% if akun.is_active %}Nonaktifkan{% else %}Aktifkan{% endif %}
+                    </button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="{% if pilih_matra %}8{% else %}7{% endif %}" class="py-8 text-center text-slate-400 dark:text-slate-500 text-sm">Belum ada Ketua Tim.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div x-show="modalOpen"
+     x-cloak
+     @click.self="modalOpen = false"
+     @keydown.escape.window="modalOpen = false"
+     class="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/50 px-4 py-8 sm:py-4">
+    <div class="w-full max-w-lg bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-xl my-auto">
+        <div id="aktivasi-modal-body"></div>
+    </div>
+</div>
+
+</div>
+{% endblock %}

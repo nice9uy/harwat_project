@@ -2,7 +2,7 @@ from django.urls import path
 from django.views.generic import RedirectView
 
 from . import (
-    backup, form_group, km_jadwal, laporan, laporan_hapus, laporan_pdf, laporan_tim, non_kendaraan, pimpinan_tim, rusak, satuan_io, server, status,
+    aktivasi, backup, form_group, km_jadwal, laporan, laporan_hapus, laporan_pdf, laporan_tim, non_kendaraan, pimpinan_tim, rusak, satuan_io, server, status,
     views,
 )
 
@@ -90,6 +90,8 @@ urlpatterns = [
     path("anggota-tim/vpn/<uuid:user_uid>/", views.anggota_tim_vpn_view, name="anggota_tim_vpn"),
     path("anggota-tim/vpn/<uuid:user_uid>/hapus/", views.anggota_tim_vpn_hapus_view, name="anggota_tim_vpn_hapus"),
     path("anggota-tim/<uuid:user_uid>/aktif/", views.anggota_tim_aktif_view, name="anggota_tim_aktif"),
+    path("aktivasi-ketua-tim/", aktivasi.aktivasi_ketua_tim, name="aktivasi_ketua_tim"),
+    path("aktivasi-ketua-tim/<uuid:user_uid>/", aktivasi.aktivasi_ketua_tim_ubah, name="aktivasi_ketua_tim_ubah"),
     path("perbaikan/draft/<uuid:vehicle_uid>/", views.perbaikan_draft_view, name="perbaikan_draft"),
     path("rusak/", rusak.rusak_view, name="rusak"),
     path("rusak/kendaraan/", rusak.rusak_kendaraan_view, name="rusak_kendaraan"),
