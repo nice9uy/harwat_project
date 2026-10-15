@@ -2,7 +2,7 @@ from django.urls import path
 from django.views.generic import RedirectView
 
 from . import (
-    aktivasi, backup, form_group, km_jadwal, laporan, laporan_hapus, laporan_pdf, laporan_tim, non_kendaraan, pimpinan_tim, rusak, satuan_io, server, status,
+    aktivasi, backup, daftar, form_group, km_jadwal, laporan, laporan_hapus, laporan_pdf, laporan_tim, non_kendaraan, pimpinan_tim, rusak, satuan_io, server, status,
     views,
 )
 
@@ -13,6 +13,8 @@ urlpatterns = [
     path("login/", views.login_view, name="login"),
     path("lupa-password/", views.password_reset_placeholder, name="password_reset_placeholder"),
     path("logout/", views.logout_view, name="logout"),
+    path("daftar/", daftar.daftar_matra, name="daftar_matra"),
+    path("daftar/form/", daftar.daftar_form, name="daftar_form"),
     path("dashboard/", views.dashboard_view, name="dashboard"),
     path("dashboard/partial/", views.dashboard_partial, name="dashboard_partial"),
     path("dashboard/kendaraan/", views.dashboard_kendaraan, name="dashboard_kendaraan"),

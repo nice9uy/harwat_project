@@ -45,6 +45,8 @@
                 <td class="py-2 px-4">
                     {% if akun.is_active %}
                     <span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">Aktif</span>
+                    {% elif not akun.last_login %}
+                    <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">Menunggu aktivasi</span>
                     {% else %}
                     <span class="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300">Nonaktif</span>
                     {% endif %}

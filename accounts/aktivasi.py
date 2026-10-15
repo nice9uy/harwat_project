@@ -63,6 +63,8 @@ def aktivasi_ketua_tim(request):
         akun.satuan_label = akun.publik.satuan.nama if getattr(akun.publik, "satuan", None) else satuan or ""
         akun.matra_label = label_matra.get(akun.matra, "")
         akun.admin_label = admin.get(akun.pk) or ""
+    # Sign-ups waiting for activation first.
+    daftar.sort(key=lambda a: a.is_active or a.last_login is not None)
     return render(request, "accounts/aktivasi_ketua_tim.html", {
         "daftar": daftar,
         "pilih_matra": not matra_admin,
@@ -85,6 +87,10 @@ def aktivasi_ketua_tim_ubah(request, user_uid):
     if request.method == "POST":
         target.is_active = not target.is_active
         target.save(update_fields=["is_active"])
+        # A Ketua Tim who signed up themselves (accounts.daftar) has no Admin
+        # yet: the Admin switching them on takes them under their wing.
+        if target.is_active and not request.user.is_superuser:
+            Anggota.objects.filter(user=target, depth=1, admin__isnull=True).update(admin=request.user)
         messages.success(request, f"Ketua Tim {target.username} {'diaktifkan' if target.is_active else 'dinonaktifkan'}.")
         tujuan = reverse("accounts:aktivasi_ketua_tim")
         if request.POST.get("matra") in dict(roles.MATRA):

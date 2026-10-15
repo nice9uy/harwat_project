@@ -1,6 +1,8 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.contrib.auth.models import Group, User
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.validators import UnicodeUsernameValidator as UsernameValidator
 
 from fleet.images import compress_photo
 from fleet.models import Vehicle
@@ -74,6 +76,10 @@ class LoginForm(AuthenticationForm):
         # message, so the form doesn't reveal which usernames exist.
         user = User.objects.filter(username=self.cleaned_data.get("username")).first()
         if user is not None and not user.is_active and user.check_password(self.cleaned_data.get("password") or ""):
+            if user.last_login is None:
+                return forms.ValidationError(
+                    "Akun Anda belum diaktifkan. Tunggu aktivasi dari Admin matra Anda.", code="inactive",
+                )
             return forms.ValidationError(
                 "Akun Anda dinonaktifkan. Hubungi Ketua Tim atau admin untuk mengaktifkannya kembali.",
                 code="inactive",
@@ -758,3 +764,39 @@ class GantiPasswordForm(PasswordChangeForm):
 
     def validate_password_for_user(self, *args, **kwargs):
         pass
+
+
+class DaftarKetuaForm(forms.Form):
+    """The account half of Daftar sebagai Ketua Tim on the login page (the
+    biodata half is a BiodataForm)."""
+
+    username = forms.CharField(label="Nama pengguna", max_length=150)
+    password1 = forms.CharField(label="Kata sandi", strip=False, widget=forms.PasswordInput)
+    password2 = forms.CharField(label="Ulangi kata sandi", strip=False, widget=forms.PasswordInput)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs["class"] = TEXT_INPUT_CLASSES
+        self.fields["username"].widget.attrs.update({"placeholder": "nama.pengguna", "autocomplete": "username"})
+        for name in ("password1", "password2"):
+            self.fields[name].widget.attrs["autocomplete"] = "new-password"
+
+    def clean_username(self):
+        username = self.cleaned_data["username"].strip()
+        UsernameValidator()(username)
+        if User.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError("Nama pengguna ini sudah dipakai.")
+        return username
+
+    def clean(self):
+        cleaned = super().clean()
+        p1, p2 = cleaned.get("password1"), cleaned.get("password2")
+        if p1 and p2 and p1 != p2:
+            self.add_error("password2", "Kata sandi tidak sama.")
+        elif p1:
+            try:
+                validate_password(p1, User(username=cleaned.get("username", "")))
+            except forms.ValidationError as e:
+                self.add_error("password1", e)
+        return cleaned
