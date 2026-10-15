@@ -52,7 +52,7 @@ def daftar_form(request):
         if akun.is_valid() and biodata.is_valid():
             with transaction.atomic():
                 user = User(username=akun.cleaned_data["username"], is_active=False)
-                user.set_password(roles.DEFAULT_PASSWORD)
+                user.set_password(akun.cleaned_data["password1"])
                 user.save()
                 terapkan_keanggotaan(user, roles.KETUA_TIM)
                 simpan_matra(user, roles.KETUA_TIM, matra)
@@ -70,5 +70,5 @@ def daftar_form(request):
     else:
         akun, biodata = _forms(matra)
     return render(request, "accounts/_daftar_form.html", {
-        "akun": akun, "form": biodata, "matra": matra, "matra_label": dict(roles.MATRA)[matra], "penuh": penuh, "kata_sandi_awal": roles.DEFAULT_PASSWORD,
+        "akun": akun, "form": biodata, "matra": matra, "matra_label": dict(roles.MATRA)[matra], "penuh": penuh,
     })

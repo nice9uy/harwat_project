@@ -767,16 +767,20 @@ class GantiPasswordForm(PasswordChangeForm):
 
 class DaftarKetuaForm(forms.Form):
     """The account half of Daftar sebagai Ketua Tim on the login page (the
-    biodata half is a BiodataForm). The password is roles.DEFAULT_PASSWORD,
-    as for the accounts an admin makes."""
+    biodata half is a BiodataForm). Any password will do, as long as both
+    fields match."""
 
     username = forms.CharField(label="Nama pengguna", max_length=150)
+    password1 = forms.CharField(label="Kata sandi", strip=False, widget=forms.PasswordInput)
+    password2 = forms.CharField(label="Ulangi kata sandi", strip=False, widget=forms.PasswordInput)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["username"].widget.attrs.update({
-            "class": TEXT_INPUT_CLASSES, "placeholder": "nama.pengguna", "autocomplete": "username",
-        })
+        for field in self.fields.values():
+            field.widget.attrs["class"] = TEXT_INPUT_CLASSES
+        self.fields["username"].widget.attrs.update({"placeholder": "nama.pengguna", "autocomplete": "username"})
+        for name in ("password1", "password2"):
+            self.fields[name].widget.attrs["autocomplete"] = "new-password"
 
     def clean_username(self):
         username = self.cleaned_data["username"].strip()
@@ -784,3 +788,10 @@ class DaftarKetuaForm(forms.Form):
         if User.objects.filter(username__iexact=username).exists():
             raise forms.ValidationError("Nama pengguna ini sudah dipakai.")
         return username
+
+    def clean(self):
+        cleaned = super().clean()
+        p1, p2 = cleaned.get("password1"), cleaned.get("password2")
+        if p1 and p2 and p1 != p2:
+            self.add_error("password2", "Kata sandi tidak sama.")
+        return cleaned
