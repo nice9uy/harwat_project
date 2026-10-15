@@ -982,6 +982,11 @@ class AkunPublik(models.Model):
     uuid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     # Set for an Admin only (picked in Tambah User / Edit); empty otherwise.
     matra = models.CharField(max_length=10, choices=Matra.choices, blank=True, verbose_name="Matra")
+    # The unit the account belongs to, picked in Tambah User / Edit (typed,
+    # with suggestions). Empty for accounts made before it was asked for.
+    satuan = models.ForeignKey(
+        "Satuan", on_delete=models.SET_NULL, null=True, blank=True, related_name="akun", verbose_name="Satuan",
+    )
 
     class Meta:
         verbose_name = "UUID Akun"

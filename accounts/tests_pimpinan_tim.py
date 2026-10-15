@@ -175,3 +175,35 @@ class PimpinanHanyaOlehSuperuserTests(TestCase):
         self.assertTrue(User.objects.filter(pk=pimpinan.pk).exists())
         self.client.post(reverse("accounts:user_reset_password", args=[pimpinan.publik.uuid]))
         self.assertTrue(User.objects.get(pk=pimpinan.pk).check_password("rahasia-123"))
+
+
+class SatuanAkunTests(TestCase):
+    """Tambah User / Edit ask the account's unit (typed, with suggestions); the user table shows it."""
+
+    def test_pick_unit_on_create_and_edit_and_see_it_in_the_table(self):
+        from accounts.models import AkunPublik, Laporan, Satuan
+        yon = Satuan.objects.create(nama="YONIF 202")
+        kodam = Satuan.objects.create(nama="KODAM JAYAKARTA")
+        User.objects.create_superuser(username="root_sat", password="rahasia-123")
+        self.client.login(username="root_sat", password="rahasia-123")
+        form = self.client.get(reverse("accounts:user_create"), HTTP_HX_REQUEST="true")
+        self.assertContains(form, "x-data=\"autocomplete('opsi-satuan-akun'")
+        self.assertContains(form, "YONIF 202")
+        self.client.post(reverse("accounts:user_create"), {
+            "username": "kasat", "keanggotaan": "pimpinan", "satuan": yon.pk,
+        }, HTTP_HX_REQUEST="true")
+        akun = User.objects.get(username="kasat")
+        self.assertEqual(akun.publik.satuan, yon)
+        # Edit: shown filled in, and changed.
+        edit = reverse("accounts:user_edit", args=[akun.publik.uuid])
+        self.assertContains(self.client.get(edit, HTTP_HX_REQUEST="true"), f'name="satuan" :value="nilai" value="{yon.pk}"')
+        self.client.post(edit, {"keanggotaan": "pimpinan", "satuan": kodam.pk}, HTTP_HX_REQUEST="true")
+        self.assertEqual(AkunPublik.objects.get(user=akun).satuan, kodam)
+        # The table's Satuan column, after Matra; without one picked, the unit of their biodata.
+        lama = _user("lama", "Pimpinan")
+        Laporan.objects.create(akun=lama, nip="1", nama="L", pangkat="P", jabatan="J", satuan=yon)
+        tabel = self.client.get(reverse("accounts:pengaturan"))
+        isi = tabel.content.decode()
+        self.assertLess(isi.index(">Matra</th>"), isi.index(">Satuan</th>"))
+        baris = {u.username: u.satuan_label for u in tabel.context["users"]}
+        self.assertEqual((baris["kasat"], baris["lama"]), ("KODAM JAYAKARTA", "YONIF 202"))

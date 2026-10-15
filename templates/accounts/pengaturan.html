@@ -55,6 +55,7 @@
                         <th class="py-2 px-4 font-medium">Email</th>
                         <th class="py-2 px-4 font-medium">Keanggotaan</th>
                         <th class="py-2 px-4 font-medium">Matra</th>
+                        <th class="py-2 px-4 font-medium">Satuan</th>
                         <th class="py-2 px-4 font-medium">Ketua Tim</th>
                         <th class="py-2 px-4 font-medium">Tanggal Dibuat</th>
                         <th class="py-2 px-4 font-medium">VPN</th>
@@ -88,6 +89,7 @@
                         <td class="py-2 px-4">{{ akun.email|default:"—" }}</td>
                         <td class="py-2 px-4">{{ akun.keanggotaan }}</td>
                         <td class="py-2 px-4 whitespace-nowrap">{{ akun.matra_label|default:"—" }}</td>
+                        <td class="py-2 px-4">{{ akun.satuan_label|default:"—" }}</td>
                         <td class="py-2 px-4">{{ akun.ketua_tim|default:"—" }}</td>
                         <td class="py-2 px-4">{{ akun.date_joined|date:"d M Y" }}</td>
                         <td class="py-2 px-4">
@@ -166,7 +168,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="py-6 px-4 text-center text-slate-400 dark:text-slate-500">Belum ada data user.</td>
+                        <td colspan="9" class="py-6 px-4 text-center text-slate-400 dark:text-slate-500">Belum ada data user.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

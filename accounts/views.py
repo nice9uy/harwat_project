@@ -923,7 +923,7 @@ def perbaikan_kendaraan_view(request):
 def pengaturan_view(request):
     """Users as a tree: Admin > Ketua Tim > Tim member, each level sorted by
     username; users above nobody first, then Ketua Tim without an Admin."""
-    semua = {u.pk: u for u in User.objects.prefetch_related("groups").select_related("vpn_peer", "publik").order_by("username")}
+    semua = {u.pk: u for u in User.objects.prefetch_related("groups").select_related("vpn_peer", "publik__satuan").order_by("username")}
     pemilik = _pemilik()
     nodes = list(Anggota.get_tree())
     roots = {n.path: n for n in nodes if n.depth == 1}
@@ -965,6 +965,10 @@ def pengaturan_view(request):
         users = [akun for akun in users if not akun.is_superuser]
     kode_pengelola = roles.keanggotaan_kode(request.user)
     matra = dict(roles.MATRA)
+    satuan_biodata = dict(  # user pk -> the unit of their newest biodata
+        Laporan.objects.filter(akun__in=[a.pk for a in users]).order_by("dibuat_pada")
+        .values_list("akun_id", "satuan__nama")
+    )
     for akun in users:
         akun.keanggotaan = keanggotaan_label(akun)
         akun.boleh_ubah = _boleh_ubah(request, akun, kode_pengelola, pemilik)
@@ -974,6 +978,9 @@ def pengaturan_view(request):
         sendiri = getattr(getattr(akun, "publik", None), "matra", "")
         induk = semua.get(pemilik.get(akun.pk))
         akun.matra_label = matra.get(sendiri or getattr(getattr(induk, "publik", None), "matra", ""), "")
+        # Their unit: picked in Tambah User / Edit, else that of their biodata (Info Profil).
+        satuan = getattr(getattr(akun, "publik", None), "satuan", None)
+        akun.satuan_label = satuan.nama if satuan else satuan_biodata.get(akun.pk, "")
         # A superuser picks a Pimpinan Tim's Ketua Tim from their row.
         akun.bawahan_url = (
             reverse("accounts:pimpinan_tim_bawahan", args=[akun.publik.uuid])

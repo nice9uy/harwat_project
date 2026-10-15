@@ -140,6 +140,32 @@ def simpan_bawahan(user, kode, ketua):
     BawahanPimpinan.objects.bulk_create([BawahanPimpinan(pimpinan=user, ketua=n) for n in ketua if n.pk not in ada])
 
 
+class _SatuanAkunMixin:
+    """A Satuan for the account (AkunPublik.satuan): a typed field with
+    suggestions (templates/_autocomplete.html), posting the unit's pk."""
+
+    def _siapkan_satuan(self, awal=None):
+        self.fields["satuan"] = forms.ModelChoiceField(
+            label="Satuan", queryset=Satuan.objects.order_by("nama"), required=False, initial=awal,
+        )
+
+    @property
+    def satuan_opsi(self):
+        return [{"v": pk, "l": nama} for pk, nama in self.fields["satuan"].queryset.values_list("pk", "nama")]
+
+    @property
+    def satuan_nilai(self):
+        """The pk shown in the field: what was posted, else the initial unit."""
+        if self.is_bound:
+            return self.data.get("satuan", "")
+        awal = self.initial.get("satuan", self.fields["satuan"].initial)
+        return getattr(awal, "pk", awal) or ""
+
+
+def simpan_satuan(user, satuan):
+    AkunPublik.objects.filter(user=user).update(satuan=satuan)
+
+
 def simpan_matra(user, kode, matra):
     """Keep the matra on the user's AkunPublik for the roles that have one
     (roles.BERMATRA); clear it for any other role."""
@@ -198,7 +224,7 @@ class UbahTimForm(forms.Form):
     )
 
 
-class UserCreateForm(forms.ModelForm):
+class UserCreateForm(_SatuanAkunMixin, forms.ModelForm):
     """New users get roles.DEFAULT_PASSWORD; no password is typed in the form."""
 
     keanggotaan = forms.ChoiceField(label="Keanggotaan", choices=roles.KEANGGOTAAN)
@@ -219,6 +245,9 @@ class UserCreateForm(forms.ModelForm):
     def __init__(self, *args, kode_pengelola=None, ketua=None, admin=None, **kwargs):
         super().__init__(*args, **kwargs)
         _siapkan_keanggotaan(self, kode_pengelola)
+        # Starts on the unit of whoever they are added under; it can be changed.
+        di_bawah_satuan = admin if admin is not None else ketua.user if ketua is not None else None
+        self._siapkan_satuan(getattr(getattr(di_bawah_satuan, "publik", None), "satuan", None))
         self.fields["username"].widget.attrs["class"] = TEXT_INPUT_CLASSES
         self.fields["username"].widget.attrs["placeholder"] = "teknisi2"
         # "+ Anggota" adds Tim members on a Ketua Tim row and Ketua Tim on an
@@ -273,13 +302,14 @@ class UserCreateForm(forms.ModelForm):
                 admin=self.admin,
             )
             simpan_matra(user, self.cleaned_data["keanggotaan"], self.cleaned_data.get("matra"))
+            simpan_satuan(user, self.cleaned_data.get("satuan"))
             simpan_bawahan(user, self.cleaned_data["keanggotaan"], self.cleaned_data.get("bawahan"))
             priv, pub = generate_keypair()
             VpnPeer.objects.create(user=user, peer_name=user.username, private_key=priv, public_key=pub)
         return user
 
 
-class UserEditForm(forms.Form):
+class UserEditForm(_SatuanAkunMixin, forms.Form):
     """Change an existing user's keanggotaan and, for Tim members, their Ketua Tim."""
 
     keanggotaan = forms.ChoiceField(label="Keanggotaan", choices=roles.KEANGGOTAAN)
@@ -312,6 +342,7 @@ class UserEditForm(forms.Form):
         })
         super().__init__(*args, **kwargs)
         _siapkan_keanggotaan(self, kode_pengelola, kecuali=self.node, admin=admin)
+        self._siapkan_satuan(getattr(getattr(user, "publik", None), "satuan", None))
         self.admin = admin
         kode_lama = roles.keanggotaan_kode(user)
         self.punya_ketua = kode_lama == roles.ADMIN_ROLE and Anggota.objects.filter(admin=user).exists()
@@ -339,6 +370,7 @@ class UserEditForm(forms.Form):
             self.user, self.cleaned_data["keanggotaan"], self.cleaned_data["ketua_tim"], admin=self.admin,
         )
         simpan_matra(self.user, self.cleaned_data["keanggotaan"], self.cleaned_data.get("matra"))
+        simpan_satuan(self.user, self.cleaned_data.get("satuan"))
         simpan_bawahan(self.user, self.cleaned_data["keanggotaan"], self.cleaned_data.get("bawahan"))
         peer_name = self.cleaned_data.get("vpn_peer_name", "").strip()
         if peer_name:
