@@ -767,20 +767,26 @@ class GantiPasswordForm(PasswordChangeForm):
 
 class DaftarKetuaForm(forms.Form):
     """The account half of Daftar sebagai Ketua Tim on the login page (the
-    biodata half is a BiodataForm). Any password will do, as long as both
-    fields match."""
+    biodata half is a BiodataForm). The password starts filled in with
+    roles.DEFAULT_PASSWORD; any other will do too."""
 
     username = forms.CharField(label="Nama pengguna", max_length=150)
-    password1 = forms.CharField(label="Kata sandi", strip=False, widget=forms.PasswordInput)
-    password2 = forms.CharField(label="Ulangi kata sandi", strip=False, widget=forms.PasswordInput)
+    password1 = forms.CharField(
+        label="Kata sandi", strip=False, initial=roles.DEFAULT_PASSWORD,
+        widget=forms.PasswordInput(render_value=True),
+        help_text=f"Bawaan {roles.DEFAULT_PASSWORD}, boleh diganti.",
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs["class"] = TEXT_INPUT_CLASSES
         self.fields["username"].widget.attrs.update({"placeholder": "nama.pengguna", "autocomplete": "username"})
-        for name in ("password1", "password2"):
-            self.fields[name].widget.attrs["autocomplete"] = "new-password"
+        # Shown or hidden with the eye button (templates/accounts/_daftar_form.html).
+        self.fields["password1"].widget.attrs.update({
+            "autocomplete": "new-password", ":type": "lihat ? 'text' : 'password'",
+            "class": TEXT_INPUT_CLASSES.replace("px-3", "pl-3 pr-10"),
+        })
 
     def clean_username(self):
         username = self.cleaned_data["username"].strip()
@@ -788,10 +794,3 @@ class DaftarKetuaForm(forms.Form):
         if User.objects.filter(username__iexact=username).exists():
             raise forms.ValidationError("Nama pengguna ini sudah dipakai.")
         return username
-
-    def clean(self):
-        cleaned = super().clean()
-        p1, p2 = cleaned.get("password1"), cleaned.get("password2")
-        if p1 and p2 and p1 != p2:
-            self.add_error("password2", "Kata sandi tidak sama.")
-        return cleaned
