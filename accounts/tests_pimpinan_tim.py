@@ -226,9 +226,11 @@ class KetuaTimTanpaBiodataTests(TestCase):
         # Adding a member of their own team.
         tambah = reverse("accounts:anggota_tim_tambah", args=[node.uuid])
         self.assertEqual(self.client.get(tambah, HTTP_HX_REQUEST="true").status_code, 200)
-        self.client.post(tambah, {"username": "anggota_baru", "keanggotaan": "tim_perbaikan", "matra": "darat"}, HTTP_HX_REQUEST="true")
+        self.assertNotContains(self.client.get(tambah, HTTP_HX_REQUEST="true"), ">Matra<")
+        self.client.post(tambah, {"username": "anggota_baru", "keanggotaan": "tim_perbaikan"}, HTTP_HX_REQUEST="true")
         node.refresh_from_db()
         self.assertEqual([a.user.username for a in node.get_children()], ["anggota_baru"])
+        self.assertEqual(AkunPublik.objects.get(user__username="anggota_baru").matra, "darat")
         # A Tim member still fills their biodata first.
         self.client.login(username="anggota_baru", password="12345")
         self.assertTrue(self.client.get(reverse("accounts:info_profile")).context["profil_belum_isi"])

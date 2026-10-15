@@ -2159,7 +2159,7 @@ class SatuAdminTests(TestCase):
         label = {u.username: u.matra_label for u in response.context["users"]}
         # The Admin's matra, shown on the Ketua Tim under them too; nobody else has one.
         self.assertEqual((label["a1"], label["k1"], label["p1"], label["root"]), ("Matra Udara", "Matra Udara", "", ""))
-        # A Ketua Tim and a Tim member pick their own, starting on that of whoever they are under.
+        # A Ketua Tim picks their own, starting on their Admin's.
         form = self.client.get(reverse("accounts:user_create") + f"?admin={a1.publik.uuid}", HTTP_HX_REQUEST="true")
         self.assertContains(form, '<option value="udara" selected>Matra Udara</option>', html=True)
         tambah = reverse("accounts:user_create") + f"?admin={a1.publik.uuid}"
@@ -2167,11 +2167,11 @@ class SatuAdminTests(TestCase):
         self.client.post(tambah, {"username": "k2", "keanggotaan": "ketua_tim", "matra": "laut"})
         k2 = Anggota.objects.get(user__username="k2")
         anggota = reverse("accounts:anggota_tim_tambah", args=[k2.uuid])
-        self.assertContains(self.client.get(anggota), '<option value="laut" selected>Matra Laut</option>', html=True)
-        self.assertContains(self.client.post(anggota, {"username": "t2", "keanggotaan": "tim_perbaikan"}), "Pilih matra untuk user ini.")
+        # A Tim member takes their Ketua Tim's matra, with no choice shown.
+        self.assertNotContains(self.client.get(anggota), "Matra Laut")
         self.client.post(anggota, {"username": "t2", "keanggotaan": "tim_perbaikan", "matra": "darat"})
         label = {u.username: u.matra_label for u in self.client.get(reverse("accounts:pengaturan")).context["users"]}
-        self.assertEqual((label["k2"], label["t2"]), ("Matra Laut", "Matra Darat"))
+        self.assertEqual((label["k2"], label["t2"]), ("Matra Laut", "Matra Laut"))
         # Edit changes it; another role drops it.
         edit = reverse("accounts:user_edit", args=[a1.publik.uuid])
         self.assertContains(self.client.get(edit), '<option value="udara" selected>Matra Udara</option>', html=True)

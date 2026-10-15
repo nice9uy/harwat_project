@@ -260,6 +260,11 @@ class UserCreateForm(_SatuanAkunMixin, forms.ModelForm):
         di_bawah = admin if admin is not None else ketua.user if ketua is not None else None
         if di_bawah is not None:
             self.fields["matra"].initial = getattr(getattr(di_bawah, "publik", None), "matra", "")
+        # A Tim member added under a Ketua Tim serves in that Ketua Tim's matra:
+        # no choice shown (clean_matra fills it in).
+        self.matra_ketua = getattr(getattr(ketua.user, "publik", None), "matra", "") if ketua is not None else ""
+        if self.matra_ketua:
+            self.fields["matra"].widget = forms.HiddenInput()
         hanya = roles.KETUA_TIM if admin is not None else None
         if hanya is not None:
             self.fields["keanggotaan"].choices = [
@@ -283,6 +288,9 @@ class UserCreateForm(_SatuanAkunMixin, forms.ModelForm):
     def clean_ketua_tim(self):
         ketua = self.cleaned_data.get("ketua_tim")
         return self.ketua if self.ketua is not None else ketua
+
+    def clean_matra(self):
+        return self.matra_ketua or self.cleaned_data.get("matra")
 
     def clean(self):
         cleaned = super().clean()

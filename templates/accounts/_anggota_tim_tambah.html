@@ -20,11 +20,13 @@
         {{ form.keanggotaan }}
         {% if form.keanggotaan.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.keanggotaan.errors.0 }}</p>{% endif %}
     </div>
+    {% if form.matra.is_hidden %}{{ form.matra }}{% else %}
     <div>
         <label for="{{ form.matra.id_for_label }}" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Matra</label>
         {{ form.matra }}
         {% if form.matra.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.matra.errors.0 }}</p>{% endif %}
     </div>
+    {% endif %}
     {{ form.ketua_tim }}
     <p class="rounded-md bg-slate-100 dark:bg-slate-900 px-3 py-2 text-xs text-slate-600 dark:text-slate-300">Password awal: <span class="font-mono font-semibold">12345</span></p>
     <div class="flex items-center gap-3 pt-2">
