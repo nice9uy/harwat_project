@@ -82,6 +82,7 @@
                               hx-target="#login-form-wrapper"
                               hx-swap="outerHTML"
                               hx-select="#login-form-wrapper"
+                              hx-disinherit="hx-select"
                               x-data="{ lihat: false }"
                               class="space-y-5">
                             {% csrf_token %}

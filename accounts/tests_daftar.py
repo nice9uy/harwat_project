@@ -32,7 +32,10 @@ class DaftarKetuaTimTests(TestCase):
         return data
 
     def test_login_page_links_to_the_matra_modal(self):
-        self.assertContains(self.client.get(reverse("accounts:login")), "Daftar sebagai Ketua Tim")
+        login = self.client.get(reverse("accounts:login"))
+        self.assertContains(login, "Daftar sebagai Ketua Tim")
+        # The login form's hx-select would otherwise empty the modal it opens.
+        self.assertContains(login, 'hx-disinherit="hx-select"')
         self.assertContains(self.client.get(reverse("accounts:daftar_matra")), "Matra Laut")
         form = self.client.get(self.url)
         self.assertContains(form, "KODAM JAYA")
