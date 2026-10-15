@@ -1075,3 +1075,20 @@ class KmJadwal(models.Model):
 
     def __str__(self):
         return self.komponen
+
+
+class GagalLogin(models.Model):
+    """Failed web logins counted per username and per client IP (accounts.batas_login),
+    in the database so every app process shares the count."""
+
+    kunci = models.CharField(max_length=200, unique=True)  # "u:<username>" or "ip:<address>"
+    jumlah = models.PositiveIntegerField(default=0)
+    sejak = models.DateTimeField()
+    terkunci_sampai = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Gagal Login"
+        verbose_name_plural = "Gagal Login"
+
+    def __str__(self):
+        return f"{self.kunci} ({self.jumlah})"

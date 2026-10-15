@@ -1,0 +1,62 @@
+"""Login throttling for the web login page.
+
+After BATAS_USERNAME failed attempts on one username, or BATAS_IP from one
+client IP, within JENDELA, that username or IP is refused for KUNCI. A
+successful login clears the username's count.
+"""
+import datetime
+
+from django.db import transaction
+from django.utils import timezone
+
+from .models import GagalLogin
+
+BATAS_USERNAME = 5
+BATAS_IP = 30
+JENDELA = datetime.timedelta(minutes=15)
+KUNCI = datetime.timedelta(minutes=15)
+
+
+def ip_klien(request):
+    """The client's address: nginx's X-Real-IP (it sets the header itself,
+    overwriting whatever the client sent), else the socket peer."""
+    return request.META.get("HTTP_X_REAL_IP") or request.META.get("REMOTE_ADDR", "")
+
+
+def _kunci(request, username):
+    daftar = [f"ip:{ip_klien(request)}"]
+    if username:
+        daftar.append(f"u:{username.strip().lower()[:150]}")
+    return daftar
+
+
+def menit_terkunci(request, username):
+    """Minutes left on a lock for this username or IP, or 0."""
+    sekarang = timezone.now()
+    sampai = (
+        GagalLogin.objects.filter(kunci__in=_kunci(request, username), terkunci_sampai__gt=sekarang)
+        .order_by("-terkunci_sampai").values_list("terkunci_sampai", flat=True).first()
+    )
+    if sampai is None:
+        return 0
+    return max(1, -(-int((sampai - sekarang).total_seconds()) // 60))
+
+
+def catat_gagal(request, username):
+    sekarang = timezone.now()
+    with transaction.atomic():
+        for kunci in _kunci(request, username):
+            baris, _ = GagalLogin.objects.select_for_update().get_or_create(
+                kunci=kunci, defaults={"sejak": sekarang},
+            )
+            if sekarang - baris.sejak > JENDELA:
+                baris.jumlah, baris.sejak, baris.terkunci_sampai = 0, sekarang, None
+            baris.jumlah += 1
+            batas = BATAS_IP if kunci.startswith("ip:") else BATAS_USERNAME
+            if baris.jumlah >= batas:
+                baris.terkunci_sampai = sekarang + KUNCI
+            baris.save()
+
+
+def catat_berhasil(username):
+    GagalLogin.objects.filter(kunci=f"u:{username.strip().lower()[:150]}").delete()

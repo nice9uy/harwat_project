@@ -764,6 +764,12 @@ class GantiPasswordForm(PasswordChangeForm):
     def validate_password_for_user(self, *args, **kwargs):
         pass
 
+    def clean_new_password1(self):
+        baru = self.cleaned_data.get("new_password1")
+        if baru == roles.DEFAULT_PASSWORD:
+            raise forms.ValidationError("Password baru tidak boleh sama dengan password bawaan.")
+        return baru
+
 
 class DaftarKetuaForm(forms.Form):
     """The account half of Daftar sebagai Ketua Tim on the login page (the

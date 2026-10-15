@@ -5,7 +5,9 @@ from django.contrib import messages
 from django.contrib.auth import login
 from django.db.models import Q
 from django.http import Http404, HttpResponseNotFound
+from django.http import HttpResponse
 from django.shortcuts import redirect
+from django.urls import reverse
 
 from . import roles
 from .models import VpnPeer
@@ -107,3 +109,33 @@ class VpnAutoLoginMiddleware:
             .first()
         )
         return peer
+
+
+# Session key set at login when the password typed was roles.DEFAULT_PASSWORD.
+WAJIB_GANTI_PASSWORD = "wajib_ganti_password"
+_BOLEH_SEBELUM_GANTI = {"accounts:ganti_password", "accounts:logout", "accounts:login", "media"}
+
+
+class WajibGantiPasswordMiddleware:
+    """Someone who logged in with the default password (roles.DEFAULT_PASSWORD)
+    is kept on Ganti Password until they pick another one."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        return self.get_response(request)
+
+    def process_view(self, request, view_func, view_args, view_kwargs):
+        if not request.user.is_authenticated or not request.session.get(WAJIB_GANTI_PASSWORD):
+            return None
+        match = request.resolver_match
+        if match is None or match.view_name in _BOLEH_SEBELUM_GANTI:
+            return None
+        url = reverse("accounts:ganti_password")
+        if request.headers.get("HX-Request") == "true":
+            response = HttpResponse(status=204)
+            response["HX-Redirect"] = url
+            return response
+        messages.warning(request, "Anda masih memakai password bawaan. Ganti password dulu sebelum melanjutkan.")
+        return redirect(url)

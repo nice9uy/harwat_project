@@ -11,6 +11,7 @@ from .models import (
     AkunPublik,
     Anggota,
     DraftPemeriksaan,
+    GagalLogin,
     KmJadwal,
     Laporan,
     PekerjaanAktif,
@@ -354,3 +355,9 @@ class DraftPerbaikanAdmin(admin.ModelAdmin):
     list_display = ["vehicle", "teknisi", "diperbarui_pada"]
     search_fields = ["vehicle__nopol", "teknisi__username"]
     raw_id_fields = ["vehicle", "teknisi"]
+
+
+@admin.register(GagalLogin)
+class GagalLoginAdmin(admin.ModelAdmin):
+    list_display = ["kunci", "jumlah", "sejak", "terkunci_sampai"]
+    search_fields = ["kunci"]

@@ -66,6 +66,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'accounts.middleware.VpnAutoLoginMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'accounts.middleware.WajibGantiPasswordMiddleware',
     'accounts.middleware.MenuAccessMiddleware',
     'accounts.middleware.SuperuserOnlyAdminMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',

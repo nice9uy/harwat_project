@@ -21,10 +21,11 @@ from django.views.decorators.http import require_POST, require_http_methods
 from fleet.images import compress_photo
 from fleet.models import Vehicle
 
-from . import dashboard, golongan, km_jadwal, pemeriksaan, pimpinan_tim, roles, status
+from . import batas_login, dashboard, golongan, km_jadwal, pemeriksaan, pimpinan_tim, roles, status
 from .forms import TEXT_INPUT_CLASSES, clean_foto, terapkan_keanggotaan, BiodataForm, GantiPasswordForm, UbahTimForm, SatuanForm, LaporanForm, LoginForm, UserCreateForm, UserEditForm, VpnForm
 from .models import Anggota, DraftPemeriksaan, DraftPerbaikan, Laporan, PekerjaanAktif, Satuan, VpnPeer
 from .paging import halaman
+from .middleware import WAJIB_GANTI_PASSWORD
 from .roles import keanggotaan_label
 
 
@@ -44,11 +45,24 @@ def login_view(request):
         return redirect(_get_success_url(request))
 
     if request.method == "POST":
+        username = request.POST.get("username", "")
+        menit = batas_login.menit_terkunci(request, username)
+        if menit:
+            # Too many wrong passwords: refused without checking this one.
+            form = LoginForm(request, initial={"username": username})
+            form.cleaned_data = {}  # add_error() on an unbound form expects it
+            form.add_error(None, f"Terlalu banyak percobaan login yang gagal. Coba lagi dalam {menit} menit.")
+            return render(request, "accounts/login.html", {"form": form})
         form = LoginForm(request, data=request.POST)
         if form.is_valid():
             user = form.get_user()
             auth_login(request, user)
+            batas_login.catat_berhasil(username)
             request.session.set_expiry(1209600 if form.cleaned_data.get("remember_me") else 0)
+            # Still on the default password: changed before anything else
+            # (accounts.middleware.WajibGantiPasswordMiddleware).
+            if form.cleaned_data.get("password") == roles.DEFAULT_PASSWORD:
+                request.session[WAJIB_GANTI_PASSWORD] = True
 
             success_url = _get_success_url(request)
             if request.headers.get("HX-Request") == "true":
@@ -56,6 +70,7 @@ def login_view(request):
                 response["HX-Redirect"] = success_url
                 return response
             return redirect(success_url)
+        batas_login.catat_gagal(request, username)
     else:
         form = LoginForm(request)
 
@@ -1212,6 +1227,7 @@ def ganti_password_view(request):
         if form.is_valid():
             user = form.save()
             update_session_auth_hash(request, user)  # stay logged in
+            request.session.pop(WAJIB_GANTI_PASSWORD, None)
             messages.success(request, "Password berhasil diganti.")
             return redirect("accounts:ganti_password")
     else:
