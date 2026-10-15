@@ -24,6 +24,7 @@
             {% for error in field.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ error }}</p>{% endfor %}
         </div>
         {% endfor %}
+        <p class="rounded-md bg-slate-100 dark:bg-slate-900 px-3 py-2 text-xs text-slate-600 dark:text-slate-300">Kata sandi awal: <span class="font-mono font-semibold">{{ kata_sandi_awal }}</span> — ganti setelah login pertama.</p>
         <p class="border-t border-slate-200 pt-4 text-sm font-semibold text-navy dark:border-slate-700 dark:text-slate-100">Info Profil</p>
         {% include "accounts/_biodata_fields.html" with pesan_satuan_kosong="Belum ada satuan untuk matra ini. Hubungi admin." %}
         <div class="flex gap-2 pt-1">

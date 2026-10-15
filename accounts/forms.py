@@ -1,7 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.contrib.auth.models import Group, User
-from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.validators import UnicodeUsernameValidator as UsernameValidator
 
 from fleet.images import compress_photo
@@ -768,19 +767,16 @@ class GantiPasswordForm(PasswordChangeForm):
 
 class DaftarKetuaForm(forms.Form):
     """The account half of Daftar sebagai Ketua Tim on the login page (the
-    biodata half is a BiodataForm)."""
+    biodata half is a BiodataForm). The password is roles.DEFAULT_PASSWORD,
+    as for the accounts an admin makes."""
 
     username = forms.CharField(label="Nama pengguna", max_length=150)
-    password1 = forms.CharField(label="Kata sandi", strip=False, widget=forms.PasswordInput)
-    password2 = forms.CharField(label="Ulangi kata sandi", strip=False, widget=forms.PasswordInput)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.widget.attrs["class"] = TEXT_INPUT_CLASSES
-        self.fields["username"].widget.attrs.update({"placeholder": "nama.pengguna", "autocomplete": "username"})
-        for name in ("password1", "password2"):
-            self.fields[name].widget.attrs["autocomplete"] = "new-password"
+        self.fields["username"].widget.attrs.update({
+            "class": TEXT_INPUT_CLASSES, "placeholder": "nama.pengguna", "autocomplete": "username",
+        })
 
     def clean_username(self):
         username = self.cleaned_data["username"].strip()
@@ -788,15 +784,3 @@ class DaftarKetuaForm(forms.Form):
         if User.objects.filter(username__iexact=username).exists():
             raise forms.ValidationError("Nama pengguna ini sudah dipakai.")
         return username
-
-    def clean(self):
-        cleaned = super().clean()
-        p1, p2 = cleaned.get("password1"), cleaned.get("password2")
-        if p1 and p2 and p1 != p2:
-            self.add_error("password2", "Kata sandi tidak sama.")
-        elif p1:
-            try:
-                validate_password(p1, User(username=cleaned.get("username", "")))
-            except forms.ValidationError as e:
-                self.add_error("password1", e)
-        return cleaned

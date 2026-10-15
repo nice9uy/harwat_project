@@ -24,7 +24,7 @@ class DaftarKetuaTimTests(TestCase):
 
     def _data(self, **lain):
         data = {
-            "daftar-username": "ketua.baru", "daftar-password1": "Sandi-Kuat-2026", "daftar-password2": "Sandi-Kuat-2026",
+            "daftar-username": "ketua.baru",
             "daftar-tipe_identitas": "TNI", "daftar-nip": "123", "daftar-nama": "budi", "daftar-pangkat": "kapten",
             "daftar-jabatan": "teknisi", "daftar-satuan": self.satuan.pk, "daftar-foto": _foto(),
         }
@@ -39,6 +39,8 @@ class DaftarKetuaTimTests(TestCase):
         self.assertContains(self.client.get(reverse("accounts:daftar_matra")), "Matra Laut")
         form = self.client.get(self.url)
         self.assertContains(form, "KODAM JAYA")
+        self.assertContains(form, "Kata sandi awal")
+        self.assertNotContains(form, "password1")
         self.assertNotContains(form, "LANTAMAL")
 
     def test_sign_up_waits_for_the_admin_of_that_matra(self):
@@ -52,7 +54,7 @@ class DaftarKetuaTimTests(TestCase):
         node = Anggota.objects.get(user=user)
         self.assertTrue(node.is_root())
         # Not yet: told so on the login page.
-        login = self.client.post(reverse("accounts:login"), {"username": "ketua.baru", "password": "Sandi-Kuat-2026"})
+        login = self.client.post(reverse("accounts:login"), {"username": "ketua.baru", "password": "12345"})
         self.assertContains(login, "belum diaktifkan")
         # The Admin of Matra Darat sees and switches them on, and gets them as their Ketua Tim.
         admin = User.objects.create_user(username="admin_darat", password="rahasia-123")
@@ -67,13 +69,12 @@ class DaftarKetuaTimTests(TestCase):
         self.assertTrue(user.is_active)
         self.assertEqual(node.admin, admin)
         self.client.logout()
-        self.assertTrue(self.client.login(username="ketua.baru", password="Sandi-Kuat-2026"))
+        self.assertTrue(self.client.login(username="ketua.baru", password="12345"))
 
     def test_bad_input_and_taken_username_are_refused(self):
         User.objects.create_user(username="Ketua.Baru", password="x")
-        hasil = self.client.post(self.url, self._data(**{"daftar-password2": "lain"}))
+        hasil = self.client.post(self.url, self._data())
         self.assertContains(hasil, "sudah dipakai")
-        self.assertContains(hasil, "tidak sama")
         self.assertEqual(User.objects.filter(username__iexact="ketua.baru").count(), 1)
 
     def test_closed_while_too_many_wait(self):
