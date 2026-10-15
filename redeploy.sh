@@ -87,9 +87,12 @@ echo "== Menjalankan ./prod.sh"
 ./prod.sh
 
 echo "== Memeriksa aplikasi"
+# The HTTPS port nginx is published on (PORT_HTTPS in .env.prod, 8443 by default).
+PORT_HTTPS="$(grep -E '^PORT_HTTPS=' .env.prod 2>/dev/null | tail -1 | cut -d= -f2)"
+PORT_HTTPS="${PORT_HTTPS:-8443}"
 SIAP=""
 for _ in $(seq 1 30); do
-    KODE="$(curl -sk -m 5 -o /dev/null -w '%{http_code}' https://localhost:8443/login/ || true)"
+    KODE="$(curl -sk -m 5 -o /dev/null -w '%{http_code}' "https://localhost:${PORT_HTTPS}/login/" || true)"
     if [ "$KODE" = "200" ]; then
         SIAP=1
         break
@@ -97,7 +100,7 @@ for _ in $(seq 1 30); do
     sleep 2
 done
 if [ -z "$SIAP" ]; then
-    echo "Aplikasi belum menjawab di https://localhost:8443/login/ (kode terakhir: ${KODE:-tidak ada})." >&2
+    echo "Aplikasi belum menjawab di https://localhost:${PORT_HTTPS}/login/ (kode terakhir: ${KODE:-tidak ada})." >&2
     echo "Periksa: podman ps -a ; podman logs ${PROYEK}_nginx_1 ; podman logs ${PROYEK}_app1_1" >&2
     exit 1
 fi

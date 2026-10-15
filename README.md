@@ -109,6 +109,24 @@ peringatan sampai otoritas itu diimpor **di tiap perangkat yang membuka aplikasi
 Nama atau alamat tambahan (mis. domain atau IP publik): tambahkan `TLS_NAMA=harwat.lan,203.0.113.7` (dipisah koma) di `.env.prod`.
 Folder `podman/tls/` berisi kunci sertifikat dan kunci otoritas; ia tidak masuk git dan jangan dibagikan.
 
+### Tanpa nomor port (https://alamat-server)
+
+Secara bawaan nginx dibuka di port 8000 (HTTP) dan 8443 (HTTPS). Agar alamatnya cukup
+`https://alamat-server` tanpa `:8443`, isi di `.env.prod`:
+
+```
+PORT_HTTP=80
+PORT_HTTPS=443
+```
+
+Podman tanpa root tidak boleh membuka port di bawah 1024, jadi sekali saja di server itu izinkan:
+
+```bash
+echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee /etc/sysctl.d/99-harwat-port.conf && sudo sysctl --system
+```
+
+Lalu jalankan `./prod.sh` (atau `./redeploy.sh`). `prod.sh` berhenti dengan pesan ini bila izinnya belum ada.
+
 ## Data produksi
 
 - **Database** — PostgreSQL 17. `postgres` adalah primary; aplikasi membaca dan menulis lewat

@@ -98,8 +98,11 @@ services:
       # The HTTPS certificate and its authority (scripts/siapkan-tls.sh).
       - ../podman/tls:/etc/nginx/tls:ro
     ports:
-      - "8000:8000"
-      - "8443:8443"
+      # The host ports: 8000 and 8443 unless .env.prod sets PORT_HTTP and
+      # PORT_HTTPS (80 and 443 for addresses without a port; prod.sh checks
+      # the host lets this user open them).
+      - "${PORT_HTTP:-8000}:8000"
+      - "${PORT_HTTPS:-8443}:8443"
     depends_on:
       - app1
       - app2

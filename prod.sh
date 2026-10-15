@@ -174,6 +174,26 @@ if command -v systemctl >/dev/null 2>&1 && ! systemctl --user is-active --quiet 
         || echo "podman.socket tidak bisa diaktifkan — daftar kontainer di menu Server akan kosong."
 fi
 
+# The host ports nginx is published on (PORT_HTTP / PORT_HTTPS in .env.prod,
+# 8000 and 8443 by default). Below 1024 (80 and 443, so that the address needs
+# no port) the host has to let ordinary users open them: rootless Podman runs
+# as this user. Stop here with the fix rather than fail halfway through `up`.
+PORT_HTTP="${PORT_HTTP:-8000}"
+PORT_HTTPS="${PORT_HTTPS:-8443}"
+AWAL_BEBAS=$(cat /proc/sys/net/ipv4/ip_unprivileged_port_start 2>/dev/null || echo 1024)
+for PORT in "$PORT_HTTP" "$PORT_HTTPS"; do
+    if [ "$PORT" -lt "$AWAL_BEBAS" ]; then
+        echo "Port $PORT belum boleh dibuka oleh pengguna biasa (mulai dari $AWAL_BEBAS). Jalankan sekali:" >&2
+        echo "  echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee /etc/sysctl.d/99-harwat-port.conf && sudo sysctl --system" >&2
+        exit 1
+    fi
+done
+alamat_port() {  # "http" 80 -> "", "https" 8443 -> ":8443"
+    if { [ "$1" = http ] && [ "$2" = 80 ]; } || { [ "$1" = https ] && [ "$2" = 443 ]; }; then echo ""; else echo ":$2"; fi
+}
+HTTP_PORT_TEKS="$(alamat_port http "$PORT_HTTP")"
+HTTPS_PORT_TEKS="$(alamat_port https "$PORT_HTTPS")"
+
 # A stack that is still running is stopped first, then started again — same
 # reasoning as dev.sh: dev and prod share service names
 # (postgres/valkey/garage/pgbouncer) from the base compose.yml, so a leftover
@@ -274,7 +294,7 @@ echo
 echo "Kontainer yang berjalan:"
 podman ps --filter "label=io.podman.compose.project=${PROYEK}" --format '  {{.Names}}  {{.Status}}'
 ALAMAT_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
-echo "Selesai. Aplikasi: http://localhost:8000${ALAMAT_IP:+ | http://$ALAMAT_IP:8000}"
-echo "         HTTPS:    https://localhost:8443${ALAMAT_IP:+ | https://$ALAMAT_IP:8443}"
+echo "Selesai. Aplikasi: http://localhost${HTTP_PORT_TEKS}${ALAMAT_IP:+ | http://$ALAMAT_IP${HTTP_PORT_TEKS}}"
+echo "         HTTPS:    https://localhost${HTTPS_PORT_TEKS}${ALAMAT_IP:+ | https://$ALAMAT_IP${HTTPS_PORT_TEKS}}"
 [ "${VPN_AKTIF:-1}" = "0" ] || echo "         Lewat VPN: https://${ALAMAT_VPN}:8443"
-echo "         (impor podman/tls/rootCA.pem di browser agar HTTPS tanpa peringatan; unduh: http://${ALAMAT_IP:-localhost}:8000/rootCA.pem)"
+echo "         (impor podman/tls/rootCA.pem di browser agar HTTPS tanpa peringatan; unduh: http://${ALAMAT_IP:-localhost}${HTTP_PORT_TEKS}/rootCA.pem)"
