@@ -88,9 +88,17 @@ def cakupan(user):
         ketua = Anggota.objects.filter(pimpinan_tim__pimpinan=user, depth=1)
     else:
         ketua = Anggota.objects.filter(admin=user, depth=1)
-    for node in ketua:
-        users.add(node.user_id)
-        users.update(node.get_children().values_list("user_id", flat=True))
+    from django.db.models.functions import Substr
+
+    akar = {}
+    for user_id, path in ketua.values_list("user_id", "path"):
+        users.add(user_id)
+        akar[path] = user_id
+    # Their members in one query: the depth-2 nodes under those roots.
+    users.update(
+        Anggota.objects.filter(depth=2).annotate(akar=Substr("path", 1, Anggota.steplen))
+        .filter(akar__in=list(akar)).values_list("user_id", flat=True)
+    )
     return users
 
 

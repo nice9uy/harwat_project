@@ -285,7 +285,7 @@ def anggota_tim_view(request):
     # A Pimpinan Tim sees (and doesn't manage) the teams they picked.
     terlihat = pimpinan_tim.tim_terlihat(request.user)
 
-    nodes = list(Anggota.get_tree().select_related("user", "user__vpn_peer", "user__publik"))
+    nodes = list(Anggota.get_tree().select_related("user", "user__vpn_peer", "user__publik").prefetch_related("user__groups"))
     all_user_ids = [n.user_id for n in nodes]
     nip_per_akun = {}
     nama_per_akun = {}

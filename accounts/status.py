@@ -53,7 +53,7 @@ def status_tim(admin):
     from .dashboard import cakupan
 
     users = cakupan(admin)
-    nodes = list(Anggota.get_tree().select_related("user"))
+    nodes = list(Anggota.get_tree().select_related("user").prefetch_related("user__groups"))
     ketua = {n.path: n.user for n in nodes if n.depth == 1}
     anggota = [n for n in nodes if n.depth == 2 and (users is None or n.user_id in users)]
     ids = [n.user_id for n in anggota]

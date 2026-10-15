@@ -19,16 +19,27 @@ from fleet.models import Vehicle
 
 from .laporan import _filter, _golongan_dipilih, _keterangan_filter, _render, _rentang
 from .models import Anggota, Laporan
-from .pimpinan_tim import tim_terlihat
 from .roles import keanggotaan_label
 
 JENIS = ["pemeriksaan", "perbaikan", "penambahan"]
 MAKS_AKTIVITAS = 100
 
 
+def _ketua_terlihat(user):
+    """pks of the Ketua Tim nodes whose reports ``user`` sees: those in their
+    scope (dashboard.cakupan: an Admin's own Ketua Tim, a Ketua Tim's own
+    team, a Pimpinan Tim's picked ones), or None for all of them."""
+    from .dashboard import cakupan
+
+    users = cakupan(user)
+    if users is None:
+        return None
+    return set(Anggota.objects.filter(depth=1, user_id__in=users).values_list("pk", flat=True))
+
+
 def _tim(terlihat=None):
     """[(ketua node, [member nodes])] sorted by username, each node with
-    ``user``. ``terlihat``: the Ketua Tim pks a Pimpinan Tim is limited to."""
+    ``user``. ``terlihat``: the Ketua Tim pks to keep (_ketua_terlihat)."""
     nodes = list(Anggota.get_tree().select_related("user"))
     tim = []
     for ketua in sorted((n for n in nodes if n.depth == 1), key=lambda n: n.user.username):
@@ -72,7 +83,7 @@ def _query_filter(request):
 @login_required
 def laporan_tim(request):
     f = _filter(request)
-    tim = _tim(tim_terlihat(request.user))
+    tim = _tim(_ketua_terlihat(request.user))
     user_ids = [n.user_id for ketua, anggota in tim for n in (ketua, *anggota)]
     jumlah = _jumlah_per_akun(f, user_ids)
     query = _query_filter(request)
@@ -136,9 +147,9 @@ def konteks_tim(request, uid):
     """Everything the team modal and its PDF show."""
     f = _filter(request)
     ketua = get_object_or_404(Anggota.get_root_nodes().select_related("user"), uuid=uid)
-    terlihat = tim_terlihat(request.user)
+    terlihat = _ketua_terlihat(request.user)
     if terlihat is not None and ketua.pk not in terlihat:
-        raise Http404  # a Pimpinan Tim's reports are their own teams'
+        raise Http404  # another Admin's (or Ketua Tim's) team
     anggota = list(ketua.get_children().select_related("user").order_by("user__username"))
     users = list(
         User.objects.filter(pk__in=[n.user_id for n in (ketua, *anggota)]).prefetch_related("groups")
