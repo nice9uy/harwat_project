@@ -207,3 +207,28 @@ class SatuanAkunTests(TestCase):
         self.assertLess(isi.index(">Matra</th>"), isi.index(">Satuan</th>"))
         baris = {u.username: u.satuan_label for u in tabel.context["users"]}
         self.assertEqual((baris["kasat"], baris["lama"]), ("KODAM JAYAKARTA", "YONIF 202"))
+
+
+class KetuaTimTanpaBiodataTests(TestCase):
+    """A Ketua Tim without a biodata yet still opens History and Anggota Tim, and adds members."""
+
+    def test_menus_open_and_members_can_be_added(self):
+        from accounts.models import AkunPublik, Anggota
+        ketua = _user("ketua_baru", "Ketua Tim")
+        AkunPublik.objects.filter(user=ketua).update(matra="darat")
+        node = Anggota.add_root(user=ketua)
+        self.client.login(username="ketua_baru", password="rahasia-123")
+        halaman = self.client.get(reverse("accounts:anggota_tim"))
+        self.assertEqual(halaman.status_code, 200)
+        self.assertFalse(halaman.context["profil_belum_isi"])
+        self.assertNotContains(halaman, "cursor-not-allowed")
+        self.assertEqual(self.client.get(reverse("accounts:history")).status_code, 200)
+        # Adding a member of their own team.
+        tambah = reverse("accounts:anggota_tim_tambah", args=[node.uuid])
+        self.assertEqual(self.client.get(tambah, HTTP_HX_REQUEST="true").status_code, 200)
+        self.client.post(tambah, {"username": "anggota_baru", "keanggotaan": "tim_perbaikan", "matra": "darat"}, HTTP_HX_REQUEST="true")
+        node.refresh_from_db()
+        self.assertEqual([a.user.username for a in node.get_children()], ["anggota_baru"])
+        # A Tim member still fills their biodata first.
+        self.client.login(username="anggota_baru", password="12345")
+        self.assertTrue(self.client.get(reverse("accounts:info_profile")).context["profil_belum_isi"])

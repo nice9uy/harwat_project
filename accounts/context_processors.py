@@ -4,7 +4,10 @@ from django.contrib.staticfiles import finders
 
 from . import roles
 
-_TIM_ROLES = roles.TIM | {roles.KETUA_TIM}
+# The roles whose menus wait for their biodata (Info Profil): the Tim members,
+# whose forms record it on every inspection, repair or addition. A Ketua Tim
+# manages a team and reads reports: History and Anggota Tim open right away.
+_TIM_ROLES = roles.TIM
 
 
 def menu(request):
