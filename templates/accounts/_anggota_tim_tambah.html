@@ -3,6 +3,7 @@
       hx-post="{% url 'accounts:anggota_tim_tambah' ketua.uuid %}"
       hx-target="this"
       hx-swap="outerHTML"
+      x-data="{ keanggotaan: '{{ form.keanggotaan.value|default_if_none:''|escapejs }}' }"
       class="space-y-4">
     {% csrf_token %}
     {% if form.non_field_errors %}
