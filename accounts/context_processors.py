@@ -10,6 +10,28 @@ from . import roles
 _TIM_ROLES = roles.TIM
 
 
+# The phone's bottom bar: the first four of these the user may open, with a
+# short label; the rest of the menu is one tap away under "Menu".
+MENU_BAWAH = [
+    ("dashboard", "Dashboard"), ("pemeriksaan", "Periksa"), ("perbaikan", "Perbaikan"),
+    ("form_tambah", "Tambah"), ("rusak", "Rusak"), ("history", "History"), ("anggota_tim", "Tim"),
+    ("aktivasi_ketua_tim", "Aktivasi"), ("rekap_kerusakan", "Rekap"), ("status", "Status"),
+    ("info_profile", "Profil"), ("laporan_pemeriksaan", "Laporan"),
+]
+# Menus that wait for the biodata (templates/base.html greys them out).
+_TUNGGU_PROFIL = {"pemeriksaan", "perbaikan", "form_tambah", "rusak", "history", "anggota_tim"}
+
+
+def _menu_bawah(boleh, profil_belum_isi):
+    from django.urls import reverse
+
+    return [
+        {"kunci": k, "label": label, "url": reverse(roles.MENU_HOME[k]),
+         "terkunci": profil_belum_isi and k in _TUNGGU_PROFIL}
+        for k, label in MENU_BAWAH if k in boleh
+    ][:4]
+
+
 def menu(request):
     """Sidebar menus the current user may see (``menu_boleh``)."""
     user = getattr(request, "user", None)
@@ -22,10 +44,12 @@ def menu(request):
     if user is not None and user.is_authenticated and roles.keanggotaan_kode(user) in _TIM_ROLES:
         from .models import Laporan
         profil_belum_isi = not Laporan.objects.filter(akun=user).exists()
+    boleh = roles.allowed_menus(user) if user is not None else frozenset()
     return {
-        "menu_boleh": roles.allowed_menus(user) if user is not None else frozenset(),
+        "menu_boleh": boleh,
         "menu_aktif": menu_aktif,
         "profil_belum_isi": profil_belum_isi,
+        "menu_bawah": _menu_bawah(boleh, profil_belum_isi) if user is not None and user.is_authenticated else [],
     }
 
 
