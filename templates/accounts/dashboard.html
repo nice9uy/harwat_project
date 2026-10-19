@@ -16,7 +16,7 @@
         {% endfor %}
     </nav>
     {% endif %}
-        <nav class="flex gap-6 -mb-px">
+        <nav class="flex gap-6 -mb-px overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button type="button" @click="tab = 'ringkasan'"
                     :class="tab === 'ringkasan' ? 'border-gold text-navy dark:text-gold' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
                     class="inline-flex items-center gap-2 border-b-2 px-1 py-2 text-sm font-medium">
