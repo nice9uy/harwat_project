@@ -766,6 +766,8 @@ class GantiPasswordForm(PasswordChangeForm):
 
     def clean_new_password1(self):
         baru = self.cleaned_data.get("new_password1")
+        if baru is not None and not baru.strip():
+            raise forms.ValidationError("Password tidak boleh hanya berisi spasi.")
         if baru == roles.DEFAULT_PASSWORD:
             raise forms.ValidationError("Password baru tidak boleh sama dengan password bawaan.")
         return baru
@@ -800,3 +802,9 @@ class DaftarKetuaForm(forms.Form):
         if User.objects.filter(username__iexact=username).exists():
             raise forms.ValidationError("Nama pengguna ini sudah dipakai.")
         return username
+
+    def clean_password1(self):
+        sandi = self.cleaned_data["password1"]
+        if not sandi.strip():
+            raise forms.ValidationError("Kata sandi tidak boleh hanya berisi spasi.")
+        return sandi

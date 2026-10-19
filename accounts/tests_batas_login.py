@@ -58,3 +58,20 @@ class WajibGantiPasswordTests(TestCase):
         User.objects.create_superuser(username="lain", password="bukan-bawaan")
         self.client.post(reverse("accounts:login"), {"username": "lain", "password": "bukan-bawaan"})
         self.assertEqual(self.client.get(reverse("accounts:pengaturan")).status_code, 200)
+
+
+class PasswordSpasiTests(TestCase):
+    def test_whitespace_only_password_is_refused(self):
+        User.objects.create_superuser(username="root", password="rahasia-123")
+        self.client.login(username="root", password="rahasia-123")
+        r = self.client.post(reverse("accounts:ganti_password"), {
+            "old_password": "rahasia-123", "new_password1": "   ", "new_password2": "   ",
+        })
+        self.assertContains(r, "tidak boleh hanya berisi spasi")
+        self.assertTrue(User.objects.get(username="root").check_password("rahasia-123"))
+
+    def test_sign_up_refuses_whitespace_only_password(self):
+        from accounts.forms import DaftarKetuaForm
+        form = DaftarKetuaForm({"daftar-username": "baru", "daftar-password1": "   "}, prefix="daftar")
+        self.assertFalse(form.is_valid())
+        self.assertIn("password1", form.errors)
