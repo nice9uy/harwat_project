@@ -263,8 +263,9 @@
         </div>
     </div>
 
-    {# Phone bottom bar: the user's main menus, then the full menu under "Menu". #}
-    <nav class="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)] dark:border-slate-700 dark:bg-slate-800/95 md:hidden" aria-label="Menu bawah">
+    {# Phone bottom bar: the user's main menus, then the full menu under "Menu".
+       Boosted like the sidebar, so a tap swaps the page instead of reloading it (no flash). #}
+    <nav hx-boost="true" class="fixed inset-x-0 bottom-0 z-30 select-none border-t border-slate-200 bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)] [-webkit-tap-highlight-color:transparent] dark:border-slate-700 dark:bg-slate-800/95 md:hidden" aria-label="Menu bawah">
         <div class="mx-auto flex max-w-lg items-stretch justify-around">
             {% for m in menu_bawah %}
             <a href="{{ m.url }}"
