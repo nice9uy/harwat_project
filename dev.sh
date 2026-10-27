@@ -22,13 +22,12 @@ if [ ! -f .env.dev ]; then
 fi
 
 # Podman's collectstatic (and this compose's static asset serving) needs
-# static/dist/output.css, a Tailwind build artifact that isn't in git. Build
-# it automatically if it's missing so a fresh checkout doesn't silently ship
-# a visually broken app (collectstatic succeeds either way — it doesn't fail
-# loudly if this file is absent, so the guard has to happen here instead).
-if [ ! -f static/dist/output.css ]; then
-    ./scripts/build-css.sh
-fi
+# static/dist/output.css, a Tailwind build artifact that isn't in git. Rebuild
+# it on every run, not only when it's missing: a copy left over from an older
+# checkout lacks the classes newer templates use, and the app ships with
+# those elements unstyled (collectstatic succeeds either way, so nothing else
+# would catch it).
+./scripts/build-css.sh
 
 # django-bolt's static serving looks for STATIC_ROOT (/app/staticfiles), which
 # only gets populated by `collectstatic` — and that only runs during prod's
