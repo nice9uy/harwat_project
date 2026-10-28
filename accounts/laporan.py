@@ -217,7 +217,7 @@ def _waktu(waktu):
 
 def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, tanggal, satuan=None, ekspor_qr=False, tab=None):
     """A report with one row per vehicle (``kendaraan``: in display order), a
-    search field and no date filter; each row opens the ``detail`` modal.
+    search field and a date filter (applied by the caller); each row opens the ``detail`` modal.
     ``jenis``: the report's key in laporan_hapus.JENIS, for the Hapus action
     its rows get, with Edit (the vehicle's data), when the user may change them.
     ``tanggal``: vehicle -> the time of what the row reports (its newest record),
@@ -254,7 +254,7 @@ def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, 
         rows = [baris + (satuan(v) or "-",) for baris, v in zip(rows, kendaraan)]
     return _render(
         request, "accounts/laporan_tabel.html", judul, header, rows, f, nama_file,
-        tautan=tautan, kolom_tanggal=1, kolom_utama=2, pakai_tanggal=False, pakai_cari=True,
+        tautan=tautan, kolom_tanggal=1, kolom_utama=2, pakai_cari=True,
         # Laporan Pemeriksaan, Perbaikan and Penambahan have no Excel download.
         pakai_excel=False, pakai_hapus=pakai_hapus, pakai_qr=ekspor_qr, pakai_ekspor_qr=ekspor_qr,
         tab=tab,
@@ -264,12 +264,13 @@ def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, 
 def _kendaraan_dengan_catatan(request, model_dari_cfg, relasi_kendaraan, relasi_orang):
     """Vehicles with at least one record (inspection or repair) in the chosen
     group, by someone of the chosen Satuan (``relasi_orang``: the record's
-    biodata), and matching the search, newest record first; each carries
+    biodata), dated within the chosen range, and matching the search, newest
+    record first; each carries
     that record's time as ``waktu_catatan``."""
     f = _filter(request)
     terakhir = {}  # vehicle id -> newest record time
     for _, cfg in _golongan_dipilih(f):
-        qs = model_dari_cfg(cfg).objects.all()
+        qs = _rentang(model_dari_cfg(cfg).objects.all(), "dibuat_pada", f)
         if f["satuan"]:
             qs = qs.filter(**{f"{relasi_orang}__satuan": f["satuan"]})
         qs = qs.order_by().values(relasi_kendaraan).annotate(waktu=Max("dibuat_pada"))
@@ -309,7 +310,7 @@ def laporan_perbaikan(request):
 def laporan_penambahan(request):
     """Every vehicle, newest added first; the row's modal shows it and who added it."""
     f = _filter(request)
-    qs = Vehicle.objects.select_related("penambah__satuan").order_by("-dibuat_pada", "-id")
+    qs = _rentang(Vehicle.objects.select_related("penambah__satuan"), "dibuat_pada", f).order_by("-dibuat_pada", "-id")
     if f["golongan"]:
         qs = qs.filter(group_kendaraan=f["golongan"])
     if f["satuan"]:
@@ -446,6 +447,9 @@ def _laporan_sparepart_rusak(request, f):
             continue
         if f["satuan"] and satuan != f["satuan"]:
             continue
+        tanggal = timezone.localtime(b["waktu"]).date()
+        if (f["dari"] and tanggal < f["dari"]) or (f["sampai"] and tanggal > f["sampai"]):
+            continue
         if q and not any(q in (teks or "").lower() for teks in (v.nopol, v.merek, v.no_chasis, v.no_mesin, b["item"].nama_alat)):
             continue
         oleh = b["perbaikan"].teknisi.nama if b["perbaikan"] else b["periksa"].pemeriksa.nama
@@ -457,7 +461,7 @@ def _laporan_sparepart_rusak(request, f):
     return _render(
         request, "accounts/laporan_tabel.html", JUDUL_RUSAK,
         ["Sparepart / Komponen", "No. Registrasi", "Merk/Type", "Golongan", "Satuan", "Sumber", "Tanggal", "Oleh", "Keterangan"],
-        rows, f, "laporan-sparepart-rusak.xlsx", kolom_tanggal=7, kolom_utama=1, pakai_tanggal=False, pakai_cari=True,
+        rows, f, "laporan-sparepart-rusak.xlsx", kolom_tanggal=7, kolom_utama=1, pakai_cari=True,
         tab=TAB_RUSAK,
     )
 
@@ -478,7 +482,7 @@ def laporan_rusak(request):
             request, JUDUL_RUSAK, [], "accounts:laporan_rusak_detail", "laporan-rusak.xlsx", "rusak",
             tanggal=lambda v: v.dibuat_pada, satuan=lambda v: "", tab=TAB_RUSAK,
         )
-    qs = KendaraanRusak.objects.select_related("pelapor__satuan")
+    qs = _rentang(KendaraanRusak.objects.select_related("pelapor__satuan"), "dibuat_pada", f)
     if f["satuan"]:
         qs = qs.filter(pelapor__satuan=f["satuan"])
     terakhir = {}  # vehicle id -> its newest declaration

@@ -13,6 +13,15 @@
                    class="w-72 max-w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
         </div>
         {% endif %}
+        <div>
+            <label for="golongan" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">{% if kondisi_pilihan %}Jenis Kendaraan{% else %}Golongan{% endif %}</label>
+            <select id="golongan" name="golongan"
+                    class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
+                <option value="">{% if kondisi_pilihan %}Semua jenis{% else %}Semua golongan{% endif %}</option>
+                {% for kode, label in golongan_pilihan %}<option value="{{ kode }}"{% if kode == f.golongan %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        {# Between Golongan and Terapkan. #}
         {% if pakai_tanggal %}
         <div>
             <label for="dari" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Dari tanggal</label>
@@ -25,14 +34,6 @@
                    class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
         </div>
         {% endif %}
-        <div>
-            <label for="golongan" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">{% if kondisi_pilihan %}Jenis Kendaraan{% else %}Golongan{% endif %}</label>
-            <select id="golongan" name="golongan"
-                    class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40">
-                <option value="">{% if kondisi_pilihan %}Semua jenis{% else %}Semua golongan{% endif %}</option>
-                {% for kode, label in golongan_pilihan %}<option value="{{ kode }}"{% if kode == f.golongan %} selected{% endif %}>{{ label }}</option>{% endfor %}
-            </select>
-        </div>
         {% if kondisi_pilihan %}
         <div>
             <label for="kondisi" class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Kondisi</label>

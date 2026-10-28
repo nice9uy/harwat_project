@@ -1896,10 +1896,9 @@ class LaporanMenuTests(TestCase):
     def test_laporan_pemeriksaan_across_groups_and_filter(self):
         response = self.client.get(reverse("accounts:laporan_pemeriksaan"))
         self.assertContains(response, ">2</span> data")
-        # One row per inspected vehicle; searching instead of a date filter.
-        for text in ("B 1 TRK", "B 2 MTR", "Golongan B", "Motor", 'id="q" name="q"'):
+        # One row per inspected vehicle; a search field and a date filter.
+        for text in ("B 1 TRK", "B 2 MTR", "Golongan B", "Motor", 'id="q" name="q"', 'id="dari"'):
             self.assertContains(response, text)
-        self.assertNotContains(response, 'id="dari"')
         response = self.client.get(reverse("accounts:laporan_pemeriksaan"), {"golongan": "bermotor"})
         self.assertContains(response, ">1</span> data")
         self.assertNotContains(response, "B 1 TRK")
@@ -1915,7 +1914,7 @@ class LaporanMenuTests(TestCase):
         for text in ("B 1 TRK", "No. Chasis", "No. Mesin", "Golongan", ">1</span> data"):
             self.assertContains(response, text)
         self.assertNotContains(response, "Kondisi Awal")
-        self.assertNotContains(response, 'id="dari"')
+        self.assertContains(response, 'id="dari"')
         self.assertContains(response, 'id="q" name="q"')
         self.assertContains(self.client.get(reverse("accounts:laporan_perbaikan"), {"q": "1 trk"}), "B 1 TRK")
         self.assertNotContains(self.client.get(reverse("accounts:laporan_perbaikan"), {"q": "zzz"}), "B 1 TRK")

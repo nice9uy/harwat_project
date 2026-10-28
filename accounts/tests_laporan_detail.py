@@ -285,6 +285,34 @@ class LaporanFilterSatuanTests(TestCase):
             self.assertNotContains(self.client.get(reverse(nama)), 'name="satuan"', msg_prefix=nama)
         self.assertNotContains(self.client.get(reverse("accounts:laporan_rusak"), {"tab": "sparepart"}), 'name="satuan"')
 
+    def test_reports_filter_by_date_between_golongan_and_terapkan(self):
+        import datetime
+
+        from django.utils import timezone
+
+        from accounts.models import KendaraanRusak
+        KendaraanRusak.objects.create(
+            vehicle=Vehicle.objects.get(nopol="B 1 ALFA"), pelapor=Laporan.objects.get(nip="Alfa"), alasan="Patah",
+        )
+        hari_ini = timezone.localdate()
+        besok = (hari_ini + datetime.timedelta(days=1)).isoformat()
+        kemarin = (hari_ini - datetime.timedelta(days=1)).isoformat()
+        for nama in (
+            "accounts:laporan_pemeriksaan", "accounts:laporan_perbaikan", "accounts:laporan_penambahan",
+            "accounts:laporan_rusak",
+        ):
+            semua = self.client.get(reverse(nama))
+            html = semua.content.decode()
+            self.assertLess(html.index('name="golongan"'), html.index('name="dari"'), nama)
+            self.assertLess(html.index('name="sampai"'), html.index(">Terapkan<"), nama)
+            self.assertGreater(semua.context["total"], 0, nama)
+            self.assertEqual(self.client.get(reverse(nama), {"dari": besok}).context["total"], 0, nama)
+            self.assertEqual(self.client.get(reverse(nama), {"sampai": kemarin}).context["total"], 0, nama)
+            self.assertEqual(
+                self.client.get(reverse(nama), {"dari": hari_ini.isoformat(), "sampai": hari_ini.isoformat()}).context["total"],
+                semua.context["total"], nama,
+            )
+
     def test_laporan_tim_has_no_satuan_filter(self):
         self.assertNotContains(self.client.get(reverse("accounts:laporan_tim")), 'name="satuan"')
 
