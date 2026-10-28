@@ -41,11 +41,14 @@ def _satuan(raw):
         return None
 
 
-def _filter(request):
+def _filter(request, hari_ini=False):
+    """The report's filter from the query string. ``hari_ini``: opened without
+    Dari/Sampai tanggal, both start on today (emptied and applied: no date limit)."""
     grup = request.GET.get("golongan", "")
+    bawaan = timezone.localdate() if hari_ini and "dari" not in request.GET and "sampai" not in request.GET else None
     return {
-        "dari": _tanggal(request.GET.get("dari")),
-        "sampai": _tanggal(request.GET.get("sampai")),
+        "dari": _tanggal(request.GET.get("dari")) or bawaan,
+        "sampai": _tanggal(request.GET.get("sampai")) or bawaan,
         "golongan": grup if grup in Vehicle.GroupKendaraan.values else "",
         # The unit of whoever did the work (their biodata's Satuan).
         "satuan": _satuan(request.GET.get("satuan")),
@@ -227,7 +230,7 @@ def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, 
     None of these reports has a Satuan filter."""
     from .laporan_hapus import boleh_hapus
 
-    f = _filter(request)
+    f = _filter(request, hari_ini=True)
     if ekspor_qr and request.GET.get("unduh") == "qr":
         from .laporan_qr import qr_word
         return qr_word(judul, kendaraan, nama_file.replace(".xlsx", ".docx").replace("laporan-", "qr-"))
@@ -267,7 +270,7 @@ def _kendaraan_dengan_catatan(request, model_dari_cfg, relasi_kendaraan, relasi_
     biodata), dated within the chosen range, and matching the search, newest
     record first; each carries
     that record's time as ``waktu_catatan``."""
-    f = _filter(request)
+    f = _filter(request, hari_ini=True)
     terakhir = {}  # vehicle id -> newest record time
     for _, cfg in _golongan_dipilih(f):
         qs = _rentang(model_dari_cfg(cfg).objects.all(), "dibuat_pada", f)
@@ -309,7 +312,7 @@ def laporan_perbaikan(request):
 @login_required
 def laporan_penambahan(request):
     """Every vehicle, newest added first; the row's modal shows it and who added it."""
-    f = _filter(request)
+    f = _filter(request, hari_ini=True)
     qs = _rentang(Vehicle.objects.select_related("penambah__satuan"), "dibuat_pada", f).order_by("-dibuat_pada", "-id")
     if f["golongan"]:
         qs = qs.filter(group_kendaraan=f["golongan"])
@@ -472,7 +475,7 @@ def laporan_rusak(request):
     newest declaration first; the row's modal lists its declarations."""
     from .models import KendaraanRusak
 
-    f = _filter(request)
+    f = _filter(request, hari_ini=True)
     tab = _tab(request, TAB_RUSAK)
     if tab == "sparepart":
         return _laporan_sparepart_rusak(request, f)

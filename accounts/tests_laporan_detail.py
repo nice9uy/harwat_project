@@ -313,6 +313,24 @@ class LaporanFilterSatuanTests(TestCase):
                 semua.context["total"], nama,
             )
 
+    def test_reports_open_on_today(self):
+        import datetime
+
+        from django.utils import timezone
+
+        hari_ini = timezone.localdate()
+        Vehicle.objects.filter(nopol="B 1 BRAVO").update(dibuat_pada=timezone.now() - datetime.timedelta(days=3))
+        for nama in (
+            "accounts:laporan_pemeriksaan", "accounts:laporan_perbaikan", "accounts:laporan_penambahan",
+            "accounts:laporan_rusak",
+        ):
+            f = self.client.get(reverse(nama)).context["f"]
+            self.assertEqual((f["dari"], f["sampai"]), (hari_ini, hari_ini), nama)
+        # Penambahan: the vehicle added 3 days ago shows once the dates are emptied.
+        url = reverse("accounts:laporan_penambahan")
+        self.assertNotContains(self.client.get(url), "B 1 BRAVO")
+        self.assertContains(self.client.get(url, {"dari": "", "sampai": ""}), "B 1 BRAVO")
+
     def test_laporan_tim_has_no_satuan_filter(self):
         self.assertNotContains(self.client.get(reverse("accounts:laporan_tim")), 'name="satuan"')
 
