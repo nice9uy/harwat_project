@@ -582,6 +582,21 @@ def buat_pdf_rekap_kerusakan(keterangan, per_satuan, kepala, lebar_mm, baris_dat
     ], "Rekap Kerusakan", mendatar=True)
 
 
+def buat_pdf_tabel(judul, keterangan, kepala, baris_data):
+    """A report's table as it is filtered on its page, as a landscape PDF:
+    letterhead, the table (with a No column, the other columns sharing the
+    width) and the row count."""
+    lebar = 267
+    kolom = [10] + [(lebar - 10) / len(kepala)] * len(kepala)
+    return _dokumen([
+        _kop(judul.upper(), keterangan, lebar=lebar * mm),
+        Spacer(1, 4 * mm),
+        _tabel_data(["No", *kepala], kolom, [[n, *b] for n, b in enumerate(baris_data, start=1)]),
+        Spacer(1, 2 * mm),
+        Paragraph(f"Jumlah: {len(baris_data)} data", SUB),
+    ], judul, mendatar=True)
+
+
 def _tabel_kelompok(kepala, lebar_mm, kelompok):
     """Like _tabel_data, with the rows in groups: ``kelompok`` is a list of
     (label, rows), each group under a full-width row naming it."""

@@ -143,7 +143,7 @@ def opsi_satuan(daftar):
 def _render(
     request, template, judul, header, rows, f, nama_file, tautan=None, kolom_tanggal=1, kolom_utama=2,
     pakai_tanggal=True, pakai_cari=False, pakai_excel=True, pakai_satuan=False, pakai_filter=True, pakai_hapus=False, pakai_qr=False,
-    pakai_ekspor_qr=False, tab=None, kondisi_pilihan=None, pakai_pdf=False, per_halaman=None,
+    pakai_ekspor_qr=False, tab=None, kondisi_pilihan=None, pakai_pdf=False, per_halaman=None, pdf_tabel=False,
 ):
     """``tautan``: optional per-row URL (same order as ``rows``) opened in the detail modal.
     ``kolom_tanggal`` / ``kolom_utama``: 1-based columns styled as the date and as
@@ -151,9 +151,22 @@ def _render(
     ``pakai_cari``: show the search field (``?q=``); ``pakai_excel``: offer the
     Excel download (``nama_file``); ``pakai_satuan``: show the Satuan filter;
     ``pakai_filter``: show the filter box at all. ``tab``: the report's tabs
-    above the table, [(kode, label)], the one shown being ``?tab=``."""
+    above the table, [(kode, label)], the one shown being ``?tab=``.
+    ``pdf_tabel``: an "Export ke PDF" of the table as filtered (laporan_pdf.buat_pdf_tabel)."""
     if pakai_excel and request.GET.get("unduh") == "excel":
         return _excel(judul, header, rows, f, nama_file)
+    if pdf_tabel and request.GET.get("unduh") == "pdf":
+        from . import laporan_pdf
+
+        keterangan = [_keterangan_filter(f)]
+        if tab:
+            keterangan.insert(0, dict(tab)[_tab(request, tab)])
+        if request.GET.get("q", "").strip():
+            keterangan.append(f'cari "{request.GET.get("q", "").strip()}"')
+        return laporan_pdf._pdf_response(
+            request, laporan_pdf.buat_pdf_tabel(judul, " · ".join(keterangan), header, rows),
+            nama_file.replace(".xlsx", ".pdf"),
+        )
     halaman = halaman_dari(
         request, list(zip(rows, tautan or [None] * len(rows))), **({"per_halaman": per_halaman} if per_halaman else {}),
     )
@@ -184,6 +197,8 @@ def _render(
         "kondisi_pilihan": kondisi_pilihan or [],
         # An "Export ke PDF" button (?unduh=pdf), handled by the report's own view.
         "pakai_pdf": pakai_pdf,
+        # Its button sits at the right of the filter box.
+        "pdf_tabel": pdf_tabel,
         "tab_aktif": _tab(request, tab) if tab else "",
     })
 
@@ -257,7 +272,7 @@ def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, 
         rows = [baris + (satuan(v) or "-",) for baris, v in zip(rows, kendaraan)]
     return _render(
         request, "accounts/laporan_tabel.html", judul, header, rows, f, nama_file,
-        tautan=tautan, kolom_tanggal=1, kolom_utama=2, pakai_cari=True,
+        tautan=tautan, kolom_tanggal=1, kolom_utama=2, pakai_cari=True, pdf_tabel=True,
         # Laporan Pemeriksaan, Perbaikan and Penambahan have no Excel download.
         pakai_excel=False, pakai_hapus=pakai_hapus, pakai_qr=ekspor_qr, pakai_ekspor_qr=ekspor_qr,
         tab=tab,
@@ -464,7 +479,7 @@ def _laporan_sparepart_rusak(request, f):
     return _render(
         request, "accounts/laporan_tabel.html", JUDUL_RUSAK,
         ["Sparepart / Komponen", "No. Registrasi", "Merk/Type", "Golongan", "Satuan", "Sumber", "Tanggal", "Oleh", "Keterangan"],
-        rows, f, "laporan-sparepart-rusak.xlsx", kolom_tanggal=7, kolom_utama=1, pakai_cari=True,
+        rows, f, "laporan-sparepart-rusak.xlsx", kolom_tanggal=7, kolom_utama=1, pakai_cari=True, pdf_tabel=True,
         tab=TAB_RUSAK,
     )
 

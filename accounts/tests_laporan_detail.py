@@ -331,6 +331,20 @@ class LaporanFilterSatuanTests(TestCase):
         self.assertNotContains(self.client.get(url), "B 1 BRAVO")
         self.assertContains(self.client.get(url, {"dari": "", "sampai": ""}), "B 1 BRAVO")
 
+    def test_reports_export_their_table_to_pdf(self):
+        for nama, isi in (
+            ("accounts:laporan_pemeriksaan", {}), ("accounts:laporan_perbaikan", {}),
+            ("accounts:laporan_penambahan", {}), ("accounts:laporan_rusak", {}),
+            ("accounts:laporan_rusak", {"tab": "sparepart"}),
+        ):
+            halaman = self.client.get(reverse(nama), isi)
+            self.assertContains(halaman, "unduh=pdf", msg_prefix=nama)
+            self.assertContains(halaman, "Export ke PDF", count=1, msg_prefix=nama)
+            pdf = self.client.get(reverse(nama), {**isi, "golongan": "B", "unduh": "pdf"})
+            self.assertEqual(pdf["Content-Type"], "application/pdf", nama)
+            self.assertTrue(pdf.content.startswith(b"%PDF"), nama)
+            self.assertIn(".pdf", pdf["Content-Disposition"], nama)
+
     def test_laporan_tim_has_no_satuan_filter(self):
         self.assertNotContains(self.client.get(reverse("accounts:laporan_tim")), 'name="satuan"')
 
