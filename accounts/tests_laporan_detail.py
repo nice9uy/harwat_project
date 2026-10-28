@@ -390,3 +390,59 @@ class FormTambahMatraTests(TestCase):
                 {"kepemilikan": "organik", "nopol": nopol, "merek": "Isuzu", "foto": fotos}, HTTP_HX_REQUEST="true",
             )
             self.assertEqual(Vehicle.objects.get(nopol=nopol).matra, matra)
+
+
+class LaporanPerTimTests(TestCase):
+    """A Ketua Tim's reports hold their own team's work only; a Pimpinan Tim's
+    the teams they picked; Admin, Pimpinan and superusers see everything."""
+
+    def setUp(self):
+        from accounts.models import Anggota, BawahanPimpinan, KendaraanRusak, PerbaikanGolonganB
+
+        satuan = Satuan.objects.create(nama="Yon")
+        self.ketua = {}
+        for n in (1, 2):
+            ketua = User.objects.create_user(username=f"ketua{n}", password="rahasia-123")
+            ketua.groups.add(Group.objects.get(name="Ketua Tim"))
+            node = Anggota.add_root(user=ketua)
+            tim = User.objects.create_user(username=f"tim{n}", password="rahasia-123")
+            node.add_child(user=tim)
+            self.ketua[n] = node
+            orang = Laporan.objects.create(akun=tim, nip=str(n), nama=f"Tim {n}", pangkat="P", jabatan="J", satuan=satuan, foto="x.jpg")
+            vehicle = Vehicle.objects.create(nopol=f"B {n} TIM", merek="Uji", group_kendaraan="B", ditambahkan_oleh=tim, penambah=orang)
+            periksa = PemeriksaanGolonganB.objects.create(
+                pemeriksa=orang, vehicle=vehicle, pembagian_kelas="1", eselon_reparasi="1",
+                macam_pemeriksaan="tehnis", buku_jalan="ada",
+            )
+            item = PemeriksaanGolonganBItem.objects.create(pemeriksaan=periksa, nomor=1, nama_alat="Motor", kondisi="RR")
+            PerbaikanGolonganB.objects.create(teknisi=orang, item=item, kondisi="B")
+            KendaraanRusak.objects.create(vehicle=vehicle, pelapor=orang, alasan="Patah")
+        pimpinan = User.objects.create_user(username="pimtim", password="rahasia-123")
+        pimpinan.groups.add(Group.objects.get_or_create(name="Pimpinan Ketua Tim")[0])
+        BawahanPimpinan.objects.create(pimpinan=pimpinan, ketua=self.ketua[2])
+        admin = User.objects.create_user(username="admin1", password="rahasia-123")
+        admin.groups.add(Group.objects.get(name="Admin"))
+
+    LAPORAN = ("accounts:laporan_pemeriksaan", "accounts:laporan_perbaikan", "accounts:laporan_penambahan", "accounts:laporan_rusak")
+
+    def _nopol(self, username, nama):
+        self.client.login(username=username, password="rahasia-123")
+        return {baris[1] for baris, _ in self.client.get(reverse(nama)).context["halaman"]}
+
+    def test_each_sees_their_own_teams(self):
+        for nama in self.LAPORAN:
+            self.assertEqual(self._nopol("ketua1", nama), {"B 1 TIM"}, nama)
+            self.assertEqual(self._nopol("ketua2", nama), {"B 2 TIM"}, nama)
+            self.assertEqual(self._nopol("pimtim", nama), {"B 2 TIM"}, nama)
+            self.assertEqual(self._nopol("admin1", nama), {"B 1 TIM", "B 2 TIM"}, nama)
+
+    def test_detail_and_hapus_hold_the_own_team_only(self):
+        lain = Vehicle.objects.get(nopol="B 2 TIM")
+        self.client.login(username="ketua1", password="rahasia-123")
+        detail = self.client.get(reverse("accounts:laporan_pemeriksaan_detail", args=[lain.uuid]))
+        self.assertEqual(detail.context["riwayat"], [])
+        self.assertEqual(self.client.get(reverse("accounts:laporan_penambahan_detail", args=[lain.uuid])).status_code, 404)
+        self.assertEqual(
+            self.client.get(reverse("accounts:laporan_hapus", args=["pemeriksaan", lain.uuid])).context["jumlah"], 0,
+        )
+        self.assertEqual(self.client.get(reverse("accounts:laporan_hapus", args=["penambahan", lain.uuid])).status_code, 404)

@@ -1,5 +1,5 @@
-"""Dashboard scope: an Admin or Ketua Tim sees the work
-of their own branch only; Pimpinan and superusers see everything."""
+"""Dashboard scope: a Ketua Tim sees the work of their own team only;
+Admin, Pimpinan and superusers see everything."""
 from django.contrib.auth.models import Group, User
 from django.test import TestCase
 from django.urls import reverse
@@ -52,8 +52,8 @@ class DashboardCakupanTests(TestCase):
         self.assertEqual(response.status_code, 200)
         return response
 
-    def test_admin_and_ketua_see_only_their_branch(self):
-        for username in ("cabang1", "ketua1"):
+    def test_ketua_sees_only_their_team(self):
+        for username in ("ketua1",):
             response = self._lihat(username)
             self.assertEqual(response.context["fleet_summary_kendaraan"]["total"], 1, username)
             self.assertEqual(
@@ -64,10 +64,12 @@ class DashboardCakupanTests(TestCase):
             self.assertContains(partial, "B 1 CK")
             self.assertNotContains(partial, "B 2 CK")
 
-    def test_pimpinan_and_superuser_see_everything(self):
+    def test_admin_pimpinan_and_superuser_see_everything(self):
         _user("bos", "Pimpinan")
         User.objects.create_superuser(username="root", password="rahasia-123")
-        for username in ("bos", "root"):
+        self.assertIsNone(dashboard.cakupan_laporan(self.a.cabang))
+        self.assertEqual(dashboard.cakupan_laporan(self.a.ketua), {self.a.ketua.pk, self.a.tim.pk})
+        for username in ("cabang1", "bos", "root"):
             response = self._lihat(username)
             self.assertEqual(response.context["fleet_summary_kendaraan"]["total"], 2)
             kegiatan = self.client.get(reverse("accounts:dashboard_partial"))
@@ -84,7 +86,7 @@ class DashboardCakupanTests(TestCase):
             ditambahkan_oleh=self.a.tim,
         )
         url = reverse("accounts:dashboard_kendaraan")
-        response = self._lihat("cabang1")
+        response = self._lihat("ketua1")
         # The summary cards are gone from the page; their tables still answer.
         self.assertNotContains(response, f'hx-get="{url}?kartu=')
         self.assertNotContains(response, "Semua Matra")
@@ -108,7 +110,7 @@ class DashboardCakupanTests(TestCase):
                 nopol=f"Z {i:02d} PG", merek="Hino" if i == 7 else "Uji", group_kendaraan="diesel",
                 ditambahkan_oleh=self.a.tim,
             )
-        self.client.login(username="cabang1", password="rahasia-123")
+        self.client.login(username="ketua1", password="rahasia-123")
         url = reverse("accounts:dashboard_kendaraan")
         # 21 vehicles: 15 on page 1, paged inside the modal.
         satu = self.client.get(url, {"kartu": "siap"}).content.decode()
@@ -132,7 +134,7 @@ class DashboardCakupanTests(TestCase):
     def test_kegiatan_terbaru_pages_ten_at_a_time(self):
         for i in range(23):
             Vehicle.objects.create(nopol=f"K {i:02d} KG", merek="Uji", group_kendaraan="diesel", ditambahkan_oleh=self.a.tim)
-        self.client.login(username="cabang1", password="rahasia-123")
+        self.client.login(username="ketua1", password="rahasia-123")
         partial = reverse("accounts:dashboard_partial")
         satu = self.client.get(partial)
         self.assertEqual(len(satu.context["kegiatan_terbaru"]), 10)

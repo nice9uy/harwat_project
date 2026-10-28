@@ -13,8 +13,7 @@
     re-applying the new page's class/style after Alpine has already set them,
     wiping Alpine's x-show display:none (e.g. an empty autocomplete list).
     {% endcomment %}
-    {# globalViewTransitions: a boosted page change cross-fades (input.css) instead of flashing. #}
-    <meta name="htmx-config" content='{"attributesToSettle": [], "globalViewTransitions": true}'>
+    <meta name="htmx-config" content='{"attributesToSettle": []}'>
     <link rel="stylesheet" href="{% static 'dist/output.css' %}?v={{ css_version }}">
     <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
     <script src="{% static 'js/qr-scan.js' %}?v={{ js_version }}" defer></script>
@@ -23,6 +22,7 @@
     <script src="{% static 'js/kompres-foto.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/skeleton.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/geser.js' %}?v={{ js_version }}" defer></script>
+    <script src="{% static 'js/modal-halus.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'vendor/alpinejs.min.js' %}" defer></script>
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100" x-data="{ sidebarOpen: false, logoutOpen: false, profilPopup: false }">
@@ -50,7 +50,7 @@
                     </svg>
                 </button>
             </div>
-            <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1 text-sm" hx-boost="true" @click="sidebarOpen = false">
+            <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1 text-sm" hx-boost="true" hx-swap="innerHTML transition:true" @click="sidebarOpen = false">
                 {% comment %}Section headings show only when the user sees a menu under them.{% endcomment %}
                 {% if 'dashboard' in menu_boleh or 'armada' in menu_boleh or 'non_kendaraan' in menu_boleh or 'rekap_kerusakan' in menu_boleh %}
                 <p class="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Menu Utama</p>
@@ -272,7 +272,8 @@
     when the next page arrives; a locked one (data-terkunci) doesn't. htmx
     prevents every boosted click, so defaultPrevented can't tell them apart.
     {% endcomment %}
-    <nav hx-boost="true"
+    {# transition:true: a page change cross-fades (input.css); modal loads swap without one. #}
+    <nav hx-boost="true" hx-swap="innerHTML transition:true"
          @click="const a = $event.target.closest('a'); if (a && !a.hasAttribute('data-terkunci')) { $el.querySelectorAll('a[aria-current]').forEach(x => x.removeAttribute('aria-current')); a.setAttribute('aria-current', 'page') }"
          class="vt-menu-bawah fixed inset-x-0 bottom-0 z-30 select-none border-t border-slate-200 bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)] [-webkit-tap-highlight-color:transparent] dark:border-slate-700 dark:bg-slate-800/95 md:hidden" aria-label="Menu bawah">
         <div class="mx-auto flex max-w-lg items-stretch justify-around">

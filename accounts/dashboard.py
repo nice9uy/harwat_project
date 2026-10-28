@@ -102,6 +102,18 @@ def cakupan(user):
     return users
 
 
+def cakupan_laporan(user):
+    """User pks whose work ``user`` sees on the dashboard and in Laporan
+    Pemeriksaan, Perbaikan, Rusak and Penambahan: a Ketua Tim their own team,
+    a Pimpinan Tim the teams they picked (cakupan()); None, meaning everything,
+    for a superuser, Admin and Pimpinan."""
+    from . import roles
+
+    if roles.keanggotaan_kode(user) == roles.ADMIN_ROLE:
+        return None
+    return cakupan(user)
+
+
 class Cakupan(frozenset):
     """The users of one matra's dashboard, remembering which matra it is and
     the viewer's whole scope (``asal``: user pks, or None for everything):
@@ -149,8 +161,8 @@ def pengguna_matra(matra):
 
 @_ingat
 def cakupan_matra(user, matra):
-    """cakupan() narrowed to one matra ("" for no narrowing): a Cakupan."""
-    asal = cakupan(user)
+    """cakupan_laporan() narrowed to one matra ("" for no narrowing): a Cakupan."""
+    asal = cakupan_laporan(user)
     if not matra:
         return asal
     semua = pengguna_matra(matra)

@@ -228,6 +228,18 @@ class _Tautan(str):
     qr = ""
 
 
+def _cakupan(request):
+    """User pks whose work the viewer sees here (dashboard.cakupan_laporan), or None for all."""
+    from .dashboard import cakupan_laporan
+
+    return cakupan_laporan(request.user)
+
+
+def _milik(qs, field, users):
+    """``qs`` narrowed to rows whose ``field`` (a user) is in ``users`` (None: all)."""
+    return qs if users is None else qs.filter(**{f"{field}__in": users})
+
+
 def _waktu(waktu):
     """A report's Tanggal cell ('-' for a vehicle added before the time was kept)."""
     return timezone.localtime(waktu).strftime("%d-%m-%Y %H:%M") if waktu else "-"
@@ -286,9 +298,11 @@ def _kendaraan_dengan_catatan(request, model_dari_cfg, relasi_kendaraan, relasi_
     record first; each carries
     that record's time as ``waktu_catatan``."""
     f = _filter(request, hari_ini=True)
+    users = _cakupan(request)
     terakhir = {}  # vehicle id -> newest record time
     for _, cfg in _golongan_dipilih(f):
-        qs = _rentang(model_dari_cfg(cfg).objects.all(), "dibuat_pada", f)
+        # Only the work of the viewer's team(s) (relasi_orang's account).
+        qs = _milik(_rentang(model_dari_cfg(cfg).objects.all(), "dibuat_pada", f), f"{relasi_orang}__akun", users)
         if f["satuan"]:
             qs = qs.filter(**{f"{relasi_orang}__satuan": f["satuan"]})
         qs = qs.order_by().values(relasi_kendaraan).annotate(waktu=Max("dibuat_pada"))
@@ -329,6 +343,7 @@ def laporan_penambahan(request):
     """Every vehicle, newest added first; the row's modal shows it and who added it."""
     f = _filter(request, hari_ini=True)
     qs = _rentang(Vehicle.objects.select_related("penambah__satuan"), "dibuat_pada", f).order_by("-dibuat_pada", "-id")
+    qs = _milik(qs, "ditambahkan_oleh", _cakupan(request))
     if f["golongan"]:
         qs = qs.filter(group_kendaraan=f["golongan"])
     if f["satuan"]:
@@ -458,7 +473,7 @@ def _laporan_sparepart_rusak(request, f):
 
     q = request.GET.get("q", "").strip().lower()
     rows = []
-    for b in dashboard.sparepart_rusak(None, batas=None)[0]:
+    for b in dashboard.sparepart_rusak(_cakupan(request), batas=None)[0]:
         v = b["vehicle"]
         satuan = v.penambah.satuan if v.penambah else None
         if f["golongan"] and v.group_kendaraan != f["golongan"]:
@@ -501,6 +516,7 @@ def laporan_rusak(request):
             tanggal=lambda v: v.dibuat_pada, satuan=lambda v: "", tab=TAB_RUSAK,
         )
     qs = _rentang(KendaraanRusak.objects.select_related("pelapor__satuan"), "dibuat_pada", f)
+    qs = _milik(qs, "pelapor__akun", _cakupan(request))
     if f["satuan"]:
         qs = qs.filter(pelapor__satuan=f["satuan"])
     terakhir = {}  # vehicle id -> its newest declaration
@@ -526,7 +542,10 @@ def laporan_rusak_detail(request, uid):
     """Modal for a Laporan Rusak row: the vehicle's declarations (reason,
     photos) and the personnel who declared it."""
     vehicle = get_object_or_404(Vehicle, uuid=uid)
-    riwayat = list(vehicle.rusak.select_related("pelapor__satuan").order_by("-dibuat_pada", "-id"))
+    riwayat = list(
+        _milik(vehicle.rusak.select_related("pelapor__satuan"), "pelapor__akun", _cakupan(request))
+        .order_by("-dibuat_pada", "-id")
+    )
     return render(request, "accounts/_laporan_rusak_detail.html", {
         "vehicle": vehicle, "riwayat": riwayat, "personil": _per_orang(riwayat, "pelapor"),
     })
@@ -541,7 +560,7 @@ def laporan_pemeriksaan_detail(request, uid):
     riwayat = []
     if cfg is not None:
         riwayat = list(
-            cfg.pemeriksaan_model.objects.filter(vehicle=vehicle)
+            _milik(cfg.pemeriksaan_model.objects.filter(vehicle=vehicle), "pemeriksa__akun", _cakupan(request))
             .select_related("pemeriksa__satuan")
             .annotate(
                 jumlah_item=Count("items"),
@@ -589,7 +608,7 @@ def laporan_perbaikan_detail(request, uid):
     riwayat = []
     if cfg is not None:
         riwayat = list(
-            cfg.perbaikan_model.objects.filter(item__pemeriksaan__vehicle=vehicle)
+            _milik(cfg.perbaikan_model.objects.filter(item__pemeriksaan__vehicle=vehicle), "teknisi__akun", _cakupan(request))
             .select_related("item", "teknisi__satuan")
             .order_by("-dibuat_pada", "-id")
         )
@@ -606,7 +625,8 @@ def laporan_penambahan_detail(request, uid):
     """Modal for a Laporan Penambahan row: the vehicle's data, photos and QR
     code, and who added it."""
     vehicle = get_object_or_404(
-        Vehicle.objects.select_related("ditambahkan_oleh", "penambah__satuan").prefetch_related("fotos"), uuid=uid,
+        _milik(Vehicle.objects.all(), "ditambahkan_oleh", _cakupan(request))
+        .select_related("ditambahkan_oleh", "penambah__satuan").prefetch_related("fotos"), uuid=uid,
     )
     # Same table as the other modals' personnel tab, with the account in the
     # count column and the time added in the "last" column.

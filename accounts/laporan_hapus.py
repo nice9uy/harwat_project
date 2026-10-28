@@ -40,19 +40,29 @@ def _berkas(objek):
     return hasil
 
 
-def _catatan(vehicle, jenis):
+def _milik(qs, field, users):
+    """``qs`` narrowed to the work of ``users`` (the viewer's team(s)), None: all."""
+    return qs if users is None else qs.filter(**{f"{field}__in": users})
+
+
+def _catatan(vehicle, jenis, users=None):
     """(rows to delete, everything whose files go with them) for a vehicle's
-    inspections or repairs, over every group's models."""
+    inspections or repairs, over every group's models; ``users``: only those
+    of the viewer's team(s), as the report shows them (None: all)."""
     hapus, ikut = [], []
     for cfg in golongan.GOLONGAN.values():
-        perbaikan = list(cfg.perbaikan_model.objects.filter(item__pemeriksaan__vehicle=vehicle))
         if jenis == "perbaikan":
+            perbaikan = list(_milik(
+                cfg.perbaikan_model.objects.filter(item__pemeriksaan__vehicle=vehicle), "teknisi__akun", users,
+            ))
             hapus += perbaikan
             ikut += perbaikan
         else:
-            pemeriksaan = list(cfg.pemeriksaan_model.objects.filter(vehicle=vehicle))
+            pemeriksaan = list(_milik(cfg.pemeriksaan_model.objects.filter(vehicle=vehicle), "pemeriksa__akun", users))
             hapus += pemeriksaan
-            ikut += pemeriksaan + perbaikan + list(cfg.item_model.objects.filter(pemeriksaan__vehicle=vehicle))
+            # Their items, and the repairs of those items, go with them.
+            ikut += pemeriksaan + list(cfg.perbaikan_model.objects.filter(item__pemeriksaan__in=pemeriksaan))
+            ikut += list(cfg.item_model.objects.filter(pemeriksaan__in=pemeriksaan))
     return hapus, ikut
 
 
@@ -72,7 +82,13 @@ def laporan_hapus(request, jenis, uid):
     if not boleh_hapus(request.user):
         return HttpResponse(status=403)
     url_laporan, judul = JENIS[jenis]
+    from .dashboard import cakupan_laporan
+
+    users = cakupan_laporan(request.user)
     vehicle = get_object_or_404(Vehicle, uuid=uid)
+    # A Ketua Tim deletes what their report shows: their team's work only.
+    if jenis == "penambahan" and users is not None and vehicle.ditambahkan_oleh_id not in users:
+        raise Http404
     konteks = {"vehicle": vehicle, "jenis": jenis, "judul": judul}
 
     if jenis == "penambahan":
@@ -80,9 +96,9 @@ def laporan_hapus(request, jenis, uid):
         konteks["halangan"] = _halangan_penambahan(vehicle)
     elif jenis == "rusak":
         # The declarations only; the vehicle's status follows its inspections again.
-        hapus = ikut = list(vehicle.rusak.all())
+        hapus = ikut = list(_milik(vehicle.rusak.all(), "pelapor__akun", users))
     else:
-        hapus, ikut = _catatan(vehicle, jenis)
+        hapus, ikut = _catatan(vehicle, jenis, users)
     konteks["jumlah"] = len(hapus)
     if konteks.get("halangan"):
         return render(request, "accounts/_laporan_hapus.html", konteks)
