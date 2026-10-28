@@ -46,14 +46,26 @@
         {% endcomment %}
         <div class="grid grid-cols-2 gap-3">
             {% for s in form.sisi_foto %}
-            <div x-data="{ pratinjau: null }">
+            <div x-data="{ pratinjau: null, besar: false }">
                 <label for="foto_{{ s.nomor }}" class="block text-xs text-slate-500 dark:text-slate-400 mb-1">{{ s.label }}</label>
                 {% if is_edit and s.foto %}
-                <a x-show="!pratinjau" href="{{ s.foto.image.url }}" target="_blank" rel="noopener" class="mb-1 block">
-                    <img src="{{ s.foto.image.url }}" loading="lazy" alt="Foto {{ s.label|lower }} sekarang" class="aspect-[4/3] w-full rounded-md border border-slate-300 dark:border-slate-600 object-cover">
-                </a>
+                {# Opens large over the form (not in a new page): X, the backdrop or Esc closes it. #}
+                <button type="button" x-show="!pratinjau" @click="besar = true" class="mb-1 block w-full cursor-zoom-in" aria-label="Lihat foto {{ s.label|lower }}">
+                    <img src="{{ s.foto.image.url }}" loading="lazy" alt="Foto {{ s.label|lower }} sekarang" class="h-24 w-full rounded-md border border-slate-300 dark:border-slate-600 object-cover">
+                </button>
+                <template x-teleport="body">
+                    <div x-show="besar" x-cloak x-transition.opacity
+                         @click.self="besar = false" @keydown.escape.window="besar = false"
+                         class="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4" role="dialog" aria-label="Foto {{ s.label|lower }}">
+                        <button type="button" @click="besar = false" aria-label="Tutup"
+                                class="absolute right-3 top-3 rounded-full bg-white/10 p-2 text-white hover:bg-white/20">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+                        </button>
+                        <img src="{{ s.foto.image.url }}" alt="Foto {{ s.label|lower }}" class="max-h-[85vh] max-w-full rounded-md object-contain shadow-2xl">
+                    </div>
+                </template>
                 {% endif %}
-                <img x-show="pratinjau" x-cloak :src="pratinjau" alt="Pratinjau foto {{ s.label|lower }}" class="mb-1 aspect-[4/3] w-full rounded-md border-2 border-gold object-cover">
+                <img x-show="pratinjau" x-cloak :src="pratinjau" alt="Pratinjau foto {{ s.label|lower }}" class="mb-1 h-24 w-full rounded-md border-2 border-gold object-cover">
                 <input type="file" id="foto_{{ s.nomor }}" name="{% if is_edit %}foto_{{ s.nomor }}{% else %}foto{% endif %}" accept="image/*" capture="environment" {% if not is_edit %}required{% endif %}
                        @change="pratinjau = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : null"
                        class="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 shadow-sm file:mr-2 file:rounded file:border-0 file:bg-green-600 file:px-2 file:py-1 file:text-xs file:font-medium file:text-white hover:file:bg-green-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">

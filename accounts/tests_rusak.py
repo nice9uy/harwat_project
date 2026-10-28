@@ -122,7 +122,10 @@ class LaporanRusakTests(TestCase):
         response = self.client.get(self.url)
         self.assertContains(response, "Laporan Rusak/Tidak Layak Pakai")
         self.assertContains(response, f'href="{self.url}"')
-        self.assertEqual([baris[0] for baris, _ in response.context["halaman"]], ["R 7 RS"])
+        # Tanggal (the newest declaration) first, then No. Registrasi.
+        self.assertEqual(response.context["header"][:2], ["Tanggal", "No. Registrasi"])
+        self.assertEqual([baris[1] for baris, _ in response.context["halaman"]], ["R 7 RS"])
+        self.assertRegex(response.context["halaman"][0][0][0], r"^\d{2}-\d{2}-\d{4} \d{2}:\d{2}$")
         self.assertEqual(response.context["halaman"][0][0][-1], "YON UJI")
         self.assertEqual(self.client.get(self.url, {"q": "zzz"}).context["total"], 0)
         detail = self.client.get(reverse("accounts:laporan_rusak_detail", args=[self.rusak.uuid]))

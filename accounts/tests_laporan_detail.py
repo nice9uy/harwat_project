@@ -42,7 +42,7 @@ class LaporanPemeriksaanDetailTests(TestCase):
         hasil = self._pemeriksaan(self._biodata("1", "Budi"))
         response = self.client.get(reverse("accounts:laporan_pemeriksaan"))
         self.assertContains(response, f'hx-get="{self._url()}"')
-        self.assertEqual(hasil.vehicle.nopol, response.context["halaman"][0][0][0])
+        self.assertEqual(hasil.vehicle.nopol, response.context["halaman"][0][0][1])
         self.assertContains(response, 'id="laporan-modal-body"')
 
     def test_tabs_list_inspections_and_personnel_once_per_person(self):

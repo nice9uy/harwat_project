@@ -210,11 +210,18 @@ class _Tautan(str):
     qr = ""
 
 
-def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, satuan=None, ekspor_qr=False, tab=None):
+def _waktu(waktu):
+    """A report's Tanggal cell ('-' for a vehicle added before the time was kept)."""
+    return timezone.localtime(waktu).strftime("%d-%m-%Y %H:%M") if waktu else "-"
+
+
+def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, tanggal, satuan=None, ekspor_qr=False, tab=None):
     """A report with one row per vehicle (``kendaraan``: in display order), a
     search field and no date filter; each row opens the ``detail`` modal.
     ``jenis``: the report's key in laporan_hapus.JENIS, for the Hapus action
-    its rows get, with Edit (the vehicle's data), when the user may change them. ``satuan``: vehicle -> the unit
+    its rows get, with Edit (the vehicle's data), when the user may change them.
+    ``tanggal``: vehicle -> the time of what the row reports (its newest record),
+    the first column. ``satuan``: vehicle -> the unit
     for a Satuan column (none without it). ``ekspor_qr``: show the QR Code
     column and offer the QR codes as a Word document (Laporan Penambahan only).
     None of these reports has a Satuan filter."""
@@ -235,16 +242,19 @@ def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, 
             t.edit = reverse("fleet:vehicle_update", args=[v.uuid]) + "?" + urlencode({"next": request.get_full_path()})
         tautan.append(t)
     rows = [
-        (v.nopol, v.merek, v.no_chasis or "-", v.no_mesin or "-", v.get_group_kendaraan_display())
+        (
+            _waktu(tanggal(v)),
+            v.nopol, v.merek, v.no_chasis or "-", v.no_mesin or "-", v.get_group_kendaraan_display(),
+        )
         for v in kendaraan
     ]
-    header = ["No. Registrasi", "Merk/Type", "No. Chasis", "No. Mesin", "Golongan"]
+    header = ["Tanggal", "No. Registrasi", "Merk/Type", "No. Chasis", "No. Mesin", "Golongan"]
     if satuan is not None:
         header.append("Satuan")
         rows = [baris + (satuan(v) or "-",) for baris, v in zip(rows, kendaraan)]
     return _render(
         request, "accounts/laporan_tabel.html", judul, header, rows, f, nama_file,
-        tautan=tautan, kolom_tanggal=0, kolom_utama=1, pakai_tanggal=False, pakai_cari=True,
+        tautan=tautan, kolom_tanggal=1, kolom_utama=2, pakai_tanggal=False, pakai_cari=True,
         # Laporan Pemeriksaan, Perbaikan and Penambahan have no Excel download.
         pakai_excel=False, pakai_hapus=pakai_hapus, pakai_qr=ekspor_qr, pakai_ekspor_qr=ekspor_qr,
         tab=tab,
@@ -254,7 +264,8 @@ def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, 
 def _kendaraan_dengan_catatan(request, model_dari_cfg, relasi_kendaraan, relasi_orang):
     """Vehicles with at least one record (inspection or repair) in the chosen
     group, by someone of the chosen Satuan (``relasi_orang``: the record's
-    biodata), and matching the search, newest record first."""
+    biodata), and matching the search, newest record first; each carries
+    that record's time as ``waktu_catatan``."""
     f = _filter(request)
     terakhir = {}  # vehicle id -> newest record time
     for _, cfg in _golongan_dipilih(f):
@@ -266,7 +277,10 @@ def _kendaraan_dengan_catatan(request, model_dari_cfg, relasi_kendaraan, relasi_
             vid = baris[relasi_kendaraan]
             terakhir[vid] = max(baris["waktu"], terakhir.get(vid, baris["waktu"]))
     qs = _cari_kendaraan(Vehicle.objects.filter(pk__in=list(terakhir)), request.GET.get("q", "").strip())
-    return sorted(qs, key=lambda v: (terakhir[v.pk], v.pk), reverse=True)
+    kendaraan = sorted(qs, key=lambda v: (terakhir[v.pk], v.pk), reverse=True)
+    for v in kendaraan:
+        v.waktu_catatan = terakhir[v.pk]
+    return kendaraan
 
 
 @login_required
@@ -275,7 +289,7 @@ def laporan_pemeriksaan(request):
     kendaraan = _kendaraan_dengan_catatan(request, lambda cfg: cfg.pemeriksaan_model, "vehicle", "pemeriksa")
     return _laporan_per_kendaraan(
         request, "Laporan Pemeriksaan", kendaraan, "accounts:laporan_pemeriksaan_detail", "laporan-pemeriksaan.xlsx",
-        "pemeriksaan",
+        "pemeriksaan", tanggal=lambda v: v.waktu_catatan,
     )
 
 
@@ -287,7 +301,7 @@ def laporan_perbaikan(request):
     )
     return _laporan_per_kendaraan(
         request, "Laporan Perbaikan", kendaraan, "accounts:laporan_perbaikan_detail", "laporan-perbaikan.xlsx",
-        "perbaikan",
+        "perbaikan", tanggal=lambda v: v.waktu_catatan,
     )
 
 
@@ -303,7 +317,7 @@ def laporan_penambahan(request):
     kendaraan = list(_cari_kendaraan(qs, request.GET.get("q", "").strip()))
     return _laporan_per_kendaraan(
         request, "Laporan Penambahan Kendaraan/Barang", kendaraan, "accounts:laporan_penambahan_detail",
-        "laporan-penambahan-kendaraan.xlsx", "penambahan",
+        "laporan-penambahan-kendaraan.xlsx", "penambahan", tanggal=lambda v: v.dibuat_pada,
         # The unit of whoever added the vehicle (their biodata's Satuan).
         satuan=lambda v: v.penambah.satuan.nama if v.penambah and v.penambah.satuan else "",
         ekspor_qr=True,
@@ -462,7 +476,7 @@ def laporan_rusak(request):
         # Nothing to list yet: only vehicles can be declared rusak.
         return _laporan_per_kendaraan(
             request, JUDUL_RUSAK, [], "accounts:laporan_rusak_detail", "laporan-rusak.xlsx", "rusak",
-            satuan=lambda v: "", tab=TAB_RUSAK,
+            tanggal=lambda v: v.dibuat_pada, satuan=lambda v: "", tab=TAB_RUSAK,
         )
     qs = KendaraanRusak.objects.select_related("pelapor__satuan")
     if f["satuan"]:
@@ -479,7 +493,7 @@ def laporan_rusak(request):
     )
     return _laporan_per_kendaraan(
         request, JUDUL_RUSAK, kendaraan, "accounts:laporan_rusak_detail", "laporan-rusak.xlsx",
-        "rusak", tab=TAB_RUSAK,
+        "rusak", tab=TAB_RUSAK, tanggal=lambda v: terakhir[v.pk].dibuat_pada,
         # The unit of whoever declared it last (their biodata's Satuan).
         satuan=lambda v: terakhir[v.pk].pelapor.satuan.nama if terakhir[v.pk].pelapor.satuan else "",
     )
