@@ -148,16 +148,41 @@ class LaporanRusakTests(TestCase):
         self.assertIn(".xlsx", self.client.get(self.url, {"tab": "sparepart", "unduh": "excel"})["Content-Disposition"])
         self.assertEqual(self.client.get(self.url, {"tab": "non_kendaraan"}).context["total"], 0)
 
-    def test_ketua_tim_reads_it_and_only_a_superuser_deletes(self):
+    def test_ketua_tim_edits_and_deletes_a_pimpinan_only_reads(self):
+        pimpinan = User.objects.create_user(username="pimpinan1", password="rahasia-123")
+        pimpinan.groups.add(Group.objects.get_or_create(name="Pimpinan")[0])
+        hapus = reverse("accounts:laporan_hapus", args=["rusak", self.rusak.uuid])
+        edit = reverse("fleet:vehicle_update", args=[self.rusak.uuid])
+        self.client.login(username="pimpinan1", password="rahasia-123")
+        laporan = self.client.get(self.url)
+        self.assertEqual(laporan.status_code, 200)
+        self.assertNotContains(laporan, hapus)
+        self.assertEqual(self.client.get(hapus).status_code, 403)
+        self.assertEqual(self.client.get(edit).status_code, 403)
+
         ketua = User.objects.create_user(username="ketua1", password="rahasia-123")
         ketua.groups.add(Group.objects.get(name="Ketua Tim"))
         Anggota.add_root(user=ketua)
         self.assertIn("laporan_rusak", roles.allowed_menus(ketua))
-        hapus = reverse("accounts:laporan_hapus", args=["rusak", self.rusak.uuid])
         self.client.login(username="ketua1", password="rahasia-123")
-        self.assertEqual(self.client.get(self.url).status_code, 200)
-        self.assertEqual(self.client.get(hapus).status_code, 403)
-        self.client.login(username="root", password="rahasia-123")
+        laporan = self.client.get(self.url)
+        self.assertContains(laporan, hapus)
+        self.assertContains(laporan, f"{edit}?next=")
+        # Edit: the vehicle's data (its photos kept), saved back to this report.
+        from fleet.models import VehiclePhoto
+        for _ in range(4):
+            VehiclePhoto.objects.create(vehicle=self.rusak, image="x.jpg")
+        form = self.client.get(edit, {"next": self.url}, HTTP_HX_REQUEST="true")
+        self.assertContains(form, "Edit Kendaraan")
+        self.assertContains(form, f"?next={self.url}")
+        simpan = self.client.post(
+            f"{edit}?next={self.url}",
+            {"nopol": "R 7 RS", "merek": "Maung Baru", "kepemilikan": self.rusak.kepemilikan},
+            HTTP_HX_REQUEST="true",
+        )
+        self.rusak.refresh_from_db()
+        self.assertEqual((self.rusak.merek, simpan["HX-Redirect"]), ("MAUNG BARU", self.url))
+        # Hapus: confirmed with the code shown.
         self.assertContains(self.client.get(hapus), "1 pernyataan rusak/tidak layak pakai")
         self.client.post(hapus, {"captcha": self.client.session[f"hapus_laporan_rusak_{self.rusak.pk}"]})
         self.assertFalse(KendaraanRusak.objects.exists())

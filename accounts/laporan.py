@@ -14,6 +14,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import urlencode
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
@@ -203,19 +204,20 @@ def _cari_kendaraan(qs, q):
 
 class _Tautan(str):
     """A row's detail URL, carrying the URLs of its QR code modal and of its
-    Hapus action (or '')."""
+    Edit and Hapus actions (or '')."""
+    edit = ""
     hapus = ""
     qr = ""
 
 
-def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, satuan=None, ekspor_qr=False, tab=None, pakai_satuan=True):
+def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, satuan=None, ekspor_qr=False, tab=None):
     """A report with one row per vehicle (``kendaraan``: in display order), a
     search field and no date filter; each row opens the ``detail`` modal.
     ``jenis``: the report's key in laporan_hapus.JENIS, for the Hapus action
-    its rows get when the user may delete. ``satuan``: vehicle -> the unit
+    its rows get, with Edit (the vehicle's data), when the user may change them. ``satuan``: vehicle -> the unit
     for a Satuan column (none without it). ``ekspor_qr``: show the QR Code
     column and offer the QR codes as a Word document (Laporan Penambahan only).
-    ``pakai_satuan``: show the Satuan filter."""
+    None of these reports has a Satuan filter."""
     from .laporan_hapus import boleh_hapus
 
     f = _filter(request)
@@ -229,6 +231,8 @@ def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, 
         t.qr = reverse("fleet:vehicle_qr_modal", args=[v.uuid])
         if pakai_hapus:
             t.hapus = reverse("accounts:laporan_hapus", args=[jenis, v.uuid])
+            # Saving the vehicle comes back to this report, filters and page kept.
+            t.edit = reverse("fleet:vehicle_update", args=[v.uuid]) + "?" + urlencode({"next": request.get_full_path()})
         tautan.append(t)
     rows = [
         (v.nopol, v.merek, v.no_chasis or "-", v.no_mesin or "-", v.get_group_kendaraan_display())
@@ -242,7 +246,7 @@ def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, 
         request, "accounts/laporan_tabel.html", judul, header, rows, f, nama_file,
         tautan=tautan, kolom_tanggal=0, kolom_utama=1, pakai_tanggal=False, pakai_cari=True,
         # Laporan Pemeriksaan, Perbaikan and Penambahan have no Excel download.
-        pakai_excel=False, pakai_satuan=pakai_satuan, pakai_hapus=pakai_hapus, pakai_qr=ekspor_qr, pakai_ekspor_qr=ekspor_qr,
+        pakai_excel=False, pakai_hapus=pakai_hapus, pakai_qr=ekspor_qr, pakai_ekspor_qr=ekspor_qr,
         tab=tab,
     )
 
@@ -271,7 +275,7 @@ def laporan_pemeriksaan(request):
     kendaraan = _kendaraan_dengan_catatan(request, lambda cfg: cfg.pemeriksaan_model, "vehicle", "pemeriksa")
     return _laporan_per_kendaraan(
         request, "Laporan Pemeriksaan", kendaraan, "accounts:laporan_pemeriksaan_detail", "laporan-pemeriksaan.xlsx",
-        "pemeriksaan", pakai_satuan=False,
+        "pemeriksaan",
     )
 
 
@@ -440,7 +444,7 @@ def _laporan_sparepart_rusak(request, f):
         request, "accounts/laporan_tabel.html", JUDUL_RUSAK,
         ["Sparepart / Komponen", "No. Registrasi", "Merk/Type", "Golongan", "Satuan", "Sumber", "Tanggal", "Oleh", "Keterangan"],
         rows, f, "laporan-sparepart-rusak.xlsx", kolom_tanggal=7, kolom_utama=1, pakai_tanggal=False, pakai_cari=True,
-        pakai_satuan=True, tab=TAB_RUSAK,
+        tab=TAB_RUSAK,
     )
 
 

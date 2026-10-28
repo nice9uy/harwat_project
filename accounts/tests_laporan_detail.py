@@ -256,7 +256,7 @@ class QrLaporanTests(TestCase):
 
 
 class LaporanFilterSatuanTests(TestCase):
-    """The three vehicle reports filter by the Satuan of whoever did the work."""
+    """The vehicle reports and Laporan Rusak have no Satuan filter (their Satuan column stays)."""
 
     def setUp(self):
         from accounts.models import PemeriksaanGolonganB, PemeriksaanGolonganBItem, PerbaikanGolonganB, Satuan
@@ -277,24 +277,13 @@ class LaporanFilterSatuanTests(TestCase):
             item = PemeriksaanGolonganBItem.objects.create(pemeriksaan=periksa, nomor=1, nama_alat="Motor", kondisi="RR")
             PerbaikanGolonganB.objects.create(teknisi=orang, item=item, kondisi="B")
 
-    def test_each_report_has_the_filter_and_narrows_by_it(self):
-        for nama in ("accounts:laporan_perbaikan", "accounts:laporan_penambahan"):
-            semua = self.client.get(reverse(nama))
-            self.assertContains(semua, 'name="satuan"')
-            # Typed with suggestions (the units someone belongs to), not a dropdown.
-            self.assertContains(semua, "x-data=\"autocomplete('opsi-satuan-filter'")
-            self.assertIn("Alfa", [o["l"] for o in semua.context["satuan_opsi"]])
-            self.assertContains(semua, "B 1 ALFA")
-            self.assertContains(semua, "B 1 BRAVO")
-            alfa = self.client.get(reverse(nama), {"satuan": self.satuan["Alfa"].uuid})
-            self.assertContains(alfa, "B 1 ALFA", msg_prefix=nama)
-            self.assertNotContains(alfa, "B 1 BRAVO", msg_prefix=nama)
-            self.assertContains(alfa, f'name="satuan" :value="nilai" value="{self.satuan["Alfa"].uuid}"')
-            # An unknown value is ignored.
-            self.assertContains(self.client.get(reverse(nama), {"satuan": "zzz"}), "B 1 BRAVO")
-
-    def test_laporan_pemeriksaan_has_no_satuan_filter(self):
-        self.assertNotContains(self.client.get(reverse("accounts:laporan_pemeriksaan")), 'name="satuan"')
+    def test_reports_have_no_satuan_filter(self):
+        for nama in (
+            "accounts:laporan_pemeriksaan", "accounts:laporan_perbaikan", "accounts:laporan_penambahan",
+            "accounts:laporan_rusak",
+        ):
+            self.assertNotContains(self.client.get(reverse(nama)), 'name="satuan"', msg_prefix=nama)
+        self.assertNotContains(self.client.get(reverse("accounts:laporan_rusak"), {"tab": "sparepart"}), 'name="satuan"')
 
     def test_laporan_tim_has_no_satuan_filter(self):
         self.assertNotContains(self.client.get(reverse("accounts:laporan_tim")), 'name="satuan"')

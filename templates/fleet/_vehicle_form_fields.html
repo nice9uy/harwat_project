@@ -1,7 +1,7 @@
 <h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-4">{% if is_edit %}Edit Kendaraan{% else %}Tambah Kendaraan{% if matra_label %} <span class="ml-1 rounded-full bg-slate-100 px-2 py-0.5 align-middle text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">{{ matra_label }}</span>{% endif %}{% endif %}</h2>
 <form method="post" enctype="multipart/form-data"
       hx-encoding="multipart/form-data"
-      hx-post="{% if is_edit %}{% url 'fleet:vehicle_update' vehicle.uuid %}{% else %}{% url 'fleet:vehicle_create' %}?group={{ group }}{% if next_url %}&amp;next={{ next_url|urlencode }}{% endif %}{% if pakai_biodata %}&amp;penambah=1{% endif %}{% if matra %}&amp;matra={{ matra }}{% endif %}{% endif %}"
+      hx-post="{% if is_edit %}{% url 'fleet:vehicle_update' vehicle.uuid %}{% if next_url %}?next={{ next_url|urlencode }}{% endif %}{% else %}{% url 'fleet:vehicle_create' %}?group={{ group }}{% if next_url %}&amp;next={{ next_url|urlencode }}{% endif %}{% if pakai_biodata %}&amp;penambah=1{% endif %}{% if matra %}&amp;matra={{ matra }}{% endif %}{% endif %}"
       {% if pakai_biodata %}hx-include="#form-tambah-biodata"{% endif %}
       hx-target="this"
       hx-swap="outerHTML"

@@ -81,6 +81,15 @@ def boleh_kelola(kode_pengelola, kode):
     return tingkat == 0 or tingkat < TINGKAT.get(kode_pengelola, 0)
 
 
+# Who gets the Aksi column of Laporan Pemeriksaan, Perbaikan, Rusak and
+# Penambahan: Edit (the vehicle's data) and Hapus (with a code to retype).
+PENGUBAH_LAPORAN = {SUPERUSER, ADMIN_ROLE, KETUA_TIM}
+
+
+def boleh_ubah_laporan(user):
+    return user.is_authenticated and keanggotaan_kode(user) in PENGUBAH_LAPORAN
+
+
 # Sidebar menu -> URL names that belong to it (pages plus the endpoints
 # those pages call). A view listed nowhere (login, logout, admin, ...) is
 # not restricted by menu.
@@ -120,22 +129,22 @@ MENU_VIEWS = {
     "status": {"accounts:status", "accounts:status_batal"},
     "laporan_pemeriksaan": {
         "accounts:laporan_pemeriksaan", "accounts:laporan_pemeriksaan_detail", "accounts:laporan_pemeriksaan_pdf",
-        "accounts:laporan_hapus",
+        "accounts:laporan_hapus", "fleet:vehicle_update",
         "fleet:vehicle_qr", "fleet:vehicle_qr_modal",
     },
     "laporan_perbaikan": {
         "accounts:laporan_perbaikan", "accounts:laporan_perbaikan_detail", "accounts:laporan_perbaikan_pdf",
-        "accounts:laporan_hapus",
+        "accounts:laporan_hapus", "fleet:vehicle_update",
         "fleet:vehicle_qr", "fleet:vehicle_qr_modal",
     },
     "laporan_rusak": {
-        "accounts:laporan_rusak", "accounts:laporan_rusak_detail", "accounts:laporan_hapus",
+        "accounts:laporan_rusak", "accounts:laporan_rusak_detail", "accounts:laporan_hapus", "fleet:vehicle_update",
         "fleet:vehicle_qr", "fleet:vehicle_qr_modal",
     },
     "laporan_penambahan": {
         "accounts:laporan_penambahan", "accounts:laporan_penambahan_detail", "accounts:laporan_penambahan_pdf",
         "fleet:vehicle_qr", "fleet:vehicle_qr_modal",
-        "accounts:laporan_hapus",
+        "accounts:laporan_hapus", "fleet:vehicle_update",
     },
     "laporan_tim": {"accounts:laporan_tim", "accounts:laporan_tim_detail", "accounts:laporan_tim_pdf", "accounts:laporan_anggota_pdf"},
     "pengaturan": {

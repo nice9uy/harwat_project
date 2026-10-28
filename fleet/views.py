@@ -127,18 +127,28 @@ def vehicle_create(request):
 
 @login_required
 def vehicle_update(request, uid):
+    from accounts import roles  # accounts depends on fleet, not the other way round
+
+    # Opened from Kendaraan (superuser) or from a report's Edit action
+    # (Superuser, Admin, Ketua Tim), which comes back to it via ?next=.
+    if not roles.boleh_ubah_laporan(request.user):
+        return HttpResponse(status=403)
     vehicle = get_object_or_404(Vehicle, uuid=uid)
+    next_url = _next_url(request)
     if request.method == "POST":
         form = VehicleForm(request.POST, request.FILES, instance=vehicle)
         if form.is_valid():
             form.save()
+            if next_url:
+                messages.success(request, f"Kendaraan {vehicle.nopol} berhasil diperbarui.")
+            target = next_url or _list_url(vehicle.group_kendaraan)
             if _is_htmx(request):
-                return _htmx_redirect(_list_url(vehicle.group_kendaraan))
-            return redirect(_list_url(vehicle.group_kendaraan))
+                return _htmx_redirect(target)
+            return redirect(target)
     else:
         form = VehicleForm(instance=vehicle)
     template = "fleet/_vehicle_form_fields.html" if _is_htmx(request) else "fleet/vehicle_form.html"
-    return render(request, template, {"form": form, "is_edit": True, "vehicle": vehicle})
+    return render(request, template, {"form": form, "is_edit": True, "vehicle": vehicle, "next_url": next_url or ""})
 
 
 @login_required

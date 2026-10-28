@@ -1,6 +1,7 @@
 """The Hapus action of Laporan Pemeriksaan, Perbaikan and Penambahan: each of
 their rows is a vehicle, and deleting a row deletes what that report shows of
-it. Superusers only; confirmed with a code to retype."""
+it. Superuser, Admin and Ketua Tim (roles.boleh_ubah_laporan); confirmed
+with a code to retype."""
 import secrets
 import string
 
@@ -14,7 +15,7 @@ from django.urls import reverse
 
 from fleet.models import Vehicle
 
-from . import golongan
+from . import golongan, roles
 
 # jenis -> (the report's url name, its title, what a row's deletion removes)
 JENIS = {
@@ -26,7 +27,7 @@ JENIS = {
 
 
 def boleh_hapus(user):
-    return user.is_superuser
+    return roles.boleh_ubah_laporan(user)
 
 
 def _berkas(objek):

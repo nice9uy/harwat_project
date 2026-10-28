@@ -125,10 +125,16 @@
                     {% if pakai_hapus %}
                     <td class="px-4 py-2">
                         {% if tautan.hapus %}
+                        <div class="flex items-center gap-1.5">
+                        <button type="button" title="Edit data kendaraan"
+                                @click.stop="modalSempit = false; modalOpen = true" @keydown.enter.stop
+                                hx-get="{{ tautan.edit }}" hx-target="#laporan-modal-body" hx-swap="innerHTML"
+                                class="rounded-md bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600">Edit</button>
                         <button type="button" title="Hapus"
                                 @click.stop="modalSempit = true; modalOpen = true" @keydown.enter.stop
                                 hx-get="{{ tautan.hapus }}" hx-target="#laporan-modal-body" hx-swap="innerHTML"
                                 class="rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">Hapus</button>
+                        </div>
                         {% endif %}
                     </td>
                     {% endif %}
