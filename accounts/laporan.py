@@ -208,13 +208,14 @@ class _Tautan(str):
     qr = ""
 
 
-def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, satuan=None, ekspor_qr=False, tab=None):
+def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, satuan=None, ekspor_qr=False, tab=None, pakai_satuan=True):
     """A report with one row per vehicle (``kendaraan``: in display order), a
     search field and no date filter; each row opens the ``detail`` modal.
     ``jenis``: the report's key in laporan_hapus.JENIS, for the Hapus action
     its rows get when the user may delete. ``satuan``: vehicle -> the unit
     for a Satuan column (none without it). ``ekspor_qr``: show the QR Code
-    column and offer the QR codes as a Word document (Laporan Penambahan only)."""
+    column and offer the QR codes as a Word document (Laporan Penambahan only).
+    ``pakai_satuan``: show the Satuan filter."""
     from .laporan_hapus import boleh_hapus
 
     f = _filter(request)
@@ -241,7 +242,7 @@ def _laporan_per_kendaraan(request, judul, kendaraan, detail, nama_file, jenis, 
         request, "accounts/laporan_tabel.html", judul, header, rows, f, nama_file,
         tautan=tautan, kolom_tanggal=0, kolom_utama=1, pakai_tanggal=False, pakai_cari=True,
         # Laporan Pemeriksaan, Perbaikan and Penambahan have no Excel download.
-        pakai_excel=False, pakai_satuan=True, pakai_hapus=pakai_hapus, pakai_qr=ekspor_qr, pakai_ekspor_qr=ekspor_qr,
+        pakai_excel=False, pakai_satuan=pakai_satuan, pakai_hapus=pakai_hapus, pakai_qr=ekspor_qr, pakai_ekspor_qr=ekspor_qr,
         tab=tab,
     )
 
@@ -270,7 +271,7 @@ def laporan_pemeriksaan(request):
     kendaraan = _kendaraan_dengan_catatan(request, lambda cfg: cfg.pemeriksaan_model, "vehicle", "pemeriksa")
     return _laporan_per_kendaraan(
         request, "Laporan Pemeriksaan", kendaraan, "accounts:laporan_pemeriksaan_detail", "laporan-pemeriksaan.xlsx",
-        "pemeriksaan",
+        "pemeriksaan", pakai_satuan=False,
     )
 
 

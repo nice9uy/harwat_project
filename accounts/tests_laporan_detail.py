@@ -278,7 +278,7 @@ class LaporanFilterSatuanTests(TestCase):
             PerbaikanGolonganB.objects.create(teknisi=orang, item=item, kondisi="B")
 
     def test_each_report_has_the_filter_and_narrows_by_it(self):
-        for nama in ("accounts:laporan_pemeriksaan", "accounts:laporan_perbaikan", "accounts:laporan_penambahan"):
+        for nama in ("accounts:laporan_perbaikan", "accounts:laporan_penambahan"):
             semua = self.client.get(reverse(nama))
             self.assertContains(semua, 'name="satuan"')
             # Typed with suggestions (the units someone belongs to), not a dropdown.
@@ -292,6 +292,9 @@ class LaporanFilterSatuanTests(TestCase):
             self.assertContains(alfa, f'name="satuan" :value="nilai" value="{self.satuan["Alfa"].uuid}"')
             # An unknown value is ignored.
             self.assertContains(self.client.get(reverse(nama), {"satuan": "zzz"}), "B 1 BRAVO")
+
+    def test_laporan_pemeriksaan_has_no_satuan_filter(self):
+        self.assertNotContains(self.client.get(reverse("accounts:laporan_pemeriksaan")), 'name="satuan"')
 
     def test_laporan_tim_has_no_satuan_filter(self):
         self.assertNotContains(self.client.get(reverse("accounts:laporan_tim")), 'name="satuan"')
