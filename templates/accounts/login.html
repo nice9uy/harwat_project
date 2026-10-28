@@ -12,6 +12,8 @@
     <link rel="preload" as="image" href="{% static 'img/login-gedung-kemhan.webp' %}" type="image/webp">
     <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
     <script src="{% static 'js/autocomplete.js' %}?v={{ js_version }}" defer></script>
+    {# The Daftar form's photo is shrunk before upload, as on the app's own pages. #}
+    <script src="{% static 'js/kompres-foto.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'vendor/alpinejs.min.js' %}" defer></script>
 </head>
 <body x-data="{ daftarOpen: false }" class="relative min-h-screen overflow-x-hidden bg-navy text-slate-900 dark:text-slate-100">

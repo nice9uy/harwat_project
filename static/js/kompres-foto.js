@@ -37,9 +37,15 @@
         if (!form) return;
         var n = (sedang.get(form) || 0) + selisih;
         sedang.set(form, n);
+        // Lets the page show that the photo is still being shrunk.
+        if (n > 0) form.dataset.memprosesFoto = "";
+        else delete form.dataset.memprosesFoto;
         if (n === 0 && form.dataset.kirimSetelahKompres) {
             delete form.dataset.kirimSetelahKompres;
-            form.requestSubmit();
+            // requestSubmit is missing before iOS 16; clicking the submit button
+            // validates and submits the same way.
+            if (form.requestSubmit) form.requestSubmit();
+            else (form.querySelector('[type="submit"]') || form).click();
         }
     }
 
