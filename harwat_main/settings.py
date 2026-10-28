@@ -42,6 +42,36 @@ CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_origins.split(',') if o.strip()
 # compared with a request Django takes for plain HTTP.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# Once every browser opens the app over HTTPS (the certificate authority of
+# scripts/siapkan-tls.sh imported), DJANGO_HTTPS_SAJA=True in .env.prod keeps
+# the session and CSRF cookies off plain HTTP and asks browsers to stay on
+# HTTPS (HSTS). Off by default: while HTTP is still used, login would break.
+if os.environ.get('DJANGO_HTTPS_SAJA', 'False') == 'True':
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
+
+# Content-Security-Policy: scripts, styles, frames and form posts from this
+# site only. Alpine evaluates its x-* attributes (unsafe-eval) and the pages
+# have inline scripts and styles (unsafe-inline); photo previews and the QR
+# scanner's camera use blob: URLs, the VPN QR code a data: image.
+from django.utils.csp import CSP  # noqa: E402
+
+SECURE_CSP = {
+    "default-src": [CSP.SELF],
+    "script-src": [CSP.SELF, CSP.UNSAFE_INLINE, CSP.UNSAFE_EVAL],
+    "style-src": [CSP.SELF, CSP.UNSAFE_INLINE],
+    "img-src": [CSP.SELF, "data:", "blob:"],
+    "media-src": [CSP.SELF, "blob:"],
+    "worker-src": [CSP.SELF, "blob:"],
+    "connect-src": [CSP.SELF],
+    "font-src": [CSP.SELF, "data:"],
+    "object-src": [CSP.NONE],
+    "base-uri": [CSP.SELF],
+    "form-action": [CSP.SELF],
+    "frame-ancestors": [CSP.NONE],
+}
+
 
 # Application definition
 
@@ -70,6 +100,7 @@ MIDDLEWARE = [
     'accounts.middleware.MenuAccessMiddleware',
     'accounts.middleware.SuperuserOnlyAdminMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.middleware.csp.ContentSecurityPolicyMiddleware',
 ]
 
 ROOT_URLCONF = 'harwat_main.urls'
@@ -128,6 +159,15 @@ else:
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
+            # Many saves at once (dev, tests): readers don't block the writer
+            # (WAL), a write transaction takes the lock up front instead of
+            # failing on upgrade, and waits up to 30 s for it instead of
+            # answering "database is locked".
+            'OPTIONS': {
+                'timeout': 30,
+                'transaction_mode': 'IMMEDIATE',
+                'init_command': 'PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;',
+            },
         }
     }
 

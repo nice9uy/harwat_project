@@ -91,7 +91,7 @@ services:
       - static-data:/shared
 
   nginx:
-    image: docker.io/library/nginx:1.27-alpine
+    image: docker.io/library/nginx:1.30-alpine
     volumes:
       - ../podman/nginx.conf:/etc/nginx/nginx.conf:ro
       - static-data:/usr/share/nginx/static:ro
@@ -114,7 +114,7 @@ services:
   # it holds the host's Podman socket so that the app never does. Not
   # published: only the app containers reach it, at http://podman-api:2375.
   podman-api:
-    image: docker.io/library/nginx:1.27-alpine
+    image: docker.io/library/nginx:1.30-alpine
     volumes:
       - ../podman/podman-api.conf:/etc/nginx/nginx.conf:ro
       - ${XDG_RUNTIME_DIR}/podman/podman.sock:/run/podman/podman.sock

@@ -26,7 +26,9 @@ def compress_photo(upload):
             background.paste(rgba, mask=rgba.getchannel("A"))
             img = background
         out = io.BytesIO()
-        img.save(out, format="JPEG", quality=JPEG_QUALITY, optimize=True, progressive=True)
+        # Not progressive: encoding takes twice as long for ~2% smaller files,
+        # and many photos arrive at once (an inspection has up to 4 per part).
+        img.save(out, format="JPEG", quality=JPEG_QUALITY, optimize=True)
     # A short name: phone and download file names can run past the 100
     # characters a photo column holds.
     return ContentFile(out.getvalue(), name=f"{Path(upload.name).stem[:NAMA_MAKS]}.jpg")

@@ -436,6 +436,18 @@ class LaporanPerTimTests(TestCase):
             self.assertEqual(self._nopol("pimtim", nama), {"B 2 TIM"}, nama)
             self.assertEqual(self._nopol("admin1", nama), {"B 1 TIM", "B 2 TIM"}, nama)
 
+    def test_admin_sees_their_own_matra_only(self):
+        from accounts.models import AkunPublik
+
+        for username, matra in (("ketua1", "darat"), ("ketua2", "udara"), ("admin1", "udara")):
+            AkunPublik.objects.update_or_create(user=User.objects.get(username=username), defaults={"matra": matra})
+        for nama in self.LAPORAN:
+            # Tim members follow their Ketua Tim's matra.
+            self.assertEqual(self._nopol("admin1", nama), {"B 2 TIM"}, nama)
+        root = User.objects.create_superuser(username="root", password="rahasia-123")
+        for nama in self.LAPORAN:
+            self.assertEqual(self._nopol("root", nama), {"B 1 TIM", "B 2 TIM"}, nama)
+
     def test_detail_and_hapus_hold_the_own_team_only(self):
         lain = Vehicle.objects.get(nopol="B 2 TIM")
         self.client.login(username="ketua1", password="rahasia-123")
@@ -446,3 +458,10 @@ class LaporanPerTimTests(TestCase):
             self.client.get(reverse("accounts:laporan_hapus", args=["pemeriksaan", lain.uuid])).context["jumlah"], 0,
         )
         self.assertEqual(self.client.get(reverse("accounts:laporan_hapus", args=["penambahan", lain.uuid])).status_code, 404)
+
+
+class HeaderKeamananTests(TestCase):
+    def test_pages_carry_a_content_security_policy(self):
+        csp = self.client.get(reverse("accounts:login"))["Content-Security-Policy"]
+        for bagian in ("default-src 'self'", "object-src 'none'", "frame-ancestors 'none'", "form-action 'self'"):
+            self.assertIn(bagian, csp)
