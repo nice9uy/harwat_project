@@ -495,6 +495,36 @@ class VehicleFotoUploadTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(vehicle.fotos.count(), 4)
 
+    def test_edit_replaces_only_the_sides_picked(self):
+        self._create(_photos(4))
+        vehicle = Vehicle.objects.get()
+        lama = list(vehicle.fotos.all())
+        form = self.client.get(reverse("fleet:vehicle_update", args=[vehicle.uuid]), HTTP_HX_REQUEST="true")
+        for i in range(1, 5):
+            self.assertContains(form, f'name="foto_{i}"')
+        self.assertContains(form, lama[0].image.url)
+        response = self.client.post(reverse("fleet:vehicle_update", args=[vehicle.uuid]), {
+            "kepemilikan": "organik", "nopol": "B 1234 AB", "merek": "Toyota Avanza",
+            "foto_2": _png_upload("belakang-baru.png"),
+        })
+        self.assertRedirects(response, reverse("fleet:vehicle_list"))
+        baru = list(vehicle.fotos.all())
+        self.assertEqual([f.id for f in baru], [f.id for f in lama])
+        self.assertEqual(baru[0].image.name, lama[0].image.name)
+        self.assertNotEqual(baru[1].image.name, lama[1].image.name)
+        self.assertIn("belakang-baru", baru[1].image.name)
+
+    def test_edit_asks_for_the_sides_still_without_a_photo(self):
+        self._create(_photos(4))
+        vehicle = Vehicle.objects.get()
+        vehicle.fotos.filter(pk__in=list(vehicle.fotos.values_list("pk", flat=True))[2:]).delete()
+        data = {"kepemilikan": "organik", "nopol": "B 1234 AB", "merek": "Toyota Avanza"}
+        url = reverse("fleet:vehicle_update", args=[vehicle.uuid])
+        self.assertContains(self.client.post(url, {**data, "foto_3": _png_upload("kiri.png")}), "Lengkapi foto: Kanan.")
+        self.assertEqual(vehicle.fotos.count(), 2)
+        self.client.post(url, {**data, "foto_3": _png_upload("kiri.png"), "foto_4": _png_upload("kanan.png")})
+        self.assertEqual(vehicle.fotos.count(), 4)
+
     def test_form_posts_as_multipart_for_htmx(self):
         response = self.client.get(reverse("fleet:vehicle_create"), HTTP_HX_REQUEST="true")
         self.assertContains(response, 'hx-encoding="multipart/form-data"')

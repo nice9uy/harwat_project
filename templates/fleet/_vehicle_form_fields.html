@@ -39,21 +39,29 @@
     </div>
     <div>
         <p class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Foto Kendaraan <span class="font-normal text-slate-500 dark:text-slate-400">(4 foto)</span></p>
-        {% if vehicle.fotos.all %}<div class="mb-2">{% include "fleet/_vehicle_photos.html" %}</div>{% endif %}
-        {# Every input is named "foto"; the form collects them and needs exactly 4. #}
+        {% comment %}
+        The four sides, in the order the photos are stored. New vehicle: every
+        input is named "foto" and all 4 are needed. Edit: foto_1..foto_4, each
+        showing its current photo; picking a file replaces only that side.
+        {% endcomment %}
         <div class="grid grid-cols-2 gap-3">
-            {# The four sides, in the order the photos are stored (the input ids stay foto_1..4). #}
-            {% for nomor in "1234" %}
+            {% for s in form.sisi_foto %}
             <div x-data="{ pratinjau: null }">
-                <label for="foto_{{ nomor }}" class="block text-xs text-slate-500 dark:text-slate-400 mb-1">{% if nomor == "1" %}Depan{% elif nomor == "2" %}Belakang{% elif nomor == "3" %}Kiri{% else %}Kanan{% endif %}</label>
-                <input type="file" id="foto_{{ nomor }}" name="foto" accept="image/*" capture="environment" {% if not is_edit %}required{% endif %}
+                <label for="foto_{{ s.nomor }}" class="block text-xs text-slate-500 dark:text-slate-400 mb-1">{{ s.label }}</label>
+                {% if is_edit and s.foto %}
+                <a x-show="!pratinjau" href="{{ s.foto.image.url }}" target="_blank" rel="noopener" class="mb-1 block">
+                    <img src="{{ s.foto.image.url }}" loading="lazy" alt="Foto {{ s.label|lower }} sekarang" class="aspect-[4/3] w-full rounded-md border border-slate-300 dark:border-slate-600 object-cover">
+                </a>
+                {% endif %}
+                <img x-show="pratinjau" x-cloak :src="pratinjau" alt="Pratinjau foto {{ s.label|lower }}" class="mb-1 aspect-[4/3] w-full rounded-md border-2 border-gold object-cover">
+                <input type="file" id="foto_{{ s.nomor }}" name="{% if is_edit %}foto_{{ s.nomor }}{% else %}foto{% endif %}" accept="image/*" capture="environment" {% if not is_edit %}required{% endif %}
                        @change="pratinjau = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : null"
                        class="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 shadow-sm file:mr-2 file:rounded file:border-0 file:bg-green-600 file:px-2 file:py-1 file:text-xs file:font-medium file:text-white hover:file:bg-green-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
-                <img x-show="pratinjau" x-cloak :src="pratinjau" alt="Pratinjau foto {% if nomor == "1" %}depan{% elif nomor == "2" %}belakang{% elif nomor == "3" %}kiri{% else %}kanan{% endif %}" class="mt-1 aspect-[4/3] w-full rounded-md border border-slate-300 dark:border-slate-600 object-cover">
+                {% if is_edit and s.foto %}<p x-show="pratinjau" x-cloak class="mt-0.5 text-[11px] text-gold">Foto {{ s.label|lower }} akan diganti.</p>{% endif %}
             </div>
             {% endfor %}
         </div>
-        {% if is_edit %}<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kosongkan untuk mempertahankan foto sekarang; mengisi Foto 1–4 mengganti semua foto.</p>{% endif %}
+        {% if is_edit %}<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Pilih foto hanya di sisi yang ingin diganti; sisi lain tetap memakai foto sekarang.</p>{% endif %}
         {% if form.foto.errors %}<p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ form.foto.errors.0 }}</p>{% endif %}
     </div>
     <div class="flex items-center gap-3 pt-2">
