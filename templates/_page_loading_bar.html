@@ -3,7 +3,13 @@
      style="width: 0%; opacity: 0;"></div>
 <script>
 (function () {
-    var bar = document.getElementById('page-loading-bar');
+    // A boosted page change swaps the body and runs this script again: the
+    // listeners below are registered once, and always drive the current bar.
+    if (window.__palangMuat) return;
+    window.__palangMuat = true;
+    var bar = {
+        get style() { return document.getElementById('page-loading-bar').style; }
+    };
     var timer = null;
     var progress = 0;
     var startedAt = 0;

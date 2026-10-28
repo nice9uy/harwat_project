@@ -186,3 +186,27 @@ table.memuat tbody td::after {
 @media (prefers-reduced-motion: reduce) {
   table.memuat tbody td::after { animation: none; }
 }
+
+/* Boosted page changes (htmx globalViewTransitions): only the page's own
+   content cross-fades; the header, sidebar and phone bottom bar are named so
+   they stay put instead of fading with it. */
+.vt-header { view-transition-name: header; }
+.vt-sidebar { view-transition-name: sidebar; }
+.vt-menu-bawah { view-transition-name: menu-bawah; }
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: 150ms;
+  animation-timing-function: ease-out;
+}
+::view-transition-group(header),
+::view-transition-group(sidebar),
+::view-transition-group(menu-bawah) {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

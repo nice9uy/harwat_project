@@ -13,7 +13,8 @@
     re-applying the new page's class/style after Alpine has already set them,
     wiping Alpine's x-show display:none (e.g. an empty autocomplete list).
     {% endcomment %}
-    <meta name="htmx-config" content='{"attributesToSettle": []}'>
+    {# globalViewTransitions: a boosted page change cross-fades (input.css) instead of flashing. #}
+    <meta name="htmx-config" content='{"attributesToSettle": [], "globalViewTransitions": true}'>
     <link rel="stylesheet" href="{% static 'dist/output.css' %}?v={{ css_version }}">
     <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
     <script src="{% static 'js/qr-scan.js' %}?v={{ js_version }}" defer></script>
@@ -34,7 +35,7 @@
 
         {# Phone: the whole menu is a sheet sliding up from the bottom bar. Wider screens: the left sidebar. #}
         <aside :class="sidebarOpen ? 'translate-y-0' : 'translate-y-full'"
-               class="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] rounded-t-2xl pb-[env(safe-area-inset-bottom)] shrink-0 bg-navy text-slate-100 flex flex-col transition-transform duration-200 ease-in-out md:inset-x-auto md:left-0 md:top-0 md:bottom-auto md:w-64 md:max-h-none md:rounded-none md:pb-0 md:sticky md:h-screen md:translate-y-0 md:flex">
+               class="vt-sidebar fixed inset-x-0 bottom-0 z-50 max-h-[85vh] rounded-t-2xl pb-[env(safe-area-inset-bottom)] shrink-0 bg-navy text-slate-100 flex flex-col transition-transform duration-200 ease-in-out md:inset-x-auto md:left-0 md:top-0 md:bottom-auto md:w-64 md:max-h-none md:rounded-none md:pb-0 md:sticky md:h-screen md:translate-y-0 md:flex">
             <div class="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-white/25 md:hidden" aria-hidden="true"></div>
             <div class="h-16 shrink-0 px-4 flex items-center justify-between border-b border-white/10">
                 <a href="{% url 'accounts:dashboard' %}" class="flex items-center gap-3 font-semibold text-slate-100 hover:text-white">
@@ -235,7 +236,7 @@
         </aside>
 
         <div class="flex-1 flex flex-col min-w-0">
-            <header class="sticky top-0 z-30 h-16 flex items-center justify-between gap-3 px-4 sm:px-6 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+            <header class="vt-header sticky top-0 z-30 h-16 flex items-center justify-between gap-3 px-4 sm:px-6 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
                 <div class="flex items-center gap-3 min-w-0">
                     <img src="{% static 'img/kemhan_logo.png' %}" alt="" class="h-8 w-8 shrink-0 md:hidden">
                     <h1 class="flex min-w-0 items-center gap-2 text-base font-semibold">
@@ -267,14 +268,21 @@
     Phone bottom bar: the user's main menus, then the full menu under "Menu".
     Boosted like the sidebar, so a tap swaps the page instead of reloading it (no flash).
     {% endcomment %}
-    <nav hx-boost="true" class="fixed inset-x-0 bottom-0 z-30 select-none border-t border-slate-200 bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)] [-webkit-tap-highlight-color:transparent] dark:border-slate-700 dark:bg-slate-800/95 md:hidden" aria-label="Menu bawah">
+    {% comment %}
+    The tapped menu lights up at once (aria-current moves to it), not only
+    when the next page arrives; a locked one (data-terkunci) doesn't. htmx
+    prevents every boosted click, so defaultPrevented can't tell them apart.
+    {% endcomment %}
+    <nav hx-boost="true"
+         @click="const a = $event.target.closest('a'); if (a && !a.hasAttribute('data-terkunci')) { $el.querySelectorAll('a[aria-current]').forEach(x => x.removeAttribute('aria-current')); a.setAttribute('aria-current', 'page') }"
+         class="vt-menu-bawah fixed inset-x-0 bottom-0 z-30 select-none border-t border-slate-200 bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)] [-webkit-tap-highlight-color:transparent] dark:border-slate-700 dark:bg-slate-800/95 md:hidden" aria-label="Menu bawah">
         <div class="mx-auto flex max-w-lg items-stretch justify-around">
             {% for m in menu_bawah %}
             <a href="{{ m.url }}"
-               {% if m.terkunci %}@click="$event.preventDefault(); profilPopup = true"{% endif %}
+               {% if m.terkunci %}data-terkunci @click="$event.preventDefault(); profilPopup = true"{% endif %}
                {% if menu_aktif == m.kunci %}aria-current="page"{% endif %}
-               class="flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 pt-2 pb-1.5 text-[11px] font-medium {% if m.terkunci %}text-slate-400 opacity-50{% elif menu_aktif == m.kunci %}text-navy dark:text-gold{% else %}text-slate-500 dark:text-slate-400{% endif %}">
-                <span class="flex h-7 w-12 items-center justify-center rounded-full {% if menu_aktif == m.kunci and not m.terkunci %}bg-gold/20{% endif %}">{% include "_menu_icon.html" with kunci=m.kunci kelas="h-5 w-5" %}</span>
+               class="group flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 pt-2 pb-1.5 text-[11px] font-medium {% if m.terkunci %}text-slate-400 opacity-50{% else %}text-slate-500 dark:text-slate-400 aria-[current=page]:text-navy dark:aria-[current=page]:text-gold{% endif %}">
+                <span class="flex h-7 w-12 items-center justify-center rounded-full transition-colors duration-150 {% if not m.terkunci %}group-aria-[current=page]:bg-gold/20{% endif %}">{% include "_menu_icon.html" with kunci=m.kunci kelas="h-5 w-5" %}</span>
                 <span class="max-w-full truncate">{{ m.label }}</span>
             </a>
             {% endfor %}
