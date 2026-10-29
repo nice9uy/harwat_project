@@ -1,0 +1,39 @@
+{% comment %}
+On the login page, a dialog (not a line of text) for an account that signed
+in with its right password but is switched off. Params: status
+("belum_aktif": signed up, waiting for its Admin; "nonaktif": switched off
+later), nama (the username).
+{% endcomment %}
+<div x-data="{ buka: true }">
+    <template x-teleport="body">
+        <div x-show="buka" x-transition.opacity @click.self="buka = false" @keydown.escape.window="buka = false"
+             role="alertdialog" aria-modal="true" aria-labelledby="akun-belum-aktif-judul"
+             class="fixed inset-0 z-[96] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+            <div class="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white text-center text-slate-900 shadow-2xl dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                <div class="h-1 w-full bg-gradient-to-r from-navy via-gold to-navy" aria-hidden="true"></div>
+                <div class="px-6 pb-6 pt-7">
+                    <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gold/15 text-gold ring-8 ring-gold/5" aria-hidden="true">
+                        {% if status == "belum_aktif" %}
+                        <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                        {% else %}
+                        <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg>
+                        {% endif %}
+                    </div>
+                    <h2 id="akun-belum-aktif-judul" class="text-lg font-semibold text-navy dark:text-slate-100">
+                        {% if status == "belum_aktif" %}Akun belum diaktifkan{% else %}Akun dinonaktifkan{% endif %}
+                    </h2>
+                    <p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                        Akun <span class="rounded bg-slate-100 px-1.5 py-0.5 font-mono font-semibold text-slate-800 dark:bg-slate-700 dark:text-slate-100">{{ nama }}</span>
+                        {% if status == "belum_aktif" %}
+                        sudah terdaftar, tetapi belum diaktifkan. Tunggu aktivasi dari Admin matra Anda, lalu coba masuk lagi.
+                        {% else %}
+                        sedang dinonaktifkan. Hubungi Ketua Tim atau admin untuk mengaktifkannya kembali.
+                        {% endif %}
+                    </p>
+                    <button type="button" @click="buka = false"
+                            class="mt-6 w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">Mengerti</button>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>

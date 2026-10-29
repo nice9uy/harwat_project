@@ -65,3 +65,28 @@ class DaftarDibatasiTests(TestCase):
         # Another address is not held up.
         lain = self.client.post(url, {"daftar-username": "ketua"}, REMOTE_ADDR="10.9.9.9")
         self.assertContains(lain, "Nama pengguna sudah ada")
+
+
+class AkunBelumAktifModalTests(TestCase):
+    """The right password on a switched-off account: a dialog says why, not a line of text."""
+
+    def _masuk(self, password):
+        from django.urls import reverse
+
+        return self.client.post(reverse("accounts:login"), {"username": "calon", "password": password})
+
+    def test_waiting_for_activation(self):
+        User.objects.create_user(username="calon", password="rahasia-123", is_active=False)
+        respon = self._masuk("rahasia-123")
+        self.assertContains(respon, "Akun belum diaktifkan")
+        self.assertContains(respon, 'role="alertdialog"')
+        # A wrong password tells nothing about the account.
+        salah = self._masuk("salah-salah")
+        self.assertNotContains(salah, "Akun belum diaktifkan")
+        self.assertContains(salah, "Nama pengguna atau kata sandi salah")
+
+    def test_switched_off_later(self):
+        from django.utils import timezone
+
+        User.objects.create_user(username="calon", password="rahasia-123", is_active=False, last_login=timezone.now())
+        self.assertContains(self._masuk("rahasia-123"), "Akun dinonaktifkan")

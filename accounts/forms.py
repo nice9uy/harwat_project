@@ -69,12 +69,17 @@ class LoginForm(AuthenticationForm):
             "class": "h-4 w-4 rounded border-slate-300 accent-navy focus:ring-gold dark:border-slate-600 dark:bg-slate-900",
         })
 
+    # "belum_aktif" / "nonaktif" when the right password met a switched-off
+    # account: the login page then says so in a dialog (_akun_belum_aktif.html).
+    status_akun = ""
+
     def get_invalid_login_error(self):
         # A switched-off account (Nonaktifkan on the Anggota Tim page) is told
         # so, but only with its right password: a wrong one gets the usual
         # message, so the form doesn't reveal which usernames exist.
         user = User.objects.filter(username=self.cleaned_data.get("username")).first()
         if user is not None and not user.is_active and user.check_password(self.cleaned_data.get("password") or ""):
+            self.status_akun = "belum_aktif" if user.last_login is None else "nonaktif"
             if user.last_login is None:
                 return forms.ValidationError(
                     "Akun Anda belum diaktifkan. Tunggu aktivasi dari Admin matra Anda.", code="inactive",

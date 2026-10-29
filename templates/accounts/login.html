@@ -16,6 +16,7 @@
     <script src="{% static 'js/tombol-proses.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/server-sibuk.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/kompres-foto.js' %}?v={{ js_version }}" defer></script>
+    <script src="{% static 'js/pilih-foto.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/modal-halus.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'vendor/alpinejs.min.js' %}" defer></script>
 </head>
@@ -91,7 +92,9 @@
                               x-data="{ lihat: false }"
                               class="space-y-5">
                             {% csrf_token %}
-                            {% if form.non_field_errors %}
+                            {% if form.status_akun %}
+                            {% include "accounts/_akun_belum_aktif.html" with status=form.status_akun nama=form.username.value %}
+                            {% elif form.non_field_errors %}
                             <div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
                                 {% for error in form.non_field_errors %}{{ error }}{% endfor %}
                             </div>
