@@ -145,13 +145,54 @@ umask 077
 envsubst '${GARAGE_RPC_SECRET}' < podman/garage.toml.template > podman/garage.prod.toml
 
 # The HTTPS certificate nginx serves on port 8443 (mkcert; made again only
-# when this machine's names or addresses changed). Members on the VPN open the
-# app at the server's VPN address (the first of VPN_SUBNET), so that is named
-# in the certificate too.
-ALAMAT_VPN="${VPN_SUBNET%%/*}"
-ALAMAT_VPN="${ALAMAT_VPN%.*}.$(( ${ALAMAT_VPN##*.} + 1 ))"
-# TLS_NAMA in .env.prod adds more, separated by commas: a public address, a domain.
-TLS_NAMA="${TLS_NAMA:-} ${ALAMAT_VPN}" ./scripts/siapkan-tls.sh
+# when this machine's names or addresses changed or it nears its end). Members
+# on the VPN open the app at the server's VPN address (the first of
+# VPN_SUBNET), so that is named in the certificate too; TLS_NAMA in .env.prod
+# adds more, separated by commas: a public address, a domain.
+./scripts/perbarui-tls.sh
+
+# ...and kept up to date while the stack runs: scripts/perbarui-tls.sh every
+# day at 00:00 WIB (a new certificate once the old one is within 30 days of
+# its end, nginx reloaded without stopping), through a systemd user timer,
+# else cron. Best effort.
+FOLDER_PROYEK="$(pwd)"
+if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
+    UNIT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+    mkdir -p "$UNIT_DIR"
+    cat > "$UNIT_DIR/harwat-tls.service" <<UNIT
+[Unit]
+Description=Harwat: perbarui sertifikat HTTPS bila hampir habis
+
+[Service]
+Type=oneshot
+WorkingDirectory=${FOLDER_PROYEK}
+ExecStart=${FOLDER_PROYEK}/scripts/perbarui-tls.sh
+UNIT
+    cat > "$UNIT_DIR/harwat-tls.timer" <<UNIT
+[Unit]
+Description=Harwat: cek sertifikat HTTPS setiap hari pukul 00:00 WIB
+
+[Timer]
+OnCalendar=*-*-* 00:00:00 Asia/Jakarta
+AccuracySec=1s
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
+    systemctl --user daemon-reload
+    systemctl --user enable --now harwat-tls.timer >/dev/null 2>&1 \
+        && echo "Timer harwat-tls aktif: sertifikat HTTPS dicek setiap hari pukul 00:00 WIB." \
+        || echo "PERHATIAN: timer harwat-tls tidak bisa diaktifkan."
+elif command -v crontab >/dev/null 2>&1; then
+    # cron runs on the server's own clock: 00:00 there (WIB when the server's
+    # timezone is Asia/Jakarta, as `timedatectl` shows).
+    BARIS="0 0 * * * cd ${FOLDER_PROYEK} && ./scripts/perbarui-tls.sh >> ${FOLDER_PROYEK}/podman/tls/perbarui.log 2>&1"
+    ( crontab -l 2>/dev/null | grep -v 'scripts/perbarui-tls.sh'; echo "$BARIS" ) | crontab - \
+        && echo "Cron perbarui-tls aktif: sertifikat HTTPS dicek setiap hari pukul 00:00 (jam server)."
+else
+    echo "PERHATIAN: tidak ada systemd/cron; sertifikat HTTPS hanya diperbarui saat prod.sh dijalankan."
+fi
 
 # Rootless containers stop when their user logs out and do not come back
 # after a reboot unless the user "lingers" and podman's restart service is
