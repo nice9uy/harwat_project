@@ -1,0 +1,30 @@
+{% comment %}
+A dialog over the form when the username typed is already taken (any case),
+on top of the field's own error. Params: pesan (the field's first error),
+nilai (the name typed), id_field (the input to go back to).
+{% endcomment %}
+{% if pesan == "Nama pengguna ini sudah dipakai." %}
+<div x-data="{ buka: true, tutup() { this.buka = false; this.$nextTick(() => { const f = document.getElementById('{{ id_field|escapejs }}'); if (f) { f.focus(); f.select(); } }); } }">
+    <template x-teleport="body">
+        <div x-show="buka" x-transition.opacity @click.self="tutup()" @keydown.escape.window="tutup()"
+             role="alertdialog" aria-modal="true" aria-labelledby="nama-dipakai-judul"
+             class="fixed inset-0 z-[96] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+            <div class="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white text-center shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+                <div class="h-1 w-full bg-gradient-to-r from-navy via-red-500 to-navy" aria-hidden="true"></div>
+                <div class="px-6 pb-6 pt-7">
+                    <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/15 text-red-500 ring-8 ring-red-500/5">
+                        <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M22 10.5h-6m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM4 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 10.374 21c-2.331 0-4.512-.645-6.374-1.766Z"/></svg>
+                    </div>
+                    <h2 id="nama-dipakai-judul" class="text-lg font-semibold text-navy dark:text-slate-100">Nama pengguna sudah ada</h2>
+                    <p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                        Nama pengguna <span class="rounded bg-slate-100 px-1.5 py-0.5 font-mono font-semibold text-slate-800 dark:bg-slate-700 dark:text-slate-100">{{ nilai }}</span>
+                        sudah dipakai akun lain. Silakan gunakan nama pengguna yang lain.
+                    </p>
+                    <button type="button" @click="tutup()"
+                            class="mt-6 w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">Ganti nama pengguna</button>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>
+{% endif %}

@@ -51,19 +51,20 @@
     ulangi = null;
   }
 
+  // Counted off when the request itself ends (its xhr's loadend), not on
+  // htmx:afterRequest: that one is fired on the element that sent it, which
+  // the answer may have replaced by then (a form re-rendered with its
+  // errors), and from a detached element it never reaches document.
   document.addEventListener('htmx:beforeRequest', (e) => {
-    if (!diklik(e.detail)) return;
-    e.detail.elt._ditunggu = true;
+    if (!diklik(e.detail) || !e.detail.xhr) return;
     if (++menunggu === 1) timer = setTimeout(() => antrean(true), ANTREAN_MS);
-  });
-  document.addEventListener('htmx:afterRequest', (e) => {
-    if (!e.detail.elt._ditunggu) return;
-    delete e.detail.elt._ditunggu;
-    if (--menunggu <= 0) {
-      menunggu = 0;
-      clearTimeout(timer);
-      antrean(false);
-    }
+    e.detail.xhr.addEventListener('loadend', () => {
+      if (--menunggu <= 0) {
+        menunggu = 0;
+        clearTimeout(timer);
+        antrean(false);
+      }
+    }, { once: true });
   });
 
   function gagal(e, keterangan) {

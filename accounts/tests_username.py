@@ -26,3 +26,20 @@ class UsernameUnikTests(TestCase):
         with self.assertRaises(IntegrityError), transaction.atomic():
             User.objects.create_user(username="KETUA", password="x")
         User.objects.create_user(username="ketua2", password="x")
+
+
+class NamaDipakaiModalTests(TestCase):
+    """A name already taken comes back with a dialog saying so, not only the field's error."""
+
+    def setUp(self):
+        User.objects.create_user(username="ketua", password="rahasia-123")
+
+    def test_daftar_shows_the_dialog(self):
+        from django.urls import reverse
+
+        response = self.client.post(reverse("accounts:daftar_form") + "?matra=darat", {"daftar-username": "KETUA"})
+        self.assertContains(response, "Nama pengguna sudah ada")
+        self.assertContains(response, "Silakan gunakan nama pengguna yang lain.")
+        # A free name: no dialog.
+        bebas = self.client.post(reverse("accounts:daftar_form") + "?matra=darat", {"daftar-username": "bebas"})
+        self.assertNotContains(bebas, "Nama pengguna sudah ada")

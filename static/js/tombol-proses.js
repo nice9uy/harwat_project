@@ -56,15 +56,16 @@
     if (!btn) return;
     mulai(btn);
     e.detail.elt._tombolProses = btn;
+    // When the request ends, whatever became of the element that sent it
+    // (see server-sibuk.js: htmx's own events don't reach document from an
+    // element the answer replaced).
+    if (e.detail.xhr) {
+      e.detail.xhr.addEventListener('loadend', () => {
+        selesai(btn);
+        delete e.detail.elt._tombolProses;
+      }, { once: true });
+    }
   });
-  ['htmx:afterRequest', 'htmx:sendError', 'htmx:timeout', 'htmx:abort'].forEach((nama) =>
-    document.addEventListener(nama, (e) => {
-      const elt = e.detail.elt;
-      if (elt && elt._tombolProses) {
-        selesai(elt._tombolProses);
-        delete elt._tombolProses;
-      }
-    }));
 
   // A form submitted (after the browser's own validation): plain forms leave
   // the page; htmx forms are handled above; a submit some script cancels for
