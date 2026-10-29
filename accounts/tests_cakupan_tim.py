@@ -27,6 +27,9 @@ class CakupanTimTests(TestCase):
             Anggota.objects.get(pk=node.pk).add_child(user=_akun(f"tim{i}", "Tim Pemeriksaan"))
 
     def _hitung(self, url):
+        from accounts import keamanan
+        keamanan._muat_blokir()  # read once and kept: not part of what a page costs
+        keamanan.pemeliharaan()
         with CaptureQueriesContext(connection) as q:
             self.assertEqual(self.client.get(url).status_code, 200)
         return len(q)

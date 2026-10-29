@@ -52,6 +52,10 @@ def menu(request):
     return {
         # Sign-ups waiting for activation: the badge on Aktivasi Ketua Tim.
         "aktivasi_menunggu": aktivasi_menunggu,
+        # Settings menus of a Ketua Tim and the Tim members (roles.MENU_LAPANGAN).
+        "menu_lapangan": [("shortcut", "Shortcut"), ("hapus_cache", "Hapus Cache")],
+        # Settings menus of a superuser only (roles.MENU_SUPERUSER).
+        "menu_keamanan": [("keamanan", "Hacking Activity"), ("pemeliharaan", "Maintenance")],
         "menu_boleh": boleh,
         "menu_aktif": menu_aktif,
         "profil_belum_isi": profil_belum_isi,
@@ -71,7 +75,7 @@ def css_version(request):
     except (TypeError, OSError):
         versi = {"css_version": ""}
     # Same for the app's own scripts (static/js/*.js), which change with features.
-    js = [finders.find(f"js/{nama}") for nama in ("qr-scan.js", "autocomplete.js", "datepicker.js", "kompres-foto.js", "skeleton.js", "geser.js", "modal-halus.js", "tombol-proses.js", "server-sibuk.js", "pilih-foto.js")]
+    js = [finders.find(f"js/{nama}") for nama in ("qr-scan.js", "autocomplete.js", "datepicker.js", "kompres-foto.js", "skeleton.js", "geser.js", "modal-halus.js", "tombol-proses.js", "server-sibuk.js", "pilih-foto.js", "pwa.js")]
     try:
         versi["js_version"] = max(int(os.path.getmtime(p)) for p in js if p)
     except (ValueError, OSError):

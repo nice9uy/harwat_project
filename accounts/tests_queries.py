@@ -57,6 +57,11 @@ class QueryCountTests(TestCase):
         return hasil
 
     def _hitung(self, url, params=None):
+        # The blacklist and maintenance state, read once and kept (accounts.keamanan):
+        # not part of what a page costs.
+        from accounts import keamanan
+        keamanan._muat_blokir()
+        keamanan.pemeliharaan()
         with CaptureQueriesContext(connection) as ctx:
             response = self.client.get(url, params or {})
         self.assertIn(response.status_code, (200, 302), url)

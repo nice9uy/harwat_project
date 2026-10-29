@@ -43,7 +43,7 @@ class FormRusakTests(TestCase):
         self.assertContains(halaman, f'href="{self.url}"')
         self.assertEqual(roles.keanggotaan_kode(self.teknisi), "tim_tidak_layak")
         self.assertIn("tim_tidak_layak", roles.TIM)
-        self.assertEqual(roles.MENU_PER_KEANGGOTAAN["tim_tidak_layak"], ["info_profile", "rusak", "history", "status"])
+        self.assertEqual(roles.MENU_PER_KEANGGOTAAN["tim_tidak_layak"], ["info_profile", "rusak", "history", "status", "shortcut", "hapus_cache"])
         # The other Tim roles don't have the form.
         for i, group in enumerate(("Tim Penambahan Data", "Tim Pemeriksaan", "Tim Perbaikan")):
             lain = User.objects.create_user(username=f"lain{i}", password="rahasia-123")

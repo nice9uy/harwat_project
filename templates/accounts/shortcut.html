@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Shortcut — Harwat{% endblock %}
+{% block page_title %}Shortcut{% endblock %}
+{% block content %}
+{% comment %}
+The app on the phone's home screen (accounts/pwa.py): the browser's own
+install button where it offers one, else how to add the icon by hand.
+{% endcomment %}
+<div class="mx-auto max-w-xl space-y-4"
+     x-data="{
+        terpasang: window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true,
+        bisa: !!window.harwatPasang,
+        aman: window.isSecureContext,
+        hp: /iphone|ipad|ipod/i.test(navigator.userAgent) ? 'ios' : 'android',
+        alamatHttps() { const p = location.port === '8000' ? ':8443' : (location.port ? ':' + location.port : ''); return 'https://' + location.hostname + p + '/shortcut/'; },
+        async pasang() {
+            const tawaran = window.harwatPasang;
+            if (!tawaran) return;
+            tawaran.prompt();
+            const hasil = await tawaran.userChoice;
+            if (hasil.outcome === 'accepted') this.terpasang = true;
+            window.harwatPasang = null; this.bisa = false;
+        },
+     }"
+     @harwat-bisa-dipasang.document="bisa = true"
+     @harwat-terpasang.document="terpasang = true; bisa = false">
+
+    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div class="h-1 w-full bg-gradient-to-r from-navy via-gold to-navy" aria-hidden="true"></div>
+        <div class="flex items-center gap-4 p-5">
+            <img src="{% static 'img/ikon-192.png' %}" alt="" class="h-16 w-16 shrink-0 rounded-2xl shadow-lg shadow-navy/40">
+            <div class="min-w-0">
+                <h2 class="text-lg font-semibold text-navy dark:text-slate-100">Pasang Harwat di layar utama</h2>
+                <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Buka Harwat langsung dari ikon di HP, layar penuh seperti aplikasi, tanpa membuka browser dan mengetik alamat.</p>
+            </div>
+        </div>
+
+        <div class="border-t border-slate-200 p-5 dark:border-slate-700">
+            {# Already opened from the icon. #}
+            <div x-show="terpasang" x-cloak class="flex items-center gap-3 rounded-xl bg-green-50 p-4 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                {% include "_ikon_dialog.html" with jenis="sukses" %}
+                <span><span class="font-semibold">Harwat sudah terpasang.</span> Buka dari ikon Harwat di layar utama HP Anda.</span>
+            </div>
+
+            {# The browser offers to install: one tap. #}
+            <div x-show="!terpasang && bisa" x-cloak>
+                <button type="button" @click="pasang()" data-tanpa-proses
+                        class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                    Pasang Sekarang
+                </button>
+                <p class="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">Ikon Harwat akan muncul di layar utama.</p>
+            </div>
+
+            {# By hand. #}
+            <div x-show="!terpasang && !bisa" x-cloak class="space-y-4">
+                <div class="inline-flex w-full overflow-hidden rounded-lg border border-slate-200 text-sm font-medium dark:border-slate-700">
+                    <button type="button" @click="hp = 'android'" data-tanpa-proses class="flex-1 px-4 py-2" :class="hp === 'android' ? 'bg-navy text-white dark:bg-gold dark:text-navy' : 'text-slate-500 dark:text-slate-400'">Android</button>
+                    <button type="button" @click="hp = 'ios'" data-tanpa-proses class="flex-1 border-l border-slate-200 px-4 py-2 dark:border-slate-700" :class="hp === 'ios' ? 'bg-navy text-white dark:bg-gold dark:text-navy' : 'text-slate-500 dark:text-slate-400'">iPhone</button>
+                </div>
+                <ol x-show="hp === 'android'" class="space-y-3 text-sm text-slate-700 dark:text-slate-200">
+                    <li class="flex gap-3"><span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold/20 text-xs font-bold text-gold">1</span><span>Buka Harwat di <span class="font-semibold">Chrome</span>.</span></li>
+                    <li class="flex gap-3"><span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold/20 text-xs font-bold text-gold">2</span><span>Ketuk menu <span class="font-semibold">⋮</span> di kanan atas.</span></li>
+                    <li class="flex gap-3"><span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold/20 text-xs font-bold text-gold">3</span><span>Pilih <span class="font-semibold">Instal aplikasi</span> atau <span class="font-semibold">Tambahkan ke layar utama</span>, lalu <span class="font-semibold">Tambahkan</span>.</span></li>
+                </ol>
+                <ol x-show="hp === 'ios'" x-cloak class="space-y-3 text-sm text-slate-700 dark:text-slate-200">
+                    <li class="flex gap-3"><span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold/20 text-xs font-bold text-gold">1</span><span>Buka Harwat di <span class="font-semibold">Safari</span>.</span></li>
+                    <li class="flex gap-3"><span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold/20 text-xs font-bold text-gold">2</span><span>Ketuk tombol <span class="font-semibold">Bagikan</span> (kotak dengan panah ke atas) di bawah layar.</span></li>
+                    <li class="flex gap-3"><span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold/20 text-xs font-bold text-gold">3</span><span>Pilih <span class="font-semibold">Tambah ke Layar Utama</span>, lalu <span class="font-semibold">Tambah</span>.</span></li>
+                </ol>
+
+                {# Over plain HTTP a phone only makes a bookmark-like icon (it opens in the browser). #}
+                <div x-show="!aman" x-cloak class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                    <p class="font-semibold">Agar terbuka layar penuh seperti aplikasi</p>
+                    <p class="mt-1">Buka Harwat lewat alamat <span class="font-semibold">HTTPS</span>, lalu pasang dari sana. Sekali saja, pasang dulu sertifikat keamanannya di HP:</p>
+                    <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+                        <a :href="alamatHttps().replace('/shortcut/', '/rootCA.pem')" hx-boost="false" class="inline-flex flex-1 items-center justify-center rounded-md border border-amber-300 px-3 py-2 font-medium hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900/40">1. Unduh sertifikat</a>
+                        <a :href="alamatHttps()" hx-boost="false" class="inline-flex flex-1 items-center justify-center rounded-md bg-amber-600 px-3 py-2 font-medium text-white hover:bg-amber-700">2. Buka versi HTTPS</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1092,3 +1092,84 @@ class GagalLogin(models.Model):
 
     def __str__(self):
         return f"{self.kunci} ({self.jumlah})"
+
+
+class AktivitasMencurigakan(models.Model):
+    """A request that looked like an attack, or a security event (failed
+    logins, a locked account, a blocked address), for the Hacking Activity
+    menu (accounts.keamanan). Kept for KEAMANAN_SIMPAN_HARI days."""
+
+    class Jenis(models.TextChoices):
+        PEMINDAIAN = "pemindaian", "Pemindaian celah"
+        SQL_INJECTION = "sql_injection", "SQL injection"
+        XSS = "xss", "Cross-site scripting (XSS)"
+        ALAT_PERETAS = "alat_peretas", "Alat peretas"
+        LOGIN_GAGAL = "login_gagal", "Login gagal"
+        LOGIN_TERKUNCI = "login_terkunci", "Login dikunci"
+        AKSES_ADMIN = "akses_admin", "Akses admin ditolak"
+        CSRF = "csrf", "Token CSRF tidak sah"
+        DAFTAR_SPAM = "daftar_spam", "Spam pendaftaran"
+        IP_DIBLOKIR = "ip_diblokir", "IP diblokir otomatis"
+
+    class Tingkat(models.TextChoices):
+        RENDAH = "rendah", "Rendah"
+        SEDANG = "sedang", "Sedang"
+        TINGGI = "tinggi", "Tinggi"
+
+    waktu = models.DateTimeField(auto_now_add=True, db_index=True)
+    ip = models.GenericIPAddressField(db_index=True)
+    jenis = models.CharField(max_length=20, choices=Jenis.choices)
+    tingkat = models.CharField(max_length=10, choices=Tingkat.choices, default=Tingkat.SEDANG)
+    metode = models.CharField(max_length=10, blank=True)
+    path = models.CharField(max_length=500, blank=True)
+    user_agent = models.CharField(max_length=300, blank=True)
+    user = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    detail = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        ordering = ["-waktu", "-id"]
+        verbose_name = "Aktivitas Mencurigakan"
+        verbose_name_plural = "Aktivitas Mencurigakan"
+        indexes = [models.Index(fields=["ip", "waktu"])]
+
+    def __str__(self):
+        return f"{self.waktu:%Y-%m-%d %H:%M} {self.ip} {self.get_jenis_display()}"
+
+
+class IpBlokir(models.Model):
+    """An address (or range, CIDR) refused at the door (accounts.keamanan):
+    by a superuser on Hacking Activity, or by itself after repeated attacks
+    (otomatis, until ``sampai``)."""
+
+    alamat = models.CharField(max_length=50, unique=True, help_text="IP atau rentang CIDR, mis. 203.0.113.7 atau 203.0.113.0/24")
+    alasan = models.CharField(max_length=200, blank=True)
+    otomatis = models.BooleanField(default=False)
+    sampai = models.DateTimeField(null=True, blank=True, help_text="Kosong: selamanya")
+    dibuat_pada = models.DateTimeField(auto_now_add=True)
+    dibuat_oleh = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+
+    class Meta:
+        ordering = ["-dibuat_pada"]
+        verbose_name = "IP Diblokir"
+        verbose_name_plural = "IP Diblokir"
+
+    def __str__(self):
+        return self.alamat
+
+
+class Pemeliharaan(models.Model):
+    """Maintenance mode (one row): while on, everyone but a superuser gets the
+    maintenance page (accounts.keamanan.PemeliharaanMiddleware)."""
+
+    aktif = models.BooleanField(default=False)
+    pesan = models.CharField(max_length=300, blank=True)
+    perkiraan_selesai = models.DateTimeField(null=True, blank=True)
+    diubah_pada = models.DateTimeField(auto_now=True)
+    diubah_oleh = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+
+    class Meta:
+        verbose_name = "Pemeliharaan"
+        verbose_name_plural = "Pemeliharaan"
+
+    def __str__(self):
+        return "Aktif" if self.aktif else "Tidak aktif"

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load tz %}
+{% block title %}Maintenance — Harwat{% endblock %}
+{% block page_title %}Maintenance{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-xl" x-data="{ aktif: {{ baris.aktif|yesno:'true,false' }} }">
+    <form method="post" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        {% csrf_token %}
+        <div class="h-1 w-full" :class="aktif ? 'bg-amber-500' : 'bg-green-500'" aria-hidden="true"></div>
+        <div class="space-y-5 p-5">
+            <div class="flex items-center gap-3">
+                {% include "_ikon_dialog.html" with jenis="peringatan" %}
+                <div>
+                    <h2 class="text-lg font-semibold text-navy dark:text-slate-100">Mode maintenance</h2>
+                    <p class="text-sm" :class="aktif ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'"
+                       x-text="aktif ? 'Aktif: hanya superuser yang bisa memakai aplikasi' : 'Tidak aktif: aplikasi terbuka untuk semua'"></p>
+                </div>
+            </div>
+            <label class="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+                <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Nyalakan maintenance</span>
+                <input type="hidden" name="aktif" :value="aktif ? '1' : '0'">
+                <button type="button" role="switch" :aria-checked="aktif" @click="aktif = !aktif" data-tanpa-proses
+                        class="relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors" :class="aktif ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-600'">
+                    <span class="inline-block h-5 w-5 rounded-full bg-white shadow transition-transform" :class="aktif ? 'translate-x-6' : 'translate-x-1'"></span>
+                </button>
+            </label>
+            <div>
+                <label for="m-pesan" class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Pesan untuk pengguna</label>
+                <textarea id="m-pesan" name="pesan" rows="3" placeholder="Mis.: Sedang ada pembaruan sistem, aplikasi bisa dipakai lagi sekitar pukul 22.00."
+                          class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">{{ baris.pesan }}</textarea>
+            </div>
+            <div>
+                <label for="m-selesai" class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Perkiraan selesai <span class="font-normal text-slate-500">(opsional)</span></label>
+                <input id="m-selesai" type="datetime-local" name="perkiraan_selesai" value="{% if baris.perkiraan_selesai %}{{ baris.perkiraan_selesai|localtime|date:'Y-m-d\TH:i' }}{% endif %}"
+                       class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+            </div>
+            {% if baris.diubah_oleh %}<p class="text-xs text-slate-500 dark:text-slate-400">Terakhir diubah {{ baris.diubah_pada|localtime|date:"d-m-Y H:i" }} oleh {{ baris.diubah_oleh.username }}.</p>{% endif %}
+            <button type="submit" class="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700">Simpan</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

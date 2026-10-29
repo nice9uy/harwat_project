@@ -7,6 +7,8 @@
     <title>Masuk — Harwat</title>
     <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
     <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
+    <link rel="manifest" href="{% url 'manifest' %}">
+    <meta name="theme-color" content="#0B1F3A">
     {% include "_theme_init.html" %}
     <link rel="stylesheet" href="{% static 'dist/output.css' %}?v={{ css_version }}">
     <link rel="preload" as="image" href="{% static 'img/login-gedung-kemhan.webp' %}" type="image/webp">
@@ -17,6 +19,7 @@
     <script src="{% static 'js/server-sibuk.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/kompres-foto.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/pilih-foto.js' %}?v={{ js_version }}" defer></script>
+    <script src="{% static 'js/pwa.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/modal-halus.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'vendor/alpinejs.min.js' %}" defer></script>
 </head>

@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from django.conf import settings
 from django.contrib.auth import aauthenticate
 
@@ -16,6 +18,10 @@ from django_bolt.middleware import rate_limit
 from django_bolt.serializers import Serializer
 
 api = BoltAPI()
+
+from django_bolt.param_functions import Cookie, Header  # noqa: E402
+
+from .keamanan import tolak_bila_diblokir  # noqa: E402
 
 revocation_store = DjangoORMRevocation(model="accounts.RevokedToken")
 
@@ -39,7 +45,9 @@ class DetailResponse(Serializer):
 # Password guessing is slowed down: a few tries a second per address.
 @api.post("/auth/login", tags=["auth"])
 @rate_limit(rps=2, burst=10, key="ip")
-async def login(request, credentials: LoginCredentials) -> TokenPairResponse:
+async def login(request, credentials: LoginCredentials, x_real_ip: Annotated[str | None, Header(alias="x-real-ip")] = None) -> TokenPairResponse:
+    # These Bolt routes don't pass Django's middleware: the blacklist is checked here.
+    await tolak_bila_diblokir(x_real_ip)
     user = await aauthenticate(username=credentials.username, password=credentials.password)
     if user is None or not user.is_active:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -52,7 +60,8 @@ async def login(request, credentials: LoginCredentials) -> TokenPairResponse:
 
 
 @api.post("/auth/refresh", auth=[refresh_auth], guards=[IsAuthenticated()], tags=["auth"])
-async def refresh(request) -> TokenPairResponse:
+async def refresh(request, x_real_ip: Annotated[str | None, Header(alias="x-real-ip")] = None) -> TokenPairResponse:
+    await tolak_bila_diblokir(x_real_ip)
     try:
         pair = await rotate_refresh_token(
             request["context"]["auth_claims"],
@@ -84,13 +93,12 @@ async def logout(request) -> DetailResponse:
 UMUR_ALIRAN = 30 * 60
 
 
-async def _pengguna_sesi(request):
-    """The signed-in user of the app's session cookie, or None."""
+async def _pengguna_sesi(kunci):
+    """The signed-in user of the app's session cookie (its value: ``kunci``), or None."""
     from importlib import import_module
 
     from django.contrib.auth import aget_user
 
-    kunci = request.cookies.get(settings.SESSION_COOKIE_NAME)
     if not kunci:
         return None
 
@@ -134,7 +142,12 @@ async def _lencana_bersama(matra):
 
 
 @api.get("/sse/aktivasi", tags=["realtime"])
-async def sse_aktivasi(request):
+async def sse_aktivasi(
+    request,
+    # Bolt hands a route only the headers and cookies it declares.
+    x_real_ip: Annotated[str | None, Header(alias="x-real-ip")] = None,
+    sesi: Annotated[str | None, Cookie(alias=settings.SESSION_COOKIE_NAME)] = None,
+):
     """The Aktivasi Ketua Tim badge, live: its count now, then again on every
     sign-up, activation or deletion of a Ketua Tim."""
     import asyncio
@@ -146,9 +159,12 @@ async def sse_aktivasi(request):
 
     from .aktivasi import _matra_admin
 
-    user = await _pengguna_sesi(request)
+    await tolak_bila_diblokir(x_real_ip)
+    user = await _pengguna_sesi(sesi)
     if user is None or "aktivasi_ketua_tim" not in await sync_to_async(roles.allowed_menus)(user):
         raise HTTPException(status_code=403, detail="Forbidden")
+    # A superuser's open Hacking Activity page refreshes on every new event.
+    superuser = user.is_superuser
     matra = await sync_to_async(_matra_admin)(user)  # "" for a superuser: every matra
 
     async def aliran():
@@ -158,6 +174,8 @@ async def sse_aktivasi(request):
                 async for topik in realtime.langganan():
                     if topik == "aktivasi":
                         yield ServerSentEvent(raw_data=await _lencana_bersama(matra), event="aktivasi")
+                    elif topik == "keamanan" and superuser:
+                        yield ServerSentEvent(raw_data="1", event="keamanan")
         except TimeoutError:
             return
 

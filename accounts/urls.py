@@ -2,7 +2,7 @@ from django.urls import path
 from django.views.generic import RedirectView
 
 from . import (
-    aktivasi, backup, daftar, form_group, km_jadwal, laporan, laporan_hapus, laporan_pdf, laporan_tim, non_kendaraan, pimpinan_tim, rusak, satuan_io, server, status,
+    aktivasi, backup, daftar, form_group, km_jadwal, laporan, laporan_hapus, laporan_pdf, laporan_tim, keamanan_views, non_kendaraan, pimpinan_tim, pwa, rusak, satuan_io, server, status,
     views,
 )
 
@@ -34,6 +34,14 @@ urlpatterns = [
     path("perbaikan/", views.perbaikan_view, name="perbaikan"),
     path("perbaikan/kendaraan/", views.perbaikan_kendaraan_view, name="perbaikan_kendaraan"),
     path("pengaturan/", views.pengaturan_view, name="pengaturan"),
+    path("shortcut/", pwa.shortcut_view, name="shortcut"),
+    path("keamanan/", keamanan_views.aktivitas_view, name="keamanan"),
+    path("keamanan/isi/", keamanan_views.aktivitas_tabel, name="keamanan_isi"),
+    path("keamanan/blokir/", keamanan_views.blokir_tambah, name="blokir_tambah"),
+    path("keamanan/blokir/<int:pk>/hapus/", keamanan_views.blokir_hapus, name="blokir_hapus"),
+    path("pemeliharaan/", keamanan_views.pemeliharaan_view, name="pemeliharaan"),
+    path("hapus-cache/", pwa.hapus_cache_view, name="hapus_cache"),
+    path("hapus-cache/server/", pwa.hapus_cache_server_view, name="hapus_cache_server"),
     path("backup/", backup.backup_view, name="backup"),
     path("backup/buat/", backup.backup_buat, name="backup_buat"),
     path("backup/unggah/", backup.backup_unggah, name="backup_unggah"),

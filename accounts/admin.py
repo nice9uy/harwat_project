@@ -4,6 +4,9 @@ from treebeard.admin import TreeAdmin
 from treebeard.forms import movenodeform_factory
 
 from .models import (
+    AktivitasMencurigakan,
+    IpBlokir,
+    Pemeliharaan,
     DraftPerbaikan,
     KendaraanRusak,
     BawahanPimpinan,
@@ -361,3 +364,23 @@ class DraftPerbaikanAdmin(admin.ModelAdmin):
 class GagalLoginAdmin(admin.ModelAdmin):
     list_display = ["kunci", "jumlah", "sejak", "terkunci_sampai"]
     search_fields = ["kunci"]
+
+
+@admin.register(AktivitasMencurigakan)
+class AktivitasMencurigakanAdmin(admin.ModelAdmin):
+    list_display = ["waktu", "ip", "jenis", "tingkat", "metode", "path", "user"]
+    list_filter = ["jenis", "tingkat"]
+    search_fields = ["ip", "path", "user_agent", "detail"]
+    date_hierarchy = "waktu"
+
+
+@admin.register(IpBlokir)
+class IpBlokirAdmin(admin.ModelAdmin):
+    list_display = ["alamat", "alasan", "otomatis", "sampai", "dibuat_pada", "dibuat_oleh"]
+    list_filter = ["otomatis"]
+    search_fields = ["alamat", "alasan"]
+
+
+@admin.register(Pemeliharaan)
+class PemeliharaanAdmin(admin.ModelAdmin):
+    list_display = ["aktif", "pesan", "perkiraan_selesai", "diubah_pada", "diubah_oleh"]

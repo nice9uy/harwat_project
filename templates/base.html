@@ -7,6 +7,13 @@
     <title>{% block title %}Harwat{% endblock %}</title>
     <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
     <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
+    {# The app on a phone's home screen (accounts/pwa.py, menu Shortcut). #}
+    <link rel="manifest" href="{% url 'manifest' %}">
+    <meta name="theme-color" content="#0B1F3A">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Harwat">
     {% include "_theme_init.html" %}
     {% comment %}
     htmx "settles" an element that keeps its id across a boosted page swap by
@@ -25,6 +32,7 @@
     <script src="{% static 'js/server-sibuk.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/kompres-foto.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/pilih-foto.js' %}?v={{ js_version }}" defer></script>
+    <script src="{% static 'js/pwa.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/skeleton.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/geser.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/modal-halus.js' %}?v={{ js_version }}" defer></script>
@@ -209,6 +217,20 @@ body, which a boosted page change keeps: the stream stays open across pages.
                     Form Group
                 </a>
                 {% endif %}
+                {% for kunci, label in menu_lapangan %}{% if kunci in menu_boleh %}
+                <a href="{% url 'accounts:'|add:kunci %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if menu_aktif == kunci %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                    {% include "_menu_icon.html" with kunci=kunci %}
+                    {{ label }}
+                </a>
+                {% endif %}{% endfor %}
+                {# Every user can change their own password. #}
+                <a href="{% url 'accounts:ganti_password' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:ganti_password' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                    {% include "_menu_icon.html" with kunci="ganti_password" %}
+                    Ganti Password
+                </a>
+                {% if 'server' in menu_boleh or 'backup' in menu_boleh or 'keamanan' in menu_boleh or 'pemeliharaan' in menu_boleh or request.user.is_superuser %}
+                {# The server's own care: its containers, backups, attacks, maintenance and Django admin (superuser). #}
+                <p class="px-3 pt-4 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Server</p>
                 {% if 'server' in menu_boleh %}
                 <a href="{% url 'accounts:server' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:server' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
                     {% include "_menu_icon.html" with kunci="server" %}
@@ -221,11 +243,12 @@ body, which a boosted page change keeps: the stream stays open across pages.
                     Backup
                 </a>
                 {% endif %}
-                {# Every user can change their own password. #}
-                <a href="{% url 'accounts:ganti_password' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:ganti_password' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
-                    {% include "_menu_icon.html" with kunci="ganti_password" %}
-                    Ganti Password
+                {% for kunci, label in menu_keamanan %}{% if kunci in menu_boleh %}
+                <a href="{% url 'accounts:'|add:kunci %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if menu_aktif == kunci %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
+                    {% include "_menu_icon.html" with kunci=kunci %}
+                    {{ label }}
                 </a>
+                {% endif %}{% endfor %}
                 {# Django admin is for superusers only (SuperuserOnlyAdminMiddleware), so is its menu. #}
                 {% if request.user.is_superuser %}
                 <a href="{% url 'admin:index' %}" class="flex items-center gap-2 rounded-md px-3 py-2 text-slate-200 hover:bg-white/5" target="_blank">
@@ -235,6 +258,7 @@ body, which a boosted page change keeps: the stream stays open across pages.
                     </svg>
                     Admin Panel
                 </a>
+                {% endif %}
                 {% endif %}
             </nav>
             <div class="shrink-0 border-t border-white/10 px-3 py-3">

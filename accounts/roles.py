@@ -162,16 +162,24 @@ MENU_VIEWS = {
         "accounts:form_group", "accounts:form_group_lihat", "accounts:form_group_tambah",
         "accounts:form_group_hapus",
     },
+    # Hacking Activity (attacks, IP blacklist) and Maintenance (accounts/keamanan.py).
+    "keamanan": {"accounts:keamanan", "accounts:keamanan_isi", "accounts:blokir_tambah", "accounts:blokir_hapus"},
+    "pemeliharaan": {"accounts:pemeliharaan"},
+    # The app on the phone's home screen, and clearing its caches (accounts/pwa.py).
+    "shortcut": {"accounts:shortcut"},
+    "hapus_cache": {"accounts:hapus_cache", "accounts:hapus_cache_server"},
 }
 ALL_MENUS = frozenset(MENU_VIEWS)
 
 # Menus only a superuser sees.
-MENU_SUPERUSER = frozenset({"form_group", "server", "backup", "armada", "non_kendaraan"})
+MENU_SUPERUSER = frozenset({"form_group", "server", "backup", "armada", "non_kendaraan", "keamanan", "pemeliharaan"})
 # Menus only the Tim roles (their own work in progress), the admins (their
 # Tim members' work) and superusers (every Tim member's) see.
 MENU_TIM = frozenset({"status"})
 # Menus only a superuser and an Admin see.
 MENU_ADMIN = frozenset({"aktivasi_ketua_tim"})
+# Menus only a Ketua Tim and the Tim members see: the app on their phone.
+MENU_LAPANGAN = frozenset({"shortcut", "hapus_cache"})
 
 # The forms of Form Tambah a Tim Penambahan Data member can be given in Form
 # Group: the vehicle groups (fleet Vehicle.GroupKendaraan values) and the
@@ -193,13 +201,13 @@ FORM_TAMBAH = [
 MENU_PER_KEANGGOTAAN = {
     # Admins see everything except the three Tim forms (dashboard first: it's home).
     **dict.fromkeys(ADMIN, ["dashboard"] + [
-        m for m in MENU_VIEWS if m not in {"dashboard", "pemeriksaan", "form_tambah", "perbaikan", "rusak"}
+        m for m in MENU_VIEWS if m not in {"dashboard", "pemeriksaan", "form_tambah", "perbaikan", "rusak"} | MENU_LAPANGAN
     ]),
     # A Pimpinan sees every menu but the Tim forms, Status and Pengaturan
     # (and the superuser's menus, taken out for every role).
     "pimpinan": ["dashboard"] + [
         m for m in MENU_VIEWS
-        if m not in {"dashboard", "pemeriksaan", "form_tambah", "perbaikan", "rusak", "pengaturan"} | MENU_TIM | MENU_ADMIN
+        if m not in {"dashboard", "pemeriksaan", "form_tambah", "perbaikan", "rusak", "pengaturan"} | MENU_TIM | MENU_ADMIN | MENU_LAPANGAN
     ],
     # A Pimpinan Tim looks at their teams; they don't manage users or forms.
     PIMPINAN_TIM: [
@@ -209,12 +217,12 @@ MENU_PER_KEANGGOTAAN = {
     # A Ketua Tim sees what each of the three Tim roles sees.
     KETUA_TIM: [
         "info_profile", "dashboard", "history", "anggota_tim", "laporan_pemeriksaan", "laporan_perbaikan",
-        "laporan_rusak", "laporan_penambahan", "laporan_tim",
+        "laporan_rusak", "laporan_penambahan", "laporan_tim", "shortcut", "hapus_cache",
     ],
-    "tim_pemeriksaan": ["info_profile", "pemeriksaan", "history", "status"],
-    "tim_penambahan_data": ["info_profile", "form_tambah", "history", "status"],
-    "tim_perbaikan": ["info_profile", "perbaikan", "history", "status"],
-    "tim_tidak_layak": ["info_profile", "rusak", "history", "status"],
+    "tim_pemeriksaan": ["info_profile", "pemeriksaan", "history", "status", "shortcut", "hapus_cache"],
+    "tim_penambahan_data": ["info_profile", "form_tambah", "history", "status", "shortcut", "hapus_cache"],
+    "tim_perbaikan": ["info_profile", "perbaikan", "history", "status", "shortcut", "hapus_cache"],
+    "tim_tidak_layak": ["info_profile", "rusak", "history", "status", "shortcut", "hapus_cache"],
 }
 
 # Where each menu's page lives, used to send a user to their first menu.
@@ -254,9 +262,9 @@ def allowed_menus(user):
     if not user.is_authenticated:
         return frozenset()
     if user.is_superuser:
-        return ALL_MENUS
+        return ALL_MENUS - MENU_LAPANGAN
     menus = _menu_user(user)
-    return frozenset(menus) if menus else ALL_MENUS - MENU_SUPERUSER - MENU_TIM - MENU_ADMIN
+    return frozenset(menus) if menus else ALL_MENUS - MENU_SUPERUSER - MENU_TIM - MENU_ADMIN - MENU_LAPANGAN
 
 
 def home_view_name(user):

@@ -53,9 +53,16 @@ def catat_gagal(request, username):
                 baris.jumlah, baris.sejak, baris.terkunci_sampai = 0, sekarang, None
             baris.jumlah += 1
             batas = BATAS_IP if kunci.startswith("ip:") else BATAS_USERNAME
-            if baris.jumlah >= batas:
+            terkunci = baris.jumlah >= batas
+            if terkunci:
                 baris.terkunci_sampai = sekarang + KUNCI
             baris.save()
+    # Hacking Activity: every failure, and a lock as a heavier one.
+    from .keamanan import catat
+    from .models import AktivitasMencurigakan as A
+    catat(request, A.Jenis.LOGIN_GAGAL, A.Tingkat.RENDAH, f"Nama pengguna: {username[:100]}")
+    if terkunci:
+        catat(request, A.Jenis.LOGIN_TERKUNCI, A.Tingkat.TINGGI, f"Dikunci {int(KUNCI.total_seconds() // 60)} menit: {username[:100]}")
 
 
 def catat_berhasil(username):
@@ -94,5 +101,9 @@ def catat_daftar(request):
             baris.jumlah, baris.sejak, baris.terkunci_sampai = 0, sekarang, None
         baris.jumlah += 1
         if baris.jumlah >= BATAS_DAFTAR:
+            if not baris.terkunci_sampai:
+                from .keamanan import catat
+                from .models import AktivitasMencurigakan as A
+                catat(request, A.Jenis.DAFTAR_SPAM, A.Tingkat.SEDANG, f"{baris.jumlah} kali kirim form Daftar dalam 15 menit")
             baris.terkunci_sampai = sekarang + KUNCI
         baris.save()

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Hacking Activity — Harwat{% endblock %}
+{% block page_title %}Hacking Activity{% endblock %}
+{% block content %}
+{% comment %}
+Attacks and security events (accounts.keamanan), live: every new event makes
+the page fetch its content again (the "keamanan" event of the SSE stream).
+{% endcomment %}
+<div id="keamanan-isi" hx-get="{% url 'accounts:keamanan_isi' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
+     hx-trigger="sse:keamanan throttle:2s" hx-swap="innerHTML">
+    {% include "keamanan/_aktivitas_isi.html" %}
+</div>
+{% endblock %}

@@ -1,9 +1,12 @@
+from typing import Annotated
+
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
 from django_bolt import BoltAPI
+from django_bolt.param_functions import Header
 from django_bolt.auth import IsAuthenticated, JWTAuthentication, extract_user_id_from_context
 from django_bolt.exceptions import HTTPException
 from django_bolt.serializers import Serializer, field
@@ -96,5 +99,8 @@ class VehicleViewSet(ListMixin, RetrieveMixin, CreateMixin, UpdateMixin, Destroy
 
 
 @api.get("/api/fleet/summary", auth=[access_auth], guards=[IsAuthenticated()])
-async def fleet_summary(request) -> FleetSummaryResponse:
+async def fleet_summary(request, x_real_ip: Annotated[str | None, Header(alias="x-real-ip")] = None) -> FleetSummaryResponse:
+    from accounts.keamanan import tolak_bila_diblokir  # accounts depends on fleet, not the other way round
+
+    await tolak_bila_diblokir(x_real_ip)
     return await sync_to_async(get_fleet_summary)()

@@ -1,0 +1,19 @@
+{% load static tz %}<!DOCTYPE html>
+<html lang="id" class="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sedang dalam pemeliharaan — Harwat</title><link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
+<link rel="stylesheet" href="{% static 'dist/output.css' %}"><meta http-equiv="refresh" content="60"></head>
+<body class="flex min-h-screen items-center justify-center bg-navy px-4 text-slate-100">
+    <div class="w-full max-w-md overflow-hidden rounded-2xl border border-gold/30 bg-slate-900/60 text-center shadow-2xl">
+        <div class="h-1 w-full bg-gradient-to-r from-navy via-gold to-navy" aria-hidden="true"></div>
+        <div class="px-6 pb-8 pt-8">
+            <img src="{% static 'img/kemhan_logo.png' %}" alt="" class="mx-auto h-16 w-16">
+            <div class="mx-auto mt-5 flex h-14 w-14 items-center justify-center rounded-full bg-gold/15 text-gold ring-8 ring-gold/5" aria-hidden="true">
+                <svg class="h-7 w-7 animate-[spin_6s_linear_infinite] motion-reduce:animate-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+            </div>
+            <h1 class="mt-4 text-xl font-semibold">Sedang dalam pemeliharaan</h1>
+            <p class="mt-2 text-sm leading-relaxed text-slate-300">{{ pemeliharaan.pesan|default:"Aplikasi sedang diperbarui. Silakan coba lagi beberapa saat lagi." }}</p>
+            {% if pemeliharaan.perkiraan_selesai %}<p class="mt-4 inline-block rounded-full bg-gold/15 px-3 py-1 text-xs font-medium text-gold">Perkiraan selesai: {{ pemeliharaan.perkiraan_selesai|localtime|date:"d-m-Y H:i" }} WIB</p>{% endif %}
+            <p class="mt-6 text-xs text-slate-500">Halaman ini memeriksa ulang otomatis setiap menit.</p>
+        </div>
+    </div>
+</body></html>

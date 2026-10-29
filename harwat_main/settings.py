@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -89,6 +90,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # First: a blacklisted address stops here; an attack-looking request is logged.
+    'accounts.keamanan.KeamananMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -96,6 +99,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'accounts.middleware.VpnAutoLoginMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    # Maintenance mode: everyone but a superuser gets the maintenance page.
+    'accounts.keamanan.PemeliharaanMiddleware',
     'accounts.middleware.WajibGantiPasswordMiddleware',
     'accounts.middleware.MenuAccessMiddleware',
     'accounts.middleware.SuperuserOnlyAdminMiddleware',
@@ -104,6 +109,13 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'harwat_main.urls'
+
+# A refused CSRF token is logged for Hacking Activity (accounts.keamanan).
+CSRF_FAILURE_VIEW = 'accounts.keamanan.csrf_gagal'
+# The blacklist and maintenance state are read again every few seconds; in the
+# test run only when a test changes them (their query count stays steady).
+if sys.argv[1:2] == ['test']:
+    KEAMANAN_SEGAR_DETIK = 3600
 
 TEMPLATES = [
     {

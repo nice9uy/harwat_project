@@ -18,8 +18,13 @@ from django.contrib import admin
 from django.urls import include, path
 
 from accounts.media import media_view
+from accounts.pwa import manifest_view, service_worker_view
 
 urlpatterns = [
+    # The app on a phone's home screen (accounts/pwa.py): at the root, so the
+    # service worker covers every page.
+    path('manifest.webmanifest', manifest_view, name='manifest'),
+    path('sw.js', service_worker_view, name='service_worker'),
     path('admin/', admin.site.urls),
     path('', include('accounts.urls')),
     path('armada/', include('fleet.urls')),

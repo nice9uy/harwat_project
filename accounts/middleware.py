@@ -53,6 +53,9 @@ class SuperuserOnlyAdminMiddleware:
 
     def __call__(self, request):
         if request.path.startswith("/admin/") and not _superuser(request.user):
+            from .keamanan import catat
+            from .models import AktivitasMencurigakan as A
+            catat(request, A.Jenis.AKSES_ADMIN, A.Tingkat.SEDANG, "Bukan superuser")
             raise Http404
         return self.get_response(request)
 
@@ -113,7 +116,7 @@ class VpnAutoLoginMiddleware:
 
 # Session key set at login when the password typed was roles.DEFAULT_PASSWORD.
 WAJIB_GANTI_PASSWORD = "wajib_ganti_password"
-_BOLEH_SEBELUM_GANTI = {"accounts:ganti_password", "accounts:logout", "accounts:login", "media"}
+_BOLEH_SEBELUM_GANTI = {"accounts:ganti_password", "accounts:logout", "accounts:login", "media", "manifest", "service_worker"}
 
 
 class WajibGantiPasswordMiddleware:
