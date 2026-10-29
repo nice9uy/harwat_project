@@ -43,3 +43,25 @@ class NamaDipakaiModalTests(TestCase):
         # A free name: no dialog.
         bebas = self.client.post(reverse("accounts:daftar_form") + "?matra=darat", {"daftar-username": "bebas"})
         self.assertNotContains(bebas, "Nama pengguna sudah ada")
+
+
+class DaftarDibatasiTests(TestCase):
+    """The public Daftar form tells whether a name is taken: sends are capped per IP."""
+
+    def test_after_the_cap_nothing_is_checked(self):
+        from django.urls import reverse
+
+        from accounts import batas_login
+
+        User.objects.create_user(username="ketua", password="rahasia-123")
+        url = reverse("accounts:daftar_form") + "?matra=darat"
+        for _ in range(batas_login.BATAS_DAFTAR):
+            self.client.post(url, {"daftar-username": "bebas"})
+        terkunci = self.client.post(url, {"daftar-username": "ketua"})
+        self.assertContains(terkunci, "Terlalu banyak percobaan pendaftaran")
+        self.assertNotContains(terkunci, "Nama pengguna sudah ada")
+        self.assertNotContains(terkunci, "sudah dipakai")
+        self.assertContains(terkunci, 'value="ketua"')  # what was typed stays
+        # Another address is not held up.
+        lain = self.client.post(url, {"daftar-username": "ketua"}, REMOTE_ADDR="10.9.9.9")
+        self.assertContains(lain, "Nama pengguna sudah ada")

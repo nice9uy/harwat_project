@@ -1,4 +1,7 @@
-<h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-2">{% if target.is_active %}Nonaktifkan{% else %}Aktifkan{% endif %} User</h2>
+<div class="mb-3 flex items-center gap-3">
+    {% if target.is_active %}{% include "_ikon_dialog.html" with jenis="nonaktif" %}{% else %}{% include "_ikon_dialog.html" with jenis="aktif" %}{% endif %}
+    <h2 class="text-lg font-semibold text-navy dark:text-slate-100">{% if target.is_active %}Nonaktifkan{% else %}Aktifkan{% endif %} User</h2>
+</div>
 <p class="text-sm text-slate-600 dark:text-slate-300">
     {% if target.is_active %}
     Nonaktifkan <span class="font-semibold text-navy dark:text-slate-100">{{ target.username }}</span> ({{ keanggotaan }})?

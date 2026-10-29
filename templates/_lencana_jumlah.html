@@ -1,9 +1,7 @@
 {% comment %}
-A count badge that draws the eye: a red pill with a soft ping around it.
-Params: jumlah, kelas (placement), label (what is counted, for screen readers),
-cincin (the ring matching the background, navy by default).
+A count badge that draws the eye: a red pill with a soft ping around it, or
+an empty placeholder at 0 (an SSE event needs some data to be delivered).
+Placed by its container, whose --cincin-lencana sets the ring to match the
+background. Param: jumlah. Also sent live by accounts.api.sse_aktivasi.
 {% endcomment %}
-<span class="{{ kelas }} relative inline-flex shrink-0" role="status" aria-label="{{ jumlah }} {{ label }}">
-    <span class="absolute inset-0 animate-ping rounded-full bg-red-500/60 motion-reduce:hidden" aria-hidden="true"></span>
-    <span class="relative inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold leading-none text-white shadow-md shadow-red-900/40 ring-2 {{ cincin|default:"ring-navy" }} tabular-nums">{% if jumlah > 99 %}99+{% else %}{{ jumlah }}{% endif %}</span>
-</span>
+{% if jumlah %}<span class="relative inline-flex shrink-0" role="status" aria-label="{{ jumlah }} pendaftar menunggu aktivasi"><span class="absolute inset-0 animate-ping rounded-full bg-red-500/60 motion-reduce:hidden" aria-hidden="true"></span><span class="relative inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold leading-none text-white shadow-md shadow-red-900/40 ring-2 ring-(--cincin-lencana) tabular-nums">{% if jumlah > 99 %}99+{% else %}{{ jumlah }}{% endif %}</span></span>{% else %}<span hidden></span>{% endif %}

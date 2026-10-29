@@ -60,3 +60,39 @@ def catat_gagal(request, username):
 
 def catat_berhasil(username):
     GagalLogin.objects.filter(kunci=f"u:{username.strip().lower()[:150]}").delete()
+
+
+# The public Daftar Ketua Tim form says whether a username is taken, so it is
+# throttled per client IP too: BATAS_DAFTAR sends within JENDELA, then KUNCI.
+BATAS_DAFTAR = 20
+
+
+def _kunci_daftar(request):
+    return f"daftar-ip:{ip_klien(request)}"
+
+
+def menit_terkunci_daftar(request):
+    """Minutes left before this IP may send the Daftar form again, or 0."""
+    sekarang = timezone.now()
+    sampai = (
+        GagalLogin.objects.filter(kunci=_kunci_daftar(request), terkunci_sampai__gt=sekarang)
+        .values_list("terkunci_sampai", flat=True).first()
+    )
+    if sampai is None:
+        return 0
+    return max(1, -(-int((sampai - sekarang).total_seconds()) // 60))
+
+
+def catat_daftar(request):
+    """Count one send of the Daftar form from this IP."""
+    sekarang = timezone.now()
+    with transaction.atomic():
+        baris, _ = GagalLogin.objects.select_for_update().get_or_create(
+            kunci=_kunci_daftar(request), defaults={"sejak": sekarang},
+        )
+        if sekarang - baris.sejak > JENDELA:
+            baris.jumlah, baris.sejak, baris.terkunci_sampai = 0, sekarang, None
+        baris.jumlah += 1
+        if baris.jumlah >= BATAS_DAFTAR:
+            baris.terkunci_sampai = sekarang + KUNCI
+        baris.save()

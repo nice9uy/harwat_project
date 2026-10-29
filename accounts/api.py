@@ -75,3 +75,91 @@ async def logout(request) -> DetailResponse:
     if claims.get("fam"):
         await revocation_store.revoke_family(claims["fam"], exp=claims.get("exp"))
     return {"detail": "Logged out"}
+
+
+# --- Live notices (Server-Sent Events, see accounts/realtime.py) -----------
+
+# A stream ends after this long and the page opens a new one, which checks
+# its user again (signed out, switched off, role taken away).
+UMUR_ALIRAN = 30 * 60
+
+
+async def _pengguna_sesi(request):
+    """The signed-in user of the app's session cookie, or None."""
+    from importlib import import_module
+
+    from django.contrib.auth import aget_user
+
+    kunci = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    if not kunci:
+        return None
+
+    class _Permintaan:
+        session = import_module(settings.SESSION_ENGINE).SessionStore(kunci)
+
+    user = await aget_user(_Permintaan())
+    return user if user.is_authenticated else None
+
+
+def _render_lencana(matra):
+    from django.template.loader import render_to_string
+
+    from .aktivasi import jumlah_menunggu_matra
+
+    return render_to_string("_lencana_jumlah.html", {"jumlah": jumlah_menunggu_matra(matra)})
+
+
+# One count per matra for all the streams of this process: a notice wakes
+# every stream, and they share the answer worked out after it (realtime.versi)
+# instead of each asking the database.
+_lencana_terakhir: dict[str, tuple[int, str]] = {}
+_lencana_kunci: dict[str, "asyncio.Lock"] = {}
+
+
+async def _lencana_bersama(matra):
+    import asyncio
+
+    from asgiref.sync import sync_to_async
+
+    from . import realtime
+
+    kunci = _lencana_kunci.setdefault(matra, asyncio.Lock())
+    async with kunci:
+        versi = realtime.versi("aktivasi")
+        dihitung, html = _lencana_terakhir.get(matra, (-1, ""))
+        if dihitung != versi:
+            html = await sync_to_async(_render_lencana)(matra)
+            _lencana_terakhir[matra] = (versi, html)
+    return html
+
+
+@api.get("/sse/aktivasi", tags=["realtime"])
+async def sse_aktivasi(request):
+    """The Aktivasi Ketua Tim badge, live: its count now, then again on every
+    sign-up, activation or deletion of a Ketua Tim."""
+    import asyncio
+
+    from asgiref.sync import sync_to_async
+    from django_bolt import EventSourceResponse, ServerSentEvent
+
+    from . import realtime, roles
+
+    from .aktivasi import _matra_admin
+
+    user = await _pengguna_sesi(request)
+    if user is None or "aktivasi_ketua_tim" not in await sync_to_async(roles.allowed_menus)(user):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    matra = await sync_to_async(_matra_admin)(user)  # "" for a superuser: every matra
+
+    async def aliran():
+        yield ServerSentEvent(raw_data=await _lencana_bersama(matra), event="aktivasi", retry=5000)
+        try:
+            async with asyncio.timeout(UMUR_ALIRAN):
+                async for topik in realtime.langganan():
+                    if topik == "aktivasi":
+                        yield ServerSentEvent(raw_data=await _lencana_bersama(matra), event="aktivasi")
+        except TimeoutError:
+            return
+
+    # Proxies must pass the events on at once (nginx: X-Accel-Buffering).
+    return EventSourceResponse(aliran(), ping_interval=25, headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})

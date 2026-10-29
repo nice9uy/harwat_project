@@ -1083,7 +1083,7 @@ class SidebarLogoutTests(TestCase):
         User.objects.create_user(username="teknisi1", password="rahasia-123")
         self.client.login(username="teknisi1", password="rahasia-123")
         content = self.client.get(reverse("accounts:dashboard")).content.decode()
-        button = content.index('@click="logoutOpen = true"')
+        button = content.index('@click="sidebarOpen = false; logoutOpen = true"')
         self.assertLess(content.index("</nav>"), button)
         self.assertLess(button, content.index("</aside>"))
         # The button only opens a confirmation; the logout form lives in that modal.

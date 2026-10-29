@@ -47,7 +47,12 @@ def daftar_form(request):
     if matra not in dict(roles.MATRA):
         return daftar_matra(request)
     penuh = menunggu_aktivasi().count() >= BATAS_MENUNGGU
-    if request.method == "POST" and not penuh:
+    from .batas_login import catat_daftar, menit_terkunci_daftar
+
+    # The form says whether a username is taken: sends are capped per IP.
+    terkunci = menit_terkunci_daftar(request) if request.method == "POST" else 0
+    if request.method == "POST" and not penuh and not terkunci:
+        catat_daftar(request)
         akun, biodata = _forms(matra, request.POST, request.FILES)
         if akun.is_valid() and biodata.is_valid():
             with transaction.atomic():
@@ -67,8 +72,17 @@ def daftar_form(request):
             return render(request, "accounts/_daftar_selesai.html", {
                 "username": user.username, "matra_label": dict(roles.MATRA)[matra],
             })
+    elif terkunci:
+        # What was typed stays, but nothing is checked (not even whether the
+        # username is taken: that is what the cap is for).
+        akun, biodata = _forms(matra)
+        akun.initial = {"username": request.POST.get("daftar-username", "")}
+        biodata.initial = {
+            nama: request.POST.get(f"daftar-{nama}", "") for nama in ("nip", "nama", "pangkat", "jabatan")
+        }
     else:
         akun, biodata = _forms(matra)
     return render(request, "accounts/_daftar_form.html", {
         "akun": akun, "form": biodata, "matra": matra, "matra_label": dict(roles.MATRA)[matra], "penuh": penuh,
+        "menit_terkunci": terkunci,
     })

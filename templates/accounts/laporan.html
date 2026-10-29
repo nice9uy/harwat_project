@@ -454,7 +454,10 @@
                 <textarea id="id-keterangan" name="keterangan" rows="3"
                           class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"></textarea>
             </div>
-            <h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-4">Verifikasi Kode Keamanan</h2>
+            <div class="mb-4 flex items-center gap-3">
+                {% include "_ikon_dialog.html" with jenis="keamanan" %}
+                <h2 class="text-lg font-semibold text-navy dark:text-slate-100">Verifikasi Kode Keamanan</h2>
+            </div>
             <div class="select-none rounded-md border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-900 px-3 py-2 text-center text-lg font-mono font-bold tracking-[0.4em] text-navy dark:text-gold mb-3">
                 <span x-text="captchaCode">{{ captcha_code }}</span>
             </div>

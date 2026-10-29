@@ -60,6 +60,8 @@ set +a
 # PostgreSQL: the app on the primary through PgBouncer, plus the role the two
 # replicas stream with.
 tambah_env DATABASE_ENGINE postgresql
+# Valkey (compose.yml): the live badges' pub/sub between the app containers.
+tambah_env REDIS_URL redis://valkey:6379/0
 tambah_env DATABASE_URL "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB}"
 tambah_env REPLIKASI_USER replikator
 tambah_env REPLIKASI_PASSWORD "$(openssl rand -hex 16)"

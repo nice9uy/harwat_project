@@ -16,6 +16,12 @@ class AccountsConfig(AppConfig):
         post_save.connect(_tulis_vpn, sender=VpnPeer, dispatch_uid="accounts_vpn_simpan")
         post_delete.connect(_tulis_vpn, sender=VpnPeer, dispatch_uid="accounts_vpn_hapus")
 
+        # The live Aktivasi Ketua Tim badge (accounts/realtime.py).
+        from django.db.models.signals import m2m_changed
+        post_save.connect(_kabar_aktivasi_simpan, sender=User, dispatch_uid="accounts_kabar_aktivasi_simpan")
+        post_delete.connect(_kabar_aktivasi, sender=User, dispatch_uid="accounts_kabar_aktivasi_hapus")
+        m2m_changed.connect(_kabar_aktivasi, sender=User.groups.through, dispatch_uid="accounts_kabar_aktivasi_grup")
+
 
 def _tulis_vpn(sender, **kwargs):
     """Every change to a peer rewrites the WireGuard server's config."""
@@ -29,3 +35,16 @@ def _buat_akun_publik(sender, instance, created, raw=False, **kwargs):
     if created and not raw:
         from .models import AkunPublik
         AkunPublik.objects.get_or_create(user=instance)
+
+
+def _kabar_aktivasi(sender, **kwargs):
+    """Who waits for activation may have changed: the open badges recount."""
+    if kwargs.get("action", "post_").startswith("post_"):
+        from .realtime import kabarkan
+        kabarkan("aktivasi")
+
+
+def _kabar_aktivasi_simpan(sender, update_fields=None, raw=False, **kwargs):
+    # A sign-in only touches last_login: nothing to tell.
+    if not raw and (update_fields is None or "is_active" in update_fields):
+        _kabar_aktivasi(sender)

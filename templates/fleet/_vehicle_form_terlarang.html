@@ -1,5 +1,8 @@
 <div>
-    <h2 class="text-lg font-semibold text-navy dark:text-slate-100 mb-2">Tambah Kendaraan</h2>
+    <div class="mb-3 flex items-center gap-3">
+        {% include "_ikon_dialog.html" with jenis="blokir" %}
+        <h2 class="text-lg font-semibold text-navy dark:text-slate-100">Tambah Kendaraan</h2>
+    </div>
     <div class="rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-700 dark:text-red-300">
         Anda tidak punya akses ke form {{ label }}. Data belum disimpan. Muat ulang halaman Form Tambah untuk melihat form yang bisa Anda buka, atau hubungi admin.
     </div>

@@ -44,11 +44,14 @@ def _ketua_tim(matra):
 def jumlah_menunggu(user):
     """How many sign-ups wait for ``user`` to activate them (the badge on the
     Aktivasi Ketua Tim menu): of their matra for an Admin, all for a superuser."""
+    matra = _matra_admin(user)
+    return 0 if matra is None else jumlah_menunggu_matra(matra)
+
+
+def jumlah_menunggu_matra(matra):
+    """Sign-ups waiting for activation in ``matra`` ("" for all)."""
     from .daftar import menunggu_aktivasi
 
-    matra = _matra_admin(user)
-    if matra is None:
-        return 0
     ids = list(menunggu_aktivasi().values_list("pk", flat=True))
     if not matra or not ids:
         return len(ids)
