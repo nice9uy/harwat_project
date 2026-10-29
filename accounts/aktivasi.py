@@ -41,6 +41,21 @@ def _ketua_tim(matra):
     return hasil
 
 
+def jumlah_menunggu(user):
+    """How many sign-ups wait for ``user`` to activate them (the badge on the
+    Aktivasi Ketua Tim menu): of their matra for an Admin, all for a superuser."""
+    from .daftar import menunggu_aktivasi
+
+    matra = _matra_admin(user)
+    if matra is None:
+        return 0
+    ids = list(menunggu_aktivasi().values_list("pk", flat=True))
+    if not matra or not ids:
+        return len(ids)
+    matra_per_akun = dashboard._matra_pengguna()
+    return sum(1 for pk in ids if matra_per_akun.get(pk, "") == matra)
+
+
 @login_required
 def aktivasi_ketua_tim(request):
     matra_admin = _matra_admin(request.user)

@@ -45,7 +45,13 @@ def menu(request):
         from .models import Laporan
         profil_belum_isi = not Laporan.objects.filter(akun=user).exists()
     boleh = roles.allowed_menus(user) if user is not None else frozenset()
+    aktivasi_menunggu = 0
+    if "aktivasi_ketua_tim" in boleh:
+        from .aktivasi import jumlah_menunggu
+        aktivasi_menunggu = jumlah_menunggu(user)
     return {
+        # Sign-ups waiting for activation: the badge on Aktivasi Ketua Tim.
+        "aktivasi_menunggu": aktivasi_menunggu,
         "menu_boleh": boleh,
         "menu_aktif": menu_aktif,
         "profil_belum_isi": profil_belum_isi,

@@ -93,6 +93,7 @@
                 <a href="{% url 'accounts:aktivasi_ketua_tim' %}" class="flex items-center gap-2 rounded-md px-3 py-2 {% if request.resolver_match.view_name == 'accounts:aktivasi_ketua_tim' %}bg-white/10 text-gold font-medium{% else %}text-slate-200 hover:bg-white/5{% endif %}">
                     {% include "_menu_icon.html" with kunci="aktivasi_ketua_tim" %}
                     Aktivasi Ketua Tim
+                    {% if aktivasi_menunggu %}{% include "_lencana_jumlah.html" with jumlah=aktivasi_menunggu kelas="ml-auto" label="pendaftar menunggu aktivasi" %}{% endif %}
                 </a>
                 {% endif %}
                 {% if 'pemeriksaan' in menu_boleh or 'form_tambah' in menu_boleh or 'perbaikan' in menu_boleh or 'rusak' in menu_boleh or 'history' in menu_boleh or 'status' in menu_boleh %}
@@ -292,8 +293,10 @@
             {% endfor %}
             <button type="button" @click="sidebarOpen = true" :aria-expanded="sidebarOpen"
                     class="flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 pt-2 pb-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                <span class="flex h-7 w-12 items-center justify-center rounded-full">
+                <span class="relative flex h-7 w-12 items-center justify-center rounded-full">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+                    {# On a phone the sidebar is behind Menu: its waiting count shows here. #}
+                    {% if aktivasi_menunggu %}{% include "_lencana_jumlah.html" with jumlah=aktivasi_menunggu kelas="absolute -top-1 right-1.5" cincin="ring-white dark:ring-slate-800" label="pendaftar menunggu aktivasi" %}{% endif %}
                 </span>
                 <span>Menu</span>
             </button>
