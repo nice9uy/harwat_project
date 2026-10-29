@@ -15,11 +15,10 @@
           hx-encoding="multipart/form-data"
           hx-target="#daftar-modal-body"
           hx-swap="innerHTML"
-          hx-disabled-elt="find button[type=submit]"
           @htmx:before-request="gagal = ''"
           @htmx:response-error="gagal = 'Pendaftaran gagal dikirim (kode ' + $event.detail.xhr.status + '). Coba lagi, atau hubungi admin.'"
           @htmx:send-error="gagal = 'Tidak bisa terhubung ke server. Periksa koneksi lalu coba lagi.'"
-          class="group space-y-4">
+          class="space-y-4">
         {% csrf_token %}
         {% for field in akun %}
         <div>
@@ -43,18 +42,10 @@
         {% endfor %}
         <p class="border-t border-slate-200 pt-4 text-sm font-semibold text-navy dark:border-slate-700 dark:text-slate-100">Info Profil</p>
         {% include "accounts/_biodata_fields.html" with pesan_satuan_kosong="Belum ada satuan untuk matra ini. Hubungi admin." %}
-        {% comment %}
-        A phone photo takes a few seconds to shrink (kompres-foto.js marks the form
-        data-memproses-foto meanwhile) and then to send: the button says so, and a
-        failed request says so too, instead of the button seeming dead.
-        {% endcomment %}
+        {# While the photo shrinks and sends, Daftar spins (tombol-proses.js); a failed request says so here. #}
         <p x-show="gagal" x-cloak x-text="gagal" role="alert" class="text-sm text-red-600 dark:text-red-400"></p>
         <div class="pt-1">
-            <button type="submit" class="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 group-data-memproses-foto:opacity-60 group-[.htmx-request]:opacity-60 disabled:cursor-wait">
-                <span class="group-data-memproses-foto:hidden group-[.htmx-request]:hidden">Daftar</span>
-                <span class="hidden group-data-memproses-foto:inline group-[.htmx-request]:hidden">Memproses foto…</span>
-                <span class="hidden group-[.htmx-request]:inline">Mengirim…</span>
-            </button>
+            <button type="submit" class="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Daftar</button>
         </div>
     </form>
     {% endif %}

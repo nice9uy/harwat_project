@@ -210,3 +210,34 @@ table.memuat tbody td::after {
     animation: none !important;
   }
 }
+
+/* A button whose action is under way (static/js/tombol-proses.js): its label
+   fades out and a ring in the label's colour (set as --warna-proses) spins in
+   its place, with a gold arc for the app's accent. */
+[data-memproses] {
+  color: transparent !important;
+  pointer-events: none;
+  cursor: progress;
+}
+[data-memproses] > * {
+  visibility: hidden;
+}
+[data-memproses]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 1.15em;
+  height: 1.15em;
+  border-radius: 9999px;
+  border: 2px solid color-mix(in srgb, var(--warna-proses, currentColor) 28%, transparent);
+  border-top-color: var(--warna-proses, currentColor);
+  border-right-color: var(--color-gold);
+  animation: putar-proses 0.7s linear infinite;
+}
+@keyframes putar-proses {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-memproses]::after { animation-duration: 1.8s; }
+}

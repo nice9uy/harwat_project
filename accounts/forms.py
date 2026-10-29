@@ -290,6 +290,14 @@ class UserCreateForm(_SatuanAkunMixin, forms.ModelForm):
             self.fields["ketua_tim"].initial = ketua.pk
             self.fields["ketua_tim"].widget = forms.HiddenInput()
 
+    def clean_username(self):
+        """Unique whatever the case ("Ketua" and "ketua" are the same name),
+        as on the Daftar Ketua Tim form; see migration 0073 for the database side."""
+        username = self.cleaned_data["username"].strip()
+        if User.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError("Nama pengguna ini sudah dipakai.")
+        return username
+
     def clean_ketua_tim(self):
         ketua = self.cleaned_data.get("ketua_tim")
         return self.ketua if self.ketua is not None else ketua

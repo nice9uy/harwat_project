@@ -19,6 +19,9 @@
     <script src="{% static 'js/qr-scan.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/autocomplete.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/datepicker.js' %}?v={{ js_version }}" defer></script>
+    {# Before kompres-foto.js: both catch submit in the capture phase, this one first. #}
+    <script src="{% static 'js/tombol-proses.js' %}?v={{ js_version }}" defer></script>
+    <script src="{% static 'js/server-sibuk.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/kompres-foto.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/skeleton.js' %}?v={{ js_version }}" defer></script>
     <script src="{% static 'js/geser.js' %}?v={{ js_version }}" defer></script>
@@ -26,6 +29,7 @@
     <script src="{% static 'vendor/alpinejs.min.js' %}" defer></script>
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100" x-data="{ sidebarOpen: false, logoutOpen: false, profilPopup: false }">
+    {% include "_server_sibuk.html" %}
     <div class="flex min-h-screen">
         <div x-show="sidebarOpen"
              x-cloak

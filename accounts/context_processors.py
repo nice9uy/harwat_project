@@ -65,7 +65,7 @@ def css_version(request):
     except (TypeError, OSError):
         versi = {"css_version": ""}
     # Same for the app's own scripts (static/js/*.js), which change with features.
-    js = [finders.find(f"js/{nama}") for nama in ("qr-scan.js", "autocomplete.js", "datepicker.js", "kompres-foto.js", "skeleton.js", "geser.js", "modal-halus.js")]
+    js = [finders.find(f"js/{nama}") for nama in ("qr-scan.js", "autocomplete.js", "datepicker.js", "kompres-foto.js", "skeleton.js", "geser.js", "modal-halus.js", "tombol-proses.js", "server-sibuk.js")]
     try:
         versi["js_version"] = max(int(os.path.getmtime(p)) for p in js if p)
     except (ValueError, OSError):

@@ -1,0 +1,40 @@
+{% comment %}
+When the server is busy (static/js/server-sibuk.js): a notice while a request
+waits in the queue, and a dialog when it failed, whose "Coba lagi" sends the
+same request again with everything typed still on the page.
+{% endcomment %}
+<div id="antrean-sibuk" hidden role="status" aria-live="polite"
+     class="fixed inset-x-0 top-3 z-[90] mx-auto flex w-fit max-w-[92vw] items-center gap-3 rounded-2xl sm:rounded-full border border-gold/40 bg-navy/95 py-2 pl-3 pr-4 text-sm text-slate-100 shadow-lg shadow-black/30 backdrop-blur">
+    <span class="relative flex h-2.5 w-2.5 shrink-0" aria-hidden="true">
+        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-75"></span>
+        <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-gold"></span>
+    </span>
+    <span><span class="font-semibold text-gold">Server sedang sibuk.</span> Permintaan Anda dalam antrean, mohon tunggu…</span>
+</div>
+
+<div id="server-sibuk" hidden role="alertdialog" aria-modal="true" aria-labelledby="server-sibuk-judul" aria-describedby="server-sibuk-isi"
+     class="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+    <div class="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white text-center shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+        <div class="h-1 w-full bg-gradient-to-r from-navy via-gold to-navy" aria-hidden="true"></div>
+        <div class="px-6 pb-6 pt-7">
+            <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gold/15 text-gold ring-8 ring-gold/5">
+                <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 0 1-3-3m3 3a3 3 0 1 0 0 6h13.5a3 3 0 1 0 0-6m-16.5-3a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3m-19.5 0a4.5 4.5 0 0 1 .9-2.7L5.737 5.1a3.375 3.375 0 0 1 2.7-1.35h7.126c1.062 0 2.062.5 2.7 1.35l2.587 3.45a4.5 4.5 0 0 1 .9 2.7m0 0a3 3 0 0 1-3 3m0 3h.008v.008h-.008v-.008Zm0-6h.008v.008h-.008v-.008Zm-3 6h.008v.008h-.008v-.008Zm0-6h.008v.008h-.008v-.008Z"/></svg>
+            </div>
+            <h2 id="server-sibuk-judul" class="text-lg font-semibold text-navy dark:text-slate-100">Server sedang sibuk</h2>
+            <p id="server-sibuk-isi" class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                Permintaan Anda belum berhasil diproses, kemungkinan karena banyak pengguna yang mengirim bersamaan.
+                <span class="font-medium text-slate-800 dark:text-slate-100">Data yang sudah Anda isi tetap ada</span>, tidak perlu mengisi ulang.
+            </p>
+            <p data-sibuk-detail class="mt-3 inline-block rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500 dark:bg-slate-700/60 dark:text-slate-400"></p>
+            <div class="mt-6 flex flex-col gap-2 sm:flex-row-reverse">
+                <button type="button" data-sibuk-ulang
+                        class="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-gold/50">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+                    Coba lagi
+                </button>
+                <button type="button" data-sibuk-tutup
+                        class="flex-1 rounded-md border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
