@@ -139,12 +139,12 @@ class DashboardCakupanTests(TestCase):
         satu = self.client.get(partial)
         self.assertEqual(len(satu.context["kegiatan_terbaru"]), 10)
         self.assertContains(satu, "Menampilkan 1–10 dari 24 kegiatan")
-        self.assertContains(satu, f'hx-get="{partial}?matra=darat&amp;hal_kegiatan=2"')
+        self.assertContains(satu, f'hx-get="{partial}?hal_kegiatan=2"')
         # The 10 s refresh asks for the page being shown.
-        self.assertContains(satu, f'hx-get="{partial}?matra=darat&amp;hal_kegiatan=1"')
+        self.assertContains(satu, f'hx-get="{partial}?hal_kegiatan=1"')
         tiga = self.client.get(partial, {"hal_kegiatan": 3})
         self.assertEqual(len(tiga.context["kegiatan_terbaru"]), 4)
-        self.assertContains(tiga, f'hx-get="{partial}?matra=darat&amp;hal_kegiatan=3"')
+        self.assertContains(tiga, f'hx-get="{partial}?hal_kegiatan=3"')
         self.assertContains(tiga, "Menampilkan 21–24 dari 24 kegiatan")
 
 
@@ -176,10 +176,10 @@ class DashboardMatraTests(TestCase):
         return response, response.context["fleet_summary_kendaraan"]["total"]
 
     def test_matra_narrows_the_dashboard(self):
-        # No all-matra view: without a matra picked it is the first one.
+        # A superuser sees every matra until they pick one.
         response, bawaan = self._total()
-        self.assertEqual((bawaan, response.context["matra_dashboard"]), (1, "darat"))
-        self.assertNotContains(response, "Semua Matra")
+        self.assertEqual((bawaan, response.context["matra_dashboard"]), (3, ""))
+        self.assertContains(response, "Semua Matra")
         for label in ("Matra Darat", "Matra Laut", "Matra Udara"):
             self.assertContains(response, label)
         self.assertEqual(dashboard.pengguna_matra("darat") & {t.pk for t in self.tim.values()}, {self.tim["d"].pk})
@@ -194,7 +194,7 @@ class DashboardMatraTests(TestCase):
             self.assertContains(partial, nopol)
             for lain in {"M D 1", "M L 1", "M U 1"} - {nopol}:
                 self.assertNotContains(partial, lain)
-        self.assertEqual(self._total(matra="zzz")[1], 1)
+        self.assertEqual(self._total(matra="zzz")[1], 3)  # an unknown matra: all of them
         # A vehicle counts for the matra it was added for (Form Tambah), whoever added it,
         # and one with no matra anywhere counts for the first.
         Vehicle.objects.create(nopol="M X 1", merek="Uji", group_kendaraan="rantis", ditambahkan_oleh=self.tim["d"], matra="laut")
@@ -212,11 +212,12 @@ class DashboardMatraTests(TestCase):
             self.assertEqual((total, response.context["matra_dashboard"]), (1, "darat"), query)
             self.assertNotContains(response, "Semua Matra")
             self.assertNotContains(response, 'aria-label="Matra"')
+        # A Pimpinan Tim sees the teams picked for them, whatever their matra, with no picker.
         pimpinan_tim = _user("pimtim", "Pimpinan Ketua Tim")
         AkunPublik.objects.filter(user=pimpinan_tim).update(matra="laut")
         self.client.login(username="pimtim", password="rahasia-123")
         response = self.client.get(reverse("accounts:dashboard"), {"matra": "darat"})
-        self.assertEqual(response.context["matra_dashboard"], "laut")
+        self.assertEqual(response.context["matra_dashboard"], "")
         self.assertNotContains(response, "Semua Matra")
         # A Ketua Tim too: their own matra, or their Admin's when they have none.
         self.client.login(username="ketua_l", password="rahasia-123")
@@ -231,7 +232,8 @@ class DashboardMatraTests(TestCase):
         response, total = self._total(matra="udara")
         self.assertEqual((total, response.context["matra_dashboard"]), (1, "udara"))
         self.assertContains(response, 'aria-label="Matra"')
-        self.assertNotContains(response, "Semua Matra")
+        self.assertContains(response, "Semua Matra")  # and sees them all until they pick one
+        self.assertEqual(self._total()[1], 3)
 
 
 class DashboardSparepartRusakTests(TestCase):

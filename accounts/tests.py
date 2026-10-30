@@ -436,10 +436,10 @@ class DashboardViewTests(TestCase):
 
     def test_dashboard_renders_all_four_blocks_when_authenticated(self):
         self.client.login(username="teknisi1", password="rahasia-123")
-        # No matra picked: the first matra's dashboard (there is no all-matra view).
+        # Someone with no matra and no picker: their whole scope.
         response = self.client.get(reverse("accounts:dashboard"))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["matra_dashboard"], "darat")
+        self.assertEqual(response.context["matra_dashboard"], "")
         for text in ("Semua Matra", "Rangkuman per Matra"):
             self.assertNotContains(response, text)
         self.assertContains(response, "RINGKASAN")
@@ -515,7 +515,7 @@ class DashboardViewTests(TestCase):
         self.client.login(username="teknisi1", password="rahasia-123")
         response = self.client.get(reverse("accounts:dashboard"), {"matra": "darat"})
         self.assertContains(response, 'hx-trigger="every 10s"')
-        self.assertContains(response, f'hx-get="{reverse("accounts:dashboard_partial")}?matra=darat&amp;hal_kegiatan=1"')
+        self.assertContains(response, f'hx-get="{reverse("accounts:dashboard_partial")}?hal_kegiatan=1"')
 
 
 class DashboardPartialViewTests(TestCase):

@@ -20,7 +20,7 @@ class CaptchaHapusTests(TestCase):
         dialog = self.client.get(reverse("fleet:vehicle_delete_confirm", args=[v.uuid]))
         kode = self._kode(f"kendaraan:{v.uuid}")
         self.assertContains(dialog, kode)
-        self.assertContains(dialog, "Masukkan kode di atas")
+        self.assertContains(dialog, "Ketik kode di atas")
         url = reverse("fleet:vehicle_delete", args=[v.uuid])
         self.client.post(url, {"captcha": "000000" if kode != "000000" else "111111"})
         self.assertTrue(Vehicle.objects.filter(pk=v.pk).exists())  # wrong code: kept

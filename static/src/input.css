@@ -314,3 +314,10 @@ table.memuat tbody td::after {
 @media (prefers-reduced-motion: reduce) {
   .pilih-foto, .pilih-foto-ikon { transition: none; }
 }
+
+/* A short confirmation dialog (a delete with its code, a yes/no) in a modal
+   built for forms: the modal narrows to fit it instead of staying form-wide. */
+[class*="max-w-"]:has(> [id$="modal-body"] > .dialog-ringkas),
+[class*="max-w-"]:has(> [id$="modal-body"] > div > .dialog-ringkas) {
+  max-width: 26rem;
+}

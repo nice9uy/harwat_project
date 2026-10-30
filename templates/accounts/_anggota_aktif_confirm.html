@@ -1,3 +1,5 @@
+{# A short confirmation: its modal narrows to fit (input.css .dialog-ringkas). #}
+<div class="dialog-ringkas">
 <div class="mb-3 flex items-center gap-3">
     {% if target.is_active %}{% include "_ikon_dialog.html" with jenis="nonaktif" %}{% else %}{% include "_ikon_dialog.html" with jenis="aktif" %}{% endif %}
     <h2 class="text-lg font-semibold text-navy dark:text-slate-100">{% if target.is_active %}Nonaktifkan{% else %}Aktifkan{% endif %} User</h2>
@@ -17,3 +19,4 @@
     <button type="button" @click="modalOpen = false" class="rounded-md border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">Batal</button>
     <button type="submit" class="rounded-md px-4 py-2 text-sm font-medium text-white {% if target.is_active %}bg-slate-600 hover:bg-slate-700{% else %}bg-green-600 hover:bg-green-700{% endif %}">{% if target.is_active %}Nonaktifkan{% else %}Aktifkan{% endif %}</button>
 </form>
+</div>

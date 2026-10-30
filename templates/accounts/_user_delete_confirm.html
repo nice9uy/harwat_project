@@ -1,3 +1,5 @@
+{# A short confirmation: its modal narrows to fit (input.css .dialog-ringkas). #}
+<div class="dialog-ringkas">
 <div class="mb-3 flex items-center gap-3">
     {% include "_ikon_dialog.html" with jenis="hapus" %}
     <h2 class="text-lg font-semibold text-navy dark:text-slate-100">Hapus User</h2>
@@ -7,8 +9,8 @@
     User ini tidak akan bisa login lagi dan tindakan ini tidak bisa dibatalkan.
 </p>
 <div x-data="{ input: '' }" class="pt-4 space-y-3">
-    <div class="flex items-center justify-center rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 py-3">
-        <span class="font-mono text-3xl font-bold tracking-[0.4em] text-navy dark:text-slate-100 select-none">{{ captcha_kode }}</span>
+    <div class="flex items-center justify-center rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 py-2">
+        <span class="font-mono text-2xl font-bold tracking-[0.35em] text-navy dark:text-slate-100 select-none">{{ captcha_kode }}</span>
     </div>
     <div>
         <label class="block text-sm text-slate-600 dark:text-slate-300 mb-1">Masukkan kode di atas untuk konfirmasi:</label>
@@ -24,4 +26,5 @@
                 :class="input.length === 6 ? 'bg-red-600 hover:bg-red-700 cursor-pointer' : 'bg-red-300 dark:bg-red-900/50 cursor-not-allowed'"
                 class="rounded-md px-4 py-2 text-sm font-medium text-white transition-colors">Hapus</button>
     </form>
+</div>
 </div>

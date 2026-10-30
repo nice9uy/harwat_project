@@ -1,3 +1,5 @@
+{# A short confirmation: its modal narrows to fit (input.css .dialog-ringkas). #}
+<div class="dialog-ringkas">
 <div class="mb-3 flex items-center gap-3">
     {% include "_ikon_dialog.html" with jenis="hapus" %}
     <h2 class="text-lg font-semibold text-navy dark:text-slate-100">Hapus Satuan</h2>
@@ -15,4 +17,5 @@
             :class="kodeHapus.length === 6 ? 'bg-red-600 hover:bg-red-700 cursor-pointer' : 'bg-red-300 dark:bg-red-900/50 cursor-not-allowed'"
             class="rounded-md px-4 py-2 text-sm font-medium text-white transition-colors">Hapus</button>
 </form>
+</div>
 </div>

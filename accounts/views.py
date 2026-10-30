@@ -84,23 +84,35 @@ def logout_view(request):
 
 
 def _matra_terkunci(user):
-    """The one matra the dashboard of an Admin, a Ketua Tim or a Pimpinan Tim
-    shows: their own, or (a Ketua Tim made before a matra was asked) their
-    Admin's; "" when they have none. A superuser and a Pimpinan pick any."""
-    if user.is_superuser or roles.keanggotaan_kode(user) not in (roles.ADMIN_ROLE, roles.KETUA_TIM, roles.PIMPINAN_TIM):
+    """The one matra the dashboard of an Admin or a Ketua Tim shows: their
+    own, or (a Ketua Tim made before a matra was asked) their Admin's; "" when
+    they have none. A superuser and a Pimpinan see every matra or pick one; a
+    Pimpinan Tim sees the teams picked for them, whatever their matra."""
+    if user.is_superuser or roles.keanggotaan_kode(user) not in (roles.ADMIN_ROLE, roles.KETUA_TIM):
         return ""
     return getattr(getattr(user, "publik", None), "matra", "") or dashboard._matra_pengguna().get(user.pk, "")
 
 
 def _matra_dashboard(request):
-    """The matra picked above the dashboard's tabs (?matra=), the first one
-    when none is (there is no all-matra view); an Admin and a Pimpinan Tim
-    get their own, with no picker."""
+    """The matra the dashboard is narrowed to, "" for all of them: an Admin's
+    and a Ketua Tim's own; for a superuser and a Pimpinan the one picked above
+    the tabs (?matra=), every matra when none is; a Pimpinan Tim's teams
+    whatever their matra."""
     terkunci = _matra_terkunci(request.user)
     if terkunci:
         return terkunci
+    if not _matra_pilihan(request.user):
+        return ""  # a Pimpinan Tim's teams, or someone without a matra: their whole scope
     matra = request.GET.get("matra", "")
-    return matra if matra in dict(roles.MATRA) else roles.MATRA[0][0]
+    return matra if matra in dict(roles.MATRA) else ""
+
+
+def _matra_pilihan(user):
+    """The matra picker above the dashboard's tabs: for a superuser and a
+    Pimpinan, "Semua Matra" first; nobody else picks."""
+    if not (user.is_superuser or roles.keanggotaan_kode(user) == "pimpinan"):
+        return []
+    return [("", "Semua Matra"), *roles.MATRA]
 
 
 def _cakupan_dashboard(request):
@@ -113,7 +125,7 @@ def _dashboard_context(request):
     return {
         **dashboard.konteks(_cakupan_dashboard(request), request.GET.get("hal_kegiatan")),
         "matra_dashboard": _matra_dashboard(request),
-        "matra_pilihan": [] if _matra_terkunci(request.user) else roles.MATRA,
+        "matra_pilihan": _matra_pilihan(request.user),
     }
 
 
