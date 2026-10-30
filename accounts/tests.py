@@ -18,6 +18,7 @@ from accounts.models import (
 )
 from accounts.roles import keanggotaan_kode
 from fleet.models import Vehicle
+from accounts.tests_bantu import kode_hapus
 
 
 def _satuan(nama="Satuan Kerja ABC"):
@@ -705,7 +706,7 @@ class PemeriksaanGolonganBSaveTests(TestCase):
 
     def test_vehicle_with_inspection_cannot_be_deleted(self):
         self._post()
-        response = self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.uuid]), follow=True)
+        response = self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.uuid]), kode_hapus(self.client, f"kendaraan:{self.vehicle.uuid}"), follow=True)
         self.assertTrue(Vehicle.objects.filter(pk=self.vehicle.pk).exists())
         self.assertContains(response, "tidak bisa dihapus karena sudah punya data pemeriksaan")
 
@@ -1210,7 +1211,7 @@ class PemeriksaanBermotorTests(TestCase):
 
     def test_vehicle_with_bermotor_inspection_cannot_be_deleted(self):
         self._post_pemeriksaan()
-        self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.uuid]))
+        self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.uuid]), kode_hapus(self.client, f"kendaraan:{self.vehicle.uuid}"))
         self.assertTrue(Vehicle.objects.filter(pk=self.vehicle.pk).exists())
 
 
@@ -1698,7 +1699,7 @@ class PemeriksaanDieselTests(TestCase):
 
     def test_vehicle_with_diesel_inspection_cannot_be_deleted(self):
         self._post()
-        self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.uuid]))
+        self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.uuid]), kode_hapus(self.client, f"kendaraan:{self.vehicle.uuid}"))
         self.assertTrue(Vehicle.objects.filter(pk=self.vehicle.pk).exists())
 
 
@@ -1799,7 +1800,7 @@ class SatuanTests(TestCase):
         satuan.refresh_from_db()
         self.assertEqual(satuan.nama, "Kodim 0507/Bekasi")
         self.assertContains(self.client.get(reverse("accounts:satuan_delete", args=[satuan.uuid])), "Yakin ingin menghapus satuan")
-        self.client.post(reverse("accounts:satuan_delete", args=[satuan.uuid]))
+        self.client.post(reverse("accounts:satuan_delete", args=[satuan.uuid]), kode_hapus(self.client, f"satuan:{satuan.uuid}"))
         self.assertFalse(Satuan.objects.exists())
 
     def test_nama_is_required_and_unique(self):
@@ -1852,7 +1853,7 @@ class SatuanDipakaiTests(TestCase):
         from accounts.models import Laporan, Satuan
         kodim = _satuan("Kodim 0507")
         Laporan.objects.create(nip="1", nama="A", pangkat="B", jabatan="C", satuan=kodim, foto="x.gif")
-        response = self.client.post(reverse("accounts:satuan_delete", args=[kodim.uuid]), follow=True)
+        response = self.client.post(reverse("accounts:satuan_delete", args=[kodim.uuid]), kode_hapus(self.client, f"satuan:{kodim.uuid}"), follow=True)
         self.assertTrue(Satuan.objects.filter(pk=kodim.pk).exists())
         self.assertContains(response, "masih dipakai")
 

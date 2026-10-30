@@ -6,8 +6,14 @@
     Yakin ingin menghapus kendaraan <span class="font-semibold text-navy dark:text-slate-100">{{ vehicle.nopol }}</span>{% if vehicle.merek %} ({{ vehicle.merek }}){% endif %}?
     Semua foto kendaraan ini ikut terhapus dan tindakan ini tidak bisa dibatalkan.
 </p>
+<div x-data="{ kodeHapus: '' }">
+{% include "_captcha_hapus.html" with kode=captcha_kode %}
 <form method="post" action="{% url 'fleet:vehicle_delete' vehicle.uuid %}" class="flex items-center justify-end gap-3 pt-4">
     {% csrf_token %}
+    <input type="hidden" name="captcha" :value="kodeHapus">
     <button type="button" @click="modalOpen = false" class="rounded-md border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">Batal</button>
-    <button type="submit" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Hapus</button>
+    <button type="submit" :disabled="kodeHapus.length !== 6"
+            :class="kodeHapus.length === 6 ? 'bg-red-600 hover:bg-red-700 cursor-pointer' : 'bg-red-300 dark:bg-red-900/50 cursor-not-allowed'"
+            class="rounded-md px-4 py-2 text-sm font-medium text-white transition-colors">Hapus</button>
 </form>
+</div>

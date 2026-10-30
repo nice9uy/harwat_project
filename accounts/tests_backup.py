@@ -11,6 +11,7 @@ from django.urls import reverse
 
 from accounts import backup
 from fleet.models import Vehicle
+from accounts.tests_bantu import kode_hapus
 
 
 class BackupTests(TransactionTestCase):
@@ -81,7 +82,7 @@ class BackupTests(TransactionTestCase):
         nama = backup.daftar()[0]["nama"]
         hapus = reverse("accounts:backup_hapus", args=[nama])
         self.assertContains(self.client.get(hapus), "Yakin ingin menghapus backup")
-        self.assertRedirects(self.client.post(hapus), self.url)
+        self.assertRedirects(self.client.post(hapus, kode_hapus(self.client, f"backup:{nama}")), self.url)
         self.assertEqual(backup.daftar(), [])
         # Anything else in or near the folder is not a backup.
         (Path(self.tmp.name) / "backup" / "rahasia.txt").write_text("x")

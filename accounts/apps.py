@@ -16,6 +16,11 @@ class AccountsConfig(AppConfig):
         post_save.connect(_tulis_vpn, sender=VpnPeer, dispatch_uid="accounts_vpn_simpan")
         post_delete.connect(_tulis_vpn, sender=VpnPeer, dispatch_uid="accounts_vpn_hapus")
 
+        # A Tim member's biodata keeps their Ketua Tim's Satuan, and a Ketua
+        # Tim's team follows a change of theirs (accounts/satuan_tim.py).
+        from .models import Laporan
+        post_save.connect(_satuan_tim, sender=Laporan, dispatch_uid="accounts_satuan_tim")
+
         # The live Aktivasi Ketua Tim badge (accounts/realtime.py).
         from django.db.models.signals import m2m_changed
         post_save.connect(_kabar_aktivasi_simpan, sender=User, dispatch_uid="accounts_kabar_aktivasi_simpan")
@@ -48,3 +53,10 @@ def _kabar_aktivasi_simpan(sender, update_fields=None, raw=False, **kwargs):
     # A sign-in only touches last_login: nothing to tell.
     if not raw and (update_fields is None or "is_active" in update_fields):
         _kabar_aktivasi(sender)
+
+
+def _satuan_tim(sender, instance, raw=False, **kwargs):
+    if raw or instance.akun_id is None:
+        return
+    from .satuan_tim import samakan
+    samakan(instance.akun)

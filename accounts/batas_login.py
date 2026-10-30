@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from .models import GagalLogin
 
-BATAS_USERNAME = 5
+BATAS_USERNAME = 7
 BATAS_IP = 30
 JENDELA = datetime.timedelta(minutes=15)
 KUNCI = datetime.timedelta(minutes=15)
@@ -24,7 +24,12 @@ def ip_klien(request):
 
 
 def _kunci(request, username):
-    daftar = [f"ip:{ip_klien(request)}"]
+    from .keamanan import alamat_bersama
+
+    # A container network's gateway stands for every visitor: locking it would
+    # lock everyone out, so only the username counts then.
+    ip = ip_klien(request)
+    daftar = [] if alamat_bersama(ip) else [f"ip:{ip}"]
     if username:
         daftar.append(f"u:{username.strip().lower()[:150]}")
     return daftar

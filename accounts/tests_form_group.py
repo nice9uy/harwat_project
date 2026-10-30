@@ -6,6 +6,7 @@ from django.urls import reverse
 
 from accounts import roles
 from accounts.models import AksesFormTambah, Anggota
+from accounts.tests_bantu import kode_hapus
 
 
 class FormGroupTests(TestCase):
@@ -52,7 +53,7 @@ class FormGroupTests(TestCase):
         self.assertNotContains(self.client.get(reverse("accounts:dashboard")), f'href="{self.url}"')
         for url in (self.url, self._url("tambah", self.penambah), self._url("hapus", self.penambah)):
             self.assertNotEqual(self.client.get(url).status_code, 200)
-        self.client.post(self._url("hapus", self.penambah), {"kode": "B"})
+        self.client.post(self._url("hapus", self.penambah), {"kode": "B", **kode_hapus(self.client, f"form_group:{self.penambah.publik.uuid}:B")})
         self.assertFalse(AksesFormTambah.objects.exists())
 
     def test_hapus_then_tambah_on_a_member(self):
@@ -63,9 +64,9 @@ class FormGroupTests(TestCase):
         self.assertContains(konfirmasi, "Yakin ingin menghapus form")
         self.assertContains(konfirmasi, 'name="kode" value="diesel"')
         self.assertEqual(self._form(self.penambah), [kode for kode, _ in roles.FORM_TAMBAH])
-        response = self.client.post(self._url("hapus", self.penambah), {"kode": "diesel"})
+        response = self.client.post(self._url("hapus", self.penambah), {"kode": "diesel", **kode_hapus(self.client, f"form_group:{self.penambah.publik.uuid}:diesel")})
         self.assertEqual(response["HX-Redirect"], self.url)
-        self.client.post(self._url("hapus", self.penambah), {"kode": "B"})
+        self.client.post(self._url("hapus", self.penambah), {"kode": "B", **kode_hapus(self.client, f"form_group:{self.penambah.publik.uuid}:B")})
         self.assertEqual(self._form(self.penambah), ["bermotor", "jeep", "ranpur", "rantis", "ransus", "ranum", "non_kendaraan"])
 
         modal = self.client.get(self._url("tambah", self.penambah))
@@ -80,7 +81,7 @@ class FormGroupTests(TestCase):
         self.assertNotContains(lihat, "Kendaraan Diesel")
 
     def test_ketua_row_applies_to_the_team(self):
-        self.client.post(self._url("hapus", self.ketua_user), {"kode": "diesel"})
+        self.client.post(self._url("hapus", self.ketua_user), {"kode": "diesel", **kode_hapus(self.client, f"form_group:{self.ketua_user.publik.uuid}:diesel")})
         self.assertNotIn("diesel", self._form(self.penambah))
         # A member added later starts from the Ketua Tim's forms.
         baru = self._anggota("penambah2", "Tim Penambahan Data")
@@ -95,7 +96,7 @@ class FormGroupTests(TestCase):
 
     def test_forms_limit_form_tambah(self):
         for kode in ("B", "diesel"):
-            self.client.post(self._url("hapus", self.penambah), {"kode": kode})
+            self.client.post(self._url("hapus", self.penambah), {"kode": kode, **kode_hapus(self.client, f"form_group:{self.penambah.publik.uuid}:{kode}")})
         self.client.login(username="penambah1", password="rahasia-123")
         response = self.client.get(reverse("accounts:form_tambah"))
         self.assertContains(response, 'name="golongan" value="bermotor"')
@@ -120,7 +121,7 @@ class FormGroupTests(TestCase):
 
     def test_no_form_left(self):
         for kode, _ in roles.FORM_TAMBAH:
-            self.client.post(self._url("hapus", self.penambah), {"kode": kode})
+            self.client.post(self._url("hapus", self.penambah), {"kode": kode, **kode_hapus(self.client, f"form_group:{self.penambah.publik.uuid}:{kode}")})
         self.assertContains(self.client.get(self.url), "Belum ada form")
         self.client.login(username="penambah1", password="rahasia-123")
         response = self.client.get(reverse("accounts:form_tambah"))

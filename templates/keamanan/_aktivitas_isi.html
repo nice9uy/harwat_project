@@ -122,7 +122,7 @@
             <li class="py-3 text-center text-slate-400">Tidak ada IP yang diblokir.</li>
             {% endfor %}
         </ul>
-        <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">IP yang menyerang berulang (5 serangan berat atau 30 kejadian dalam 10 menit) diblokir otomatis selama 24 jam.</p>
+        <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">{% if blokir_otomatis %}IP yang menyerang berulang (5 serangan berat atau 30 kejadian dalam 10 menit) diblokir otomatis selama 24 jam.{% else %}Blokir otomatis tidak aktif: serangan hanya dicatat, IP diblokir hanya bila Anda memblokirnya di sini.{% endif %}</p>
     </div>
     {% endif %}
 </div>

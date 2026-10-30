@@ -126,9 +126,15 @@ def non_kendaraan_form(request, uid=None):
 @login_required
 def non_kendaraan_delete(request, uid):
     """GET: confirmation for the modal. POST: delete the item."""
+    from . import captcha_hapus
+
     barang = get_object_or_404(NonKendaraan, uuid=uid)
     if request.method == "POST":
+        if not captcha_hapus.cocok(request, f"non_kendaraan:{barang.uuid}"):
+            return _kembali(request, barang.group)
         barang.delete()
         messages.success(request, f"{barang} berhasil dihapus.")
         return _kembali(request, barang.group)
-    return render(request, "accounts/_non_kendaraan_delete_confirm.html", {"barang": barang})
+    return render(request, "accounts/_non_kendaraan_delete_confirm.html", {
+        "barang": barang, "captcha_kode": captcha_hapus.buat(request, f"non_kendaraan:{barang.uuid}"),
+    })

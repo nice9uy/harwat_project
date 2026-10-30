@@ -174,6 +174,9 @@ class _SatuanAkunMixin:
 
 def simpan_satuan(user, satuan):
     AkunPublik.objects.filter(user=user).update(satuan=satuan)
+    # A Tim member keeps their Ketua Tim's Satuan; a Ketua Tim's team follows them.
+    from .satuan_tim import samakan
+    samakan(user)
 
 
 def simpan_matra(user, kode, matra):
@@ -220,6 +223,9 @@ def terapkan_keanggotaan(user, kode, ketua=None, admin=None):
             Anggota.objects.get(pk=ketua.pk).add_child(user=user)
         elif node.get_parent().pk != ketua.pk:
             node.move(ketua, pos="last-child")
+        # In a (new) team: the member's Satuan becomes their Ketua Tim's.
+        from .satuan_tim import samakan_anggota
+        samakan_anggota(user)
     elif node is not None:
         node.delete()
 

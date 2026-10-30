@@ -249,12 +249,16 @@ def backup_unduh(request, nama):
 def backup_hapus(request, nama):
     """GET: confirmation for the modal. POST: delete the backup file."""
     _superuser(request)
+    from . import captcha_hapus
+
     berkas = _berkas(nama)
     if request.method == "POST":
+        if not captcha_hapus.cocok(request, f"backup:{nama}"):
+            return redirect("accounts:backup")
         berkas.unlink()
         messages.success(request, f"Backup {nama} berhasil dihapus.")
         return redirect("accounts:backup")
-    return render(request, "accounts/_backup_hapus.html", {"nama": nama})
+    return render(request, "accounts/_backup_hapus.html", {"nama": nama, "captcha_kode": captcha_hapus.buat(request, f"backup:{nama}")})
 
 
 # Uploaded backups: at most this big (the app's own upload limit applies too).

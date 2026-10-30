@@ -153,15 +153,23 @@ def vehicle_update(request, uid):
 
 @login_required
 def vehicle_delete_confirm(request, uid):
+    from accounts import captcha_hapus  # accounts depends on fleet, not the other way round
+
     vehicle = get_object_or_404(Vehicle, uuid=uid)
-    return render(request, "fleet/_vehicle_delete_confirm.html", {"vehicle": vehicle})
+    return render(request, "fleet/_vehicle_delete_confirm.html", {
+        "vehicle": vehicle, "captcha_kode": captcha_hapus.buat(request, f"kendaraan:{vehicle.uuid}"),
+    })
 
 
 @login_required
 @require_POST
 def vehicle_delete(request, uid):
     vehicle = get_object_or_404(Vehicle, uuid=uid)
+    from accounts import captcha_hapus
     from accounts.golongan import GOLONGAN  # accounts depends on fleet, not the other way round
+
+    if not captcha_hapus.cocok(request, f"kendaraan:{vehicle.uuid}"):
+        return redirect(_list_url(vehicle.group_kendaraan))
 
     if any(getattr(vehicle, cfg.relasi).exists() for cfg in GOLONGAN.values()) or vehicle.servis.exists():
         messages.error(request, f"Kendaraan {vehicle.nopol} tidak bisa dihapus karena sudah punya data pemeriksaan atau servis.")

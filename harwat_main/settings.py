@@ -112,6 +112,10 @@ ROOT_URLCONF = 'harwat_main.urls'
 
 # A refused CSRF token is logged for Hacking Activity (accounts.keamanan).
 CSRF_FAILURE_VIEW = 'accounts.keamanan.csrf_gagal'
+# Hacking Activity blocks an address by itself after repeated attacks only
+# when this is on (KEAMANAN_BLOKIR_OTOMATIS=True in .env.prod); by default no
+# address is blocked automatically, only those a superuser blocks by hand.
+KEAMANAN_BLOKIR_OTOMATIS = os.environ.get('KEAMANAN_BLOKIR_OTOMATIS', 'False') == 'True'
 # The blacklist and maintenance state are read again every few seconds; in the
 # test run only when a test changes them (their query count stays steady).
 if sys.argv[1:2] == ['test']:

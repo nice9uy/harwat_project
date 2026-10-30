@@ -37,6 +37,27 @@ TIDAK_DIBLOKIR_OTOMATIS = {"127.0.0.1", "::1"} | {
     a.strip() for a in __import__("os").environ.get("KEAMANAN_IP_AMAN", "").split(",") if a.strip()
 }
 
+# The container networks (KEAMANAN_JARINGAN_PROXY, podman's defaults). Rootless
+# podman hands nginx its connections from the network's gateway, not from the
+# visitor, so an address in here stands for every visitor at once: it is never
+# blocked (by itself or by hand) and never locks logins for everyone. Its
+# events are still logged.
+JARINGAN_PROXY = [
+    ipaddress.ip_network(j.strip(), strict=False)
+    for j in __import__("os").environ.get("KEAMANAN_JARINGAN_PROXY", "10.88.0.0/16,10.89.0.0/16").split(",")
+    if j.strip()
+]
+
+
+def alamat_bersama(alamat):
+    """Whether ``alamat`` is a container network's gateway standing for every
+    visitor (JARINGAN_PROXY), rather than one visitor."""
+    try:
+        ip = ipaddress.ip_address(alamat)
+    except ValueError:
+        return False
+    return any(ip.version == j.version and ip in j for j in JARINGAN_PROXY)
+
 POLA_PEMINDAIAN = re.compile(
     r"(\.env\b|/\.git(/|$)|wp-admin|wp-login|wp-content|xmlrpc\.php|phpmyadmin|\.php\d?\b|/cgi-bin/|"
     r"/etc/passwd|\.\./|%2e%2e|/actuator|/vendor/phpunit|/boaform|/hnap1|\.aspx?\b|/solr/|"
@@ -104,12 +125,12 @@ def _blokir_bila_berulang(request, alamat):
 
     from .models import AktivitasMencurigakan, IpBlokir
 
-    # Not in development (DEBUG): with no nginx in front to pass the real
-    # address on, every visitor comes from the container network's gateway,
-    # and blocking it would shut everyone out. Events are still logged.
-    if settings.DEBUG and not getattr(settings, "KEAMANAN_BLOKIR_OTOMATIS_DEBUG", False):
+    # Off unless KEAMANAN_BLOKIR_OTOMATIS is on: behind rootless podman every
+    # visitor may come from one address (JARINGAN_PROXY), and no visitor is to
+    # be shut out by itself. Attacks are still logged; blocking is by hand.
+    if not getattr(settings, "KEAMANAN_BLOKIR_OTOMATIS", False):
         return
-    if alamat in TIDAK_DIBLOKIR_OTOMATIS or diblokir(alamat):
+    if alamat in TIDAK_DIBLOKIR_OTOMATIS or alamat_bersama(alamat) or diblokir(alamat):
         return
     sejak = timezone.now() - JENDELA_OTOMATIS
     # Failed and locked logins have their own lock (batas_login): not counted here.
@@ -149,7 +170,7 @@ def _bersihkan_kadang():
 # --- Blacklist, read once per few seconds per process -----------------------
 
 _jaringan = []  # [(network, row id)]
-_dimuat = 0.0
+_dimuat = float("-inf")  # never read yet: stale whatever the clock says
 _versi_dimuat = -1
 
 
@@ -164,7 +185,7 @@ def _segar_detik(bawaan):
 def segarkan_blokir():
     """Re-read the blacklist here at once, and tell the other processes."""
     global _dimuat
-    _dimuat = 0.0
+    _dimuat = float("-inf")
     from .realtime import kabarkan
     kabarkan("blokir")
 
@@ -204,6 +225,8 @@ def memuat_alamat_penting(alamat, ip_sendiri):
         jaringan = ipaddress.ip_network(alamat, strict=False)
     except ValueError:
         return False
+    if any(jaringan.version == j.version and jaringan.overlaps(j) for j in JARINGAN_PROXY):
+        return True  # would shut out every visitor (see JARINGAN_PROXY)
     for penting in {ip_sendiri, *TIDAK_DIBLOKIR_OTOMATIS}:
         try:
             ip = ipaddress.ip_address(penting)
@@ -263,7 +286,7 @@ def csrf_gagal(request, reason=""):
 
 # --- Maintenance -------------------------------------------------------------
 
-_pemeliharaan = (0.0, -1, None)  # (read at, realtime version then, row or None)
+_pemeliharaan = (float("-inf"), -1, None)  # (read at, realtime version then, row or None)
 
 
 def pemeliharaan():
@@ -283,7 +306,7 @@ def pemeliharaan():
 
 def lupakan_pemeliharaan():
     global _pemeliharaan
-    _pemeliharaan = (0.0, -1, None)
+    _pemeliharaan = (float("-inf"), -1, None)
     from .realtime import kabarkan
     kabarkan("pemeliharaan")
 

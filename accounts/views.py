@@ -271,9 +271,14 @@ def info_profile_view(request):
 def info_profile_edit_view(request):
     user = request.user
     laporan = Laporan.objects.filter(akun=user).order_by("-dibuat_pada").first()
+    from .satuan_tim import satuan_tim
+
+    # A Tim member's Satuan is their Ketua Tim's: shown, not picked.
+    satuan_ketua = satuan_tim(user)
     if request.method == "POST":
         form = BiodataForm(request.POST, request.FILES, instance=laporan)
         form.fields["foto"].required = not (laporan and laporan.foto)
+        _kunci_satuan(form, satuan_ketua)
         if form.is_valid():
             obj = form.save(commit=False)
             obj.akun = user
@@ -288,7 +293,17 @@ def info_profile_edit_view(request):
         return render(request, "accounts/_info_profile_edit.html", {"form": form})
     form = BiodataForm(instance=laporan)
     form.fields["foto"].required = not (laporan and laporan.foto)
+    _kunci_satuan(form, satuan_ketua)
     return render(request, "accounts/_info_profile_edit.html", {"form": form, "laporan": laporan})
+
+
+def _kunci_satuan(form, satuan):
+    """A Tim member's biodata form: the Satuan is fixed to their Ketua Tim's."""
+    if satuan:
+        form.fields["satuan"].disabled = True
+        form.fields["satuan"].initial = satuan
+        form.initial["satuan"] = satuan
+        form.satuan_ikut_ketua = form.fields["satuan"].queryset.filter(pk=satuan).first()
 
 
 @login_required
@@ -1269,12 +1284,18 @@ def satuan_form_view(request, uid=None):
 @login_required
 def satuan_delete(request, uid):
     """GET: confirmation for the modal. POST: delete the Satuan."""
+    from . import captcha_hapus
+
     satuan = get_object_or_404(Satuan, uuid=uid)
     if request.method == "POST":
+        if not captcha_hapus.cocok(request, f"satuan:{satuan.uuid}"):
+            return _ke_tab_satuan(request, satuan.matra)
         if satuan.biodata.exists() or satuan.pemeriksaan_golongan_b.exists():
             messages.error(request, f"Satuan {satuan.nama} masih dipakai di biodata atau pemeriksaan, jadi tidak bisa dihapus.")
             return _ke_tab_satuan(request, satuan.matra)
         satuan.delete()
         messages.success(request, f"Satuan {satuan.nama} berhasil dihapus.")
         return _ke_tab_satuan(request, satuan.matra)
-    return render(request, "accounts/_satuan_delete_confirm.html", {"satuan": satuan})
+    return render(request, "accounts/_satuan_delete_confirm.html", {
+        "satuan": satuan, "captcha_kode": captcha_hapus.buat(request, f"satuan:{satuan.uuid}"),
+    })

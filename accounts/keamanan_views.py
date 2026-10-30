@@ -45,6 +45,7 @@ def _konteks(request):
     return {
         # Two tabs (?tab=): the events, and the blacklist.
         "tab": "blokir" if request.GET.get("tab") == "blokir" else "aktivitas",
+        "blokir_otomatis": getattr(__import__("django.conf").conf.settings, "KEAMANAN_BLOKIR_OTOMATIS", False),
         "ringkas": ringkas,
         "teratas": teratas,
         "halaman": hal,

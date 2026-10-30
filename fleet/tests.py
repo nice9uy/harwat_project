@@ -9,6 +9,7 @@ from django.urls import reverse
 
 from .forms import VehicleForm
 from .models import Vehicle, VehiclePhoto
+from accounts.tests_bantu import kode_hapus
 
 MEDIA_ROOT = tempfile.mkdtemp()
 
@@ -321,7 +322,7 @@ class VehicleDeleteViewTests(TestCase):
         )
 
     def test_post_deletes_vehicle_and_redirects(self):
-        response = self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.uuid]))
+        response = self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.uuid]), kode_hapus(self.client, f"kendaraan:{self.vehicle.uuid}"))
         self.assertRedirects(response, reverse("fleet:vehicle_list"))
         self.assertEqual(Vehicle.objects.count(), 0)
 
@@ -347,7 +348,7 @@ class VehicleDeleteViewTests(TestCase):
         foto = VehiclePhoto.objects.create(vehicle=self.vehicle, image=_png_upload())
         storage, name = foto.image.storage, foto.image.name
         self.assertTrue(storage.exists(name))
-        self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.uuid]))
+        self.client.post(reverse("fleet:vehicle_delete", args=[self.vehicle.uuid]), kode_hapus(self.client, f"kendaraan:{self.vehicle.uuid}"))
         self.assertFalse(storage.exists(name))
 
 

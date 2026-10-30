@@ -10,6 +10,7 @@ from PIL import Image
 from fleet.models import NonKendaraan
 
 import tempfile
+from accounts.tests_bantu import kode_hapus
 
 
 def _foto():
@@ -71,7 +72,7 @@ class NonKendaraanTests(TestCase):
 
         hapus = reverse("accounts:non_kendaraan_delete", args=[barang.uuid])
         self.assertContains(self.client.get(hapus), "Yakin ingin menghapus")
-        self.assertRedirects(self.client.post(hapus), self.url)
+        self.assertRedirects(self.client.post(hapus, kode_hapus(self.client, f"non_kendaraan:{barang.uuid}")), self.url)
         self.assertFalse(NonKendaraan.objects.exists())
 
     def test_several_tenda_without_kode_and_nama_is_required(self):

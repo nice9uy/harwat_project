@@ -1,0 +1,15 @@
+{% comment %}
+The code to retype before a delete (accounts/captcha_hapus.py). Inside an
+element with x-data="{ kodeHapus: '' }" whose form posts kodeHapus as
+"captcha" and keeps its Hapus button off until six digits are in. Param: kode.
+{% endcomment %}
+<div class="space-y-3 pt-4">
+    <div class="flex items-center justify-center rounded-lg border border-slate-300 bg-slate-100 py-3 dark:border-slate-600 dark:bg-slate-700">
+        <span class="select-none font-mono text-3xl font-bold tracking-[0.4em] text-navy dark:text-slate-100" aria-label="Kode verifikasi {{ kode }}">{{ kode }}</span>
+    </div>
+    <div>
+        <label class="mb-1 block text-sm text-slate-600 dark:text-slate-300">Masukkan kode di atas untuk konfirmasi:</label>
+        <input type="text" x-model="kodeHapus" autocomplete="off" inputmode="numeric" maxlength="6" spellcheck="false"
+               class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-center font-mono text-sm tracking-widest text-slate-900 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
+    </div>
+</div>

@@ -38,7 +38,7 @@ class DeteksiTests(TestCase):
         self.client.get("/admin/")
         self.assertTrue(A.objects.filter(jenis=A.Jenis.AKSES_ADMIN).exists())
 
-    @override_settings(KEAMANAN_BLOKIR_OTOMATIS_DEBUG=True)
+    @override_settings(KEAMANAN_BLOKIR_OTOMATIS=True)
     def test_repeated_attacks_block_the_address_then_it_is_refused(self):
         for _ in range(keamanan.BATAS_TINGGI):
             self.client.get("/.env", REMOTE_ADDR="203.0.113.9")
@@ -51,8 +51,7 @@ class DeteksiTests(TestCase):
         call_command("buka_blokir_ip", "203.0.113.9", stdout=open("/dev/null", "w"))
         self.assertEqual(self.client.get("/login/", REMOTE_ADDR="203.0.113.9").status_code, 200)
 
-    @override_settings(DEBUG=True)
-    def test_no_self_blocking_in_development(self):
+    def test_no_automatic_blocking_by_default(self):
         for _ in range(keamanan.BATAS_TINGGI + 2):
             self.client.get("/.env", REMOTE_ADDR="10.89.0.1")
         self.assertFalse(IpBlokir.objects.exists())
@@ -156,3 +155,37 @@ class PentestRegresiTests(TestCase):
             boleh = klien.post("/auth/login", json={"username": "root", "password": "rahasia-123"}, headers={"x-real-ip": "203.0.113.51"})
         self.assertEqual(ditolak.status_code, 403)
         self.assertEqual(boleh.status_code, 200)
+
+
+class AlamatBersamaTests(TestCase):
+    """Rootless podman shows every visitor as the container network's gateway:
+    that address must never be blocked nor lock logins for everyone."""
+
+    def setUp(self):
+        keamanan.segarkan_blokir()
+
+    @override_settings(KEAMANAN_BLOKIR_OTOMATIS=True)
+    def test_the_gateway_is_logged_but_never_blocked(self):
+        for _ in range(keamanan.BATAS_TINGGI + 3):
+            self.client.get("/.env", REMOTE_ADDR="10.89.0.56")
+        self.assertFalse(IpBlokir.objects.exists())
+        self.assertEqual(A.objects.filter(ip="10.89.0.56", jenis=A.Jenis.PEMINDAIAN).count(), keamanan.BATAS_TINGGI + 3)
+        self.assertEqual(self.client.get("/login/", REMOTE_ADDR="10.89.0.56").status_code, 200)
+
+    def test_it_cannot_be_blocked_by_hand(self):
+        User.objects.create_superuser(username="root", password="rahasia-123")
+        self.client.login(username="root", password="rahasia-123")
+        for alamat in ("10.89.0.56", "10.89.0.0/24", "10.0.0.0/8"):
+            self.client.post(reverse("accounts:blokir_tambah"), {"alamat": alamat})
+        self.assertFalse(IpBlokir.objects.exists())
+
+    def test_logins_lock_per_username_only(self):
+        from accounts import batas_login
+        from accounts.models import GagalLogin
+
+        for i in range(batas_login.BATAS_IP + 2):
+            self.client.post(reverse("accounts:login"), {"username": f"orang{i}", "password": "salah"}, REMOTE_ADDR="10.89.0.56")
+        self.assertFalse(GagalLogin.objects.filter(kunci__startswith="ip:").exists())
+        User.objects.create_user(username="pegawai", password="rahasia-123")
+        masuk = self.client.post(reverse("accounts:login"), {"username": "pegawai", "password": "rahasia-123"}, REMOTE_ADDR="10.89.0.56")
+        self.assertEqual(masuk.status_code, 302)

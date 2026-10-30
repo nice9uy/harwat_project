@@ -137,8 +137,12 @@ def form_group_hapus(request, uid):
     asks to confirm that one; POST removes it."""
     _superuser(request)
     user, node, anggota = _target(uid)
+    from . import captcha_hapus
+
     if request.method == "POST":
         kode = request.POST.get("kode")
+        if not captcha_hapus.cocok(request, f"form_group:{uid}:{kode}"):
+            return _kembali()
         if kode in SEMUA:
             _ubah(user, node, anggota, [kode], tambah=False)
             messages.success(request, f"Form {LABEL[kode]} dihapus dari {user.username}.")
@@ -148,6 +152,7 @@ def form_group_hapus(request, uid):
     if kode in punya:
         return render(request, "accounts/_form_group_hapus_confirm.html", {
             "akun": user, "ketua": node.is_root(), "jumlah": len(anggota), "kode": kode, "label": LABEL[kode],
+            "captcha_kode": captcha_hapus.buat(request, f"form_group:{uid}:{kode}"),
         })
     return render(request, "accounts/_form_group_hapus.html", {
         "akun": user, "ketua": node.is_root(), "jumlah": len(anggota),
